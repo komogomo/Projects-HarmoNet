@@ -1,0 +1,31 @@
+﻿@'
+# OS依存ファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 一時バックアップや出力ファイル
+*.tmp
+*.bak
+*.log
+__snapshot_*/
+__backup_*/
+__old*/
+##_old/
+# Editor キャッシュ
+.vscode/
+.idea/
+
+# PDFやエクスポート成果物（必要に応じて除外）
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+
+# AIツールの作業ディレクトリ（Gemini/Claudeなど）
+temp_*/ 
+cache_*/
+
+# システム生成メタデータ
+~$*
+'@ | Set-Content .gitignore -Encoding utf8
