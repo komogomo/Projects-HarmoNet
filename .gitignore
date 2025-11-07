@@ -1,31 +1,64 @@
-﻿@'
-# OS依存ファイル
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# 一時バックアップや出力ファイル
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
 *.tmp
 *.bak
 *.log
-__snapshot_*/
+
+# Backups
+backup/
+backup_phase9_lowercase/
 __backup_*/
 __old*/
-##_old/
-# Editor キャッシュ
-.vscode/
-.idea/
 
-# PDFやエクスポート成果物（必要に応じて除外）
-*.pdf
-*.docx
-*.pptx
-*.xlsx
+# Project specific
+docs/
+Project-HarmoNet-directory-ist.txt
 
-# AIツールの作業ディレクトリ（Gemini/Claudeなど）
-temp_*/ 
-cache_*/
-
-# システム生成メタデータ
-~$*
-'@ | Set-Content .gitignore -Encoding utf8
+# Supabase
+.branches
+.temp
