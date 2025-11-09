@@ -1,0 +1,10 @@
+import next from 'eslint-config-next';
+import prettier from 'eslint-config-prettier';
+
+export default [
+  {
+    ignores: ['node_modules', '.next', 'dist'],
+  },
+  ...next,
+  prettier,
+];

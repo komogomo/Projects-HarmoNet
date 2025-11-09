@@ -1,0 +1,17 @@
+{
+  "common": {
+    "language": "Language",
+    "save": "Save",
+    "cancel": "Cancel",
+    "copyright": "© 2025 HarmoNet. All rights reserved."
+  },
+  "shortcut": {
+    "board": "Board",
+    "booking": "Booking",
+    "survey": "Survey",
+    "mypage": "My Page",
+    "settings": "Settings",
+    "tenants": "Tenants",
+    "logs": "Logs"
+  }
+}

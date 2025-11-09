@@ -1,0 +1,17 @@
+{
+  "common": {
+    "language": "言語",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "copyright": "© 2025 HarmoNet. All rights reserved."
+  },
+  "shortcut": {
+    "board": "掲示板",
+    "booking": "施設予約",
+    "survey": "アンケート",
+    "mypage": "マイページ",
+    "settings": "設定",
+    "tenants": "テナント管理",
+    "logs": "ログ"
+  }
+}

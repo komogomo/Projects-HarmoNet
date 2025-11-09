@@ -1,0 +1,17 @@
+{
+  "common": {
+    "language": "语言",
+    "save": "保存",
+    "cancel": "取消",
+    "copyright": "© 2025 HarmoNet. 版权所有。"
+  },
+  "shortcut": {
+    "board": "论坛",
+    "booking": "预约",
+    "survey": "问卷",
+    "mypage": "我的主页",
+    "settings": "设置",
+    "tenants": "租户管理",
+    "logs": "日志"
+  }
+}
