@@ -1,68 +1,36 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { LanguageSwitch } from './LanguageSwitch';
+import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
 
-const replaceMock = jest.fn();
+describe('LanguageSwitch (3-button)', () => {
+  test('初期表示と各ボタンでの切替', async () => {
+    const user = userEvent.setup();
+    render(
+      <StaticI18nProvider initialLocale="ja">
+        <LanguageSwitch />
+      </StaticI18nProvider>
+    );
 
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: replaceMock }),
-  usePathname: () => '/login',
-}));
+    const jaBtn = screen.getByRole('button', { name: /JAに切り替え/i });
+    const enBtn = screen.getByRole('button', { name: /ENに切り替え/i });
+    const zhBtn = screen.getByRole('button', { name: /中文に切り替え/i });
 
-jest.mock('lucide-react', () => ({
-  ChevronDown: (props: any) => <span {...props} />,
-  Check: (props: any) => <span {...props} />,
-}));
+    expect(jaBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(enBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(zhBtn).toHaveAttribute('aria-pressed', 'false');
 
-describe('LanguageSwitch', () => {
-  beforeEach(() => {
-    replaceMock.mockClear();
-  });
+    await user.click(enBtn);
+    expect(enBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(jaBtn).toHaveAttribute('aria-pressed', 'false');
 
-  it('現在ロケールが表示される (T-C02-01)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    expect(screen.getByTestId('language-switch-current')).toHaveTextContent('ja');
-  });
+    await user.click(zhBtn);
+    expect(zhBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(enBtn).toHaveAttribute('aria-pressed', 'false');
 
-  it('メニューが展開される (T-C02-02)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    fireEvent.click(screen.getByTestId('language-switch'));
-    expect(screen.getByTestId('language-switch-menu')).toBeInTheDocument();
-  });
-
-  it('言語選択時に router.replace が呼ばれる (T-C02-03)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    fireEvent.click(screen.getByTestId('language-switch'));
-    fireEvent.click(screen.getByTestId('language-switch-option-en'));
-    expect(replaceMock).toHaveBeenCalledWith('/login');
-  });
-
-  it('onLanguageChange コールバックが発火する (T-C02-04)', () => {
-    const cb = jest.fn();
-    render(<LanguageSwitch currentLocale="ja" onLanguageChange={cb} />);
-    fireEvent.click(screen.getByTestId('language-switch'));
-    fireEvent.click(screen.getByTestId('language-switch-option-en'));
-    expect(cb).toHaveBeenCalledWith('en');
-  });
-
-  it('現在ロケールにチェックマークが表示される (T-C02-05)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    fireEvent.click(screen.getByTestId('language-switch'));
-    expect(screen.getByTestId('language-switch-check-ja')).toBeInTheDocument();
-  });
-
-  it('キーボード操作でメニューを開ける (T-C02-06)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    const trigger = screen.getByTestId('language-switch');
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: 'Enter' });
-    expect(screen.getByTestId('language-switch-menu')).toBeInTheDocument();
-  });
-
-  it('aria 属性が設定されている (T-C02-07)', () => {
-    render(<LanguageSwitch currentLocale="ja" />);
-    fireEvent.click(screen.getByTestId('language-switch'));
-    const item = screen.getByTestId('language-switch-option-ja');
-    expect(item).toHaveAttribute('role', 'menuitemradio');
-    expect(item).toHaveAttribute('aria-checked', 'true');
+    await user.click(jaBtn);
+    expect(jaBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(zhBtn).toHaveAttribute('aria-pressed', 'false');
   });
 });

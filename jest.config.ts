@@ -7,9 +7,10 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/setupTests.ts'],
-  testMatch: ['**/?(*.)+(test).[tj]sx?'],
+  testMatch: ['<rootDir>/src/**/*.test.{ts,tsx}'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^lucide-react$': '<rootDir>/test/__mocks__/lucide-react.tsx',
   },
 };
 

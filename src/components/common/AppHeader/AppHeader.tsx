@@ -62,8 +62,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* 言語切替 */}
         <LanguageSwitch
           testId={`${testId}-language-switch`}
-          currentLocale={currentLocale}
-          onLanguageChange={setLocale}
         />
       </div>
     </header>

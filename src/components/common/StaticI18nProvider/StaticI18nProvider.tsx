@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Locale, StaticI18nContextValue, StaticI18nProviderProps, Translations } from './StaticI18nProvider.types';
 

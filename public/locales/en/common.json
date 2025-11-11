@@ -13,5 +13,14 @@
     "settings": "Settings",
     "tenants": "Tenants",
     "logs": "Logs"
+  },
+  "auth": {
+    "enter_email": "Enter your email address",
+    "send_magic_link": "Send login link",
+    "email_sent": "Email sent successfully",
+    "retry": "Retry",
+    "invalid_email": "Invalid email address",
+    "network_error": "Network error occurred",
+    "check_your_email": "Please check your email"
   }
 }

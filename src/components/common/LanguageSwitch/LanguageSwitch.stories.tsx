@@ -19,9 +19,3 @@ export const English: Story = {
 export const Chinese: Story = {
   render: () => <LanguageSwitch />,
 };
-
-export const WithCallback: Story = {
-  args: {
-    onLanguageChange: () => {},
-  },
-};

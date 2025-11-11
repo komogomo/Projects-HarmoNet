@@ -13,5 +13,14 @@
     "settings": "设置",
     "tenants": "租户管理",
     "logs": "日志"
+  },
+  "auth": {
+    "enter_email": "请输入电子邮件地址",
+    "send_magic_link": "发送登录链接",
+    "email_sent": "邮件已发送",
+    "retry": "重试",
+    "invalid_email": "电子邮件地址无效",
+    "network_error": "发生网络错误",
+    "check_your_email": "请检查您的电子邮件"
   }
 }

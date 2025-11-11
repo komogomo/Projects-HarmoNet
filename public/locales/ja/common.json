@@ -13,5 +13,15 @@
     "settings": "設定",
     "tenants": "テナント管理",
     "logs": "ログ"
-  }
+  },
+   "auth": {
+   "enter_email": "メールアドレスを入力してください",
+  "send_magic_link": "ログインリンクを送信",
+  "email_sent": "メールを送信しました",
+  "retry": "再試行",
+  "check_your_email": "メールを確認してください",
+  "invalid_email": "無効なメールアドレスです",
+  "network_error": "ネットワークエラーが発生しました"
+ }
 }
+
