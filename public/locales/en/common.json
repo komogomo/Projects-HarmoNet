@@ -18,9 +18,18 @@
     "enter_email": "Enter your email address",
     "send_magic_link": "Send login link",
     "email_sent": "Email sent successfully",
+    "sending": "Sending...",
+    "link_sent": "Sent. Please check your email.",
+    "error_generic": "Failed to send. Please try again.",
     "retry": "Retry",
     "invalid_email": "Invalid email address",
     "network_error": "Network error occurred",
-    "check_your_email": "Please check your email"
+    "check_your_email": "Please check your email",
+    "passkey": {
+      "login": "Sign in with passkey",
+      "success": "Passkey sign-in successful",
+      "progress": "Checking passkey availability...",
+      "retry": "Try passkey again"
+    }
   }
 }

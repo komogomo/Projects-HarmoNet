@@ -1,4 +1,9 @@
 @import "tailwindcss";
+/* Tailwind v4: scan sources for class usage (Storybook included) */
+@source "../src/**/*.{ts,tsx,js,jsx,mdx}",
+        "../app/**/*.{ts,tsx,js,jsx,mdx}",
+        "../components/**/*.{ts,tsx,js,jsx,mdx}",
+        "../.storybook/**/*.{js,jsx,ts,tsx,mdx}";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
