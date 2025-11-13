@@ -19,50 +19,50 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         bg-white
         border-b border-gray-200
         z-[1000]
-        flex items-center justify-between
-        px-5
         ${className}
       `}
       data-testid={testId}
       role="banner"
     >
-      {/* ロゴ */}
-      <div className="flex items-center">
-        <Image
-          src="/images/logo.svg"
-          alt="HarmoNet"
-          width={128}
-          height={32}
-          data-testid={`${testId}-logo`}
-          priority
-        />
-      </div>
+      {/* ★ ここをフレーム化 */}
+      <div className="w-full max-w-[500px] mx-auto px-5 h-full flex items-center justify-between">
 
-      {/* 右側要素 */}
-      <div className="flex items-center gap-4">
-        {/* 通知アイコン（認証後のみ） */}
-        {variant === 'authenticated' && (
-          <button
-            className="
-              relative
-              w-10 h-10
-              flex items-center justify-center
-              text-gray-600
-              hover:bg-gray-100
-              rounded-lg
-              transition-colors
-            "
-            aria-label="通知を表示"
-            data-testid={`${testId}-notification`}
-          >
-            <span className="text-2xl" aria-hidden="true">🔔</span>
-          </button>
-        )}
+        {/* ロゴ */}
+        <div className="flex items-center">
+          <Image
+            src="/images/logo-harmone.png"
+            alt="HarmoNet"
+            width={128}
+            height={32}
+            data-testid={`${testId}-logo`}
+            priority
+          />
+        </div>
 
-        {/* 言語切替 */}
-        <LanguageSwitch
-          testId={`${testId}-language-switch`}
-        />
+        {/* 右側要素 */}
+        <div className="flex items-center gap-4">
+
+          {variant === 'authenticated' && (
+            <button
+              className="
+                relative
+                w-10 h-10
+                flex items-center justify-center
+                text-gray-600
+                hover:bg-gray-100
+                rounded-lg
+                transition-colors
+              "
+              aria-label="通知を表示"
+              data-testid={`${testId}-notification`}
+            >
+              <span className="text-2xl" aria-hidden="true">🔔</span>
+            </button>
+          )}
+
+          <LanguageSwitch testId={`${testId}-language-switch`} />
+        </div>
+
       </div>
     </header>
   );

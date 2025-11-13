@@ -87,10 +87,16 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, passkey
         required
       />
 
-      <button
-        type="submit"
-        disabled={state === 'sending'}
-        className="h-12 rounded-2xl bg-blue-600 text-white font-medium disabled:opacity-60 transition"
+<button
+  type="submit"
+  disabled={state === 'sending'}
+  className="
+    h-12 rounded-2xl shadow-sm
+    bg-[#6495ed] text-white
+    flex items-center justify-center gap-2
+    disabled:opacity-60
+    hover:bg-[#5386d9] transition-all
+  "
       >
         {state === 'sending' ? t('auth.sending') : t('auth.send_magic_link')}
       </button>
