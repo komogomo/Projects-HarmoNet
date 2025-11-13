@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { CheckCircle, AlertCircle } from 'lucide-react';
-import { useStaticI18n } from '@/components/common/StaticI18nProvider/StaticI18nProvider';
+import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 
 export interface MagicLinkError {
   code: string;

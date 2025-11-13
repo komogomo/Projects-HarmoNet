@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabaseClient';
-import { AuthLoadingIndicator } from '@/components/common/AuthLoadingIndicator/AuthLoadingIndicator';
+import { AuthLoadingIndicator } from '@/src/components/common/AuthLoadingIndicator/AuthLoadingIndicator';
 import { AlertCircle } from 'lucide-react';
 
 type State = 'loading' | 'success' | 'error';

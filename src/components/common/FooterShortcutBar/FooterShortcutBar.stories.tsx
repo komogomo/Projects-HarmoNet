@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import { FooterShortcutBar } from './FooterShortcutBar';
 import type { UserRole } from './FooterShortcutBar.types';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 const meta: Meta<typeof FooterShortcutBar> = {
   title: 'Common/FooterShortcutBar',

@@ -1,6 +1,6 @@
 import React from 'react';
 import '../app/globals.css';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 
 const preview = {
   parameters: {

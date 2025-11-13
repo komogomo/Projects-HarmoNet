@@ -1,32 +1,35 @@
 import React from 'react';
 import { MagicLinkForm } from './MagicLinkForm';
-import { StaticI18nProvider, useStaticI18n } from '@/components/common/StaticI18nProvider/StaticI18nProvider';
+import { StaticI18nProvider, useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import { userEvent, within } from '@storybook/test';
+
+type Locale = 'ja' | 'en' | 'zh';
+
+const Button: React.FC<{ code: Locale; label: string; currentLocale: Locale; setLocale: (l: Locale) => void }> = ({ code, label, currentLocale, setLocale }) => (
+  <button
+    type="button"
+    onClick={() => setLocale(code)}
+    disabled={currentLocale === code}
+    style={{
+      padding: '4px 10px',
+      borderRadius: 6,
+      border: '1px solid #e5e7eb',
+      background: currentLocale === code ? '#111827' : '#ffffff',
+      color: currentLocale === code ? '#ffffff' : '#111827',
+      cursor: currentLocale === code ? 'default' : 'pointer',
+    }}
+  >
+    {label}
+  </button>
+);
 
 function LocaleSwitcher() {
   const { currentLocale, setLocale } = useStaticI18n();
-  const Button = ({ code, label }: { code: string; label: string }) => (
-    <button
-      type="button"
-      onClick={() => setLocale(code)}
-      disabled={currentLocale === code}
-      style={{
-        padding: '4px 10px',
-        borderRadius: 6,
-        border: '1px solid #e5e7eb',
-        background: currentLocale === code ? '#111827' : '#ffffff',
-        color: currentLocale === code ? '#ffffff' : '#111827',
-        cursor: currentLocale === code ? 'default' : 'pointer',
-      }}
-    >
-      {label}
-    </button>
-  );
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
-      <Button code="ja" label="JA" />
-      <Button code="en" label="EN" />
-      <Button code="zh" label="ZH" />
+      <Button code="ja" label="JA" currentLocale={currentLocale} setLocale={setLocale} />
+      <Button code="en" label="EN" currentLocale={currentLocale} setLocale={setLocale} />
+      <Button code="zh" label="ZH" currentLocale={currentLocale} setLocale={setLocale} />
     </div>
   );
 }

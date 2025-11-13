@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { FooterShortcutBar } from './FooterShortcutBar';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 jest.mock('next/link', () => ({ __esModule: true, default: ({ href, children, ...props }: any) => (
   <a href={href} {...props}>{children}</a>

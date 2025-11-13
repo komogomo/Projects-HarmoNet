@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { AppHeader } from './AppHeader';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: jest.fn() }),

@@ -71,10 +71,22 @@ const config = {
 
     config.resolve = config.resolve || {};
     config.resolve.extensions = Array.from(new Set([...(config.resolve.extensions || []), '.ts', '.tsx', '.js', '.jsx']));
-    config.resolve.alias = Object.assign({}, config.resolve.alias || {}, {
+    const alias = Object.assign({}, config.resolve.alias || {}, {
+      '@/src': path.resolve(__dirname, '../src'),
       '@': path.resolve(__dirname, '../src'),
+      // Ensure explicit resolution for StaticI18nProvider
+      '@/src/components/common/StaticI18nProvider': path.resolve(__dirname, '../src/components/common/StaticI18nProvider'),
+      '@/src/components/common/StaticI18nProvider/StaticI18nProvider': path.resolve(__dirname, '../src/components/common/StaticI18nProvider/StaticI18nProvider.tsx'),
       '@corbado/web-js': path.resolve(__dirname, './mocks/corbado-web-js.js'),
     });
+    // reorder to prioritize '@/src' over '@'
+    config.resolve.alias = {
+      '@/src': alias['@/src'],
+      '@': alias['@'],
+      '@/src/components/common/StaticI18nProvider': alias['@/src/components/common/StaticI18nProvider'],
+      '@/src/components/common/StaticI18nProvider/StaticI18nProvider': alias['@/src/components/common/StaticI18nProvider/StaticI18nProvider'],
+      '@corbado/web-js': alias['@corbado/web-js'],
+    };
 
     return config;
   },

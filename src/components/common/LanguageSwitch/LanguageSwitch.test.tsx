@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LanguageSwitch } from './LanguageSwitch';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 describe('LanguageSwitch (3-button)', () => {
   test('初期表示と各ボタンでの切替', async () => {

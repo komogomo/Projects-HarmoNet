@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
-import AuthCallbackHandler from '@/components/login/AuthCallbackHandler/AuthCallbackHandler';
-import { AuthLoadingIndicator } from '@/components/common/AuthLoadingIndicator/AuthLoadingIndicator';
+import AuthCallbackHandler from '@/src/components/login/AuthCallbackHandler/AuthCallbackHandler';
+import { AuthLoadingIndicator } from '@/src/components/common/AuthLoadingIndicator/AuthLoadingIndicator';
 
 export default function AuthCallbackPage() {
   return (

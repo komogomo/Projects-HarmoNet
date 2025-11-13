@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
-import { LanguageSwitch } from '@/components/common/LanguageSwitch';
-import { useI18n } from '@/components/common/StaticI18nProvider';
+import { LanguageSwitch } from '@/src/components/common/LanguageSwitch';
+import { useStaticI18n as useI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import type { AppHeaderProps } from './AppHeader.types';
 import Image from 'next/image';
 

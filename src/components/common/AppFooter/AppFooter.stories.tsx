@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import { AppFooter } from './AppFooter';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 const meta: Meta<typeof AppFooter> = {
   title: 'Common/AppFooter',

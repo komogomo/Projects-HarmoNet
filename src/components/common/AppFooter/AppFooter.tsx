@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import type { AppFooterProps } from './AppFooter.types';
-import { useI18n } from '@/components/common/StaticI18nProvider';
+import { useI18n } from '@/src/components/common/StaticI18nProvider';
 
 export const AppFooter: React.FC<AppFooterProps> = ({ className = '', testId = 'app-footer' }) => {
   const { t } = useI18n();

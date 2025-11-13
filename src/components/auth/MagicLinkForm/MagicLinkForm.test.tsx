@@ -17,7 +17,7 @@ jest.mock('@corbado/web-js', () => {
   return { __esModule: true, default: defaultExport };
 });
 
-jest.mock('@/components/common/StaticI18nProvider/StaticI18nProvider', () => {
+jest.mock('@/src/components/common/StaticI18nProvider/StaticI18nProvider', () => {
   const React = require('react');
   const Ctx = React.createContext({ t: (k: string) => k, currentLocale: 'en', setLocale: () => {} });
   return {

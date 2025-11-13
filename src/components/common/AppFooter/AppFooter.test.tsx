@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { AppFooter } from './AppFooter';
-import { StaticI18nProvider } from '@/components/common/StaticI18nProvider';
+import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 function renderWithProvider(ui: React.ReactElement, locale: 'ja' | 'en' | 'zh' = 'ja') {
   return render(<StaticI18nProvider initialLocale={locale}>{ui}</StaticI18nProvider>);

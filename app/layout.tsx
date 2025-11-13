@@ -1,6 +1,6 @@
 import "./globals.css";
 import React from "react";
-import { StaticI18nProvider } from "@/components/common/StaticI18nProvider";
+import { StaticI18nProvider } from "@/src/components/common/StaticI18nProvider";
 
 export default function RootLayout({
   children,

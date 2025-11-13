@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import type { LanguageSwitchProps, Locale } from './LanguageSwitch.types';
-import { useI18n } from '@/components/common/StaticI18nProvider';
+import { useStaticI18n as useI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 
 export const LanguageSwitch: React.FC<LanguageSwitchProps> = ({
   className = '',

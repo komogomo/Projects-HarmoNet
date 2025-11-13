@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { AppHeader } from "@/components/common/AppHeader/AppHeader";
-import { AppFooter } from "@/components/common/AppFooter/AppFooter";
-import MagicLinkForm from "@/components/auth/MagicLinkForm/MagicLinkForm";
-import PasskeyButton from "@/components/login/PasskeyButton/PasskeyButton";
-import { StaticI18nProvider } from "@/components/common/StaticI18nProvider/StaticI18nProvider";
+import { AppHeader } from "@/src/components/common/AppHeader/AppHeader";
+import { AppFooter } from "@/src/components/common/AppFooter/AppFooter";
+import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
+import { PasskeyButton } from "@/src/components/auth/PasskeyButton/PasskeyButton";
+import { StaticI18nProvider } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 
 /**
  * HarmoNet ログインページ

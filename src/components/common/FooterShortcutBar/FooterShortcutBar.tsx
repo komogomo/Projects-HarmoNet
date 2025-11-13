@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MessageSquare, Calendar, ClipboardList, User as UserIcon, Settings, Users, FileText } from 'lucide-react';
 import type { FooterShortcutBarProps, UserRole } from './FooterShortcutBar.types';
-import { useI18n } from '@/components/common/StaticI18nProvider';
+import { useStaticI18n as useI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 
 type Item = { key: string; href: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> };
 

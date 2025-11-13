@@ -20,7 +20,8 @@
     "types": ["jest", "node"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@/src/*": ["src/*"]
     },
     "plugins": [
       {
