@@ -1,11 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
+import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm";
 
 export default function LoginPage() {
-  const [sent, setSent] = useState(false); // ★ 追加
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <main className="flex-1 flex flex-col items-center px-4 pt-28 pb-28">
@@ -20,19 +17,8 @@ export default function LoginPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6"></h2>
 
           <div className="flex flex-col items-center">
-            <MagicLinkForm
-              className="w-[270px] mx-auto [&_input]:w-full [&_button[type='submit']]:w-full"
-              onSent={() => setSent(true)}               // ★ MagicLinkForm 成功
-              onError={() => setSent(false)}             // ★ エラーならクリア
-            />
+            <MagicLinkForm className="w-[270px] mx-auto [&_input]:w-full [&_button[type='submit']]:w-full" />
           </div>
-
-          {/* ★ ここが青帯→テキストに変更した領域 */}
-          {sent && (
-            <p className="mt-6 text-sm text-gray-700 text-center">
-              メールを送信しましたのでご確認ください。
-            </p>
-          )}
         </section>
 
         {/* 説明文 */}

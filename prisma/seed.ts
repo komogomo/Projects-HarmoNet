@@ -298,6 +298,52 @@ async function main() {
   }
 
   console.log('✅ 駐車場区画12台分登録完了（表F1～F6、裏B1～B6）')
+
+  // === 11. Passkey認証情報（テスト用ダミーデータ） ===
+  await prisma.passkey_credentials.create({
+    data: {
+      user_id: sysAdmin.id,
+      tenant_id: tenant.id,
+      credential_id: 'dummy-credential-id-sysadmin-device1',
+      public_key: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...',
+      sign_count: 5,
+      transports: ['internal', 'usb'],
+      device_name: 'Windows Hello (Surface Laptop)',
+      platform: 'windows',
+      last_used_at: new Date(),
+    },
+  })
+
+  await prisma.passkey_credentials.create({
+    data: {
+      user_id: tenantAdmin.id,
+      tenant_id: tenant.id,
+      credential_id: 'dummy-credential-id-admin-device1',
+      public_key: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...',
+      sign_count: 10,
+      transports: ['internal'],
+      device_name: 'Touch ID (iPhone 15 Pro)',
+      platform: 'ios',
+      last_used_at: new Date(),
+    },
+  })
+
+  await prisma.passkey_credentials.create({
+    data: {
+      user_id: user1.id,
+      tenant_id: tenant.id,
+      credential_id: 'dummy-credential-id-user1-device1',
+      public_key: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...',
+      sign_count: 3,
+      transports: ['internal', 'nfc'],
+      device_name: 'Face ID (MacBook Pro)',
+      platform: 'macos',
+      last_used_at: new Date(),
+    },
+  })
+
+  console.log('✅ Passkey認証情報 3件登録完了')
+
   console.log('🌱 全部入りSeed投入完了')
 }
 

@@ -107,6 +107,7 @@ model tenants {
   status      status   @default(active)
 
   // Relations
+  passkey_credentials        passkey_credentials[]
   tenant_settings            tenant_settings[]
   tenant_features            tenant_features[]
   users                      users[] // for nullable tenant_id
@@ -174,6 +175,7 @@ model users {
 
   // Relations
   tenant                     tenants?                     @relation(fields: [tenant_id], references: [id])
+  passkey_credentials        passkey_credentials[]
   user_tenants               user_tenants[]
   user_roles                 user_roles[]
   user_profiles              user_profiles[]
@@ -627,3 +629,28 @@ model moderation_logs {
   tenant   tenants @relation(fields: [tenant_id], references: [id])
   reviewer users?  @relation(fields: [reviewed_by], references: [id])
 }
+
+/// WebAuthn パスキーのクレデンシャル情報
+model passkey_credentials {
+  id             String    @id @default(uuid())
+  user_id        String    // TEXT型（Supabase Auth仕様）- @db.Uuidを付けない
+  tenant_id      String    @db.Uuid
+  credential_id  String    @unique
+  public_key     String
+  sign_count     Int       @default(0)
+  transports     String[]
+  device_name    String?
+  platform       String?
+  last_used_at   DateTime? @db.Timestamptz(6)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @updatedAt @db.Timestamptz(6)
+
+  // Relations
+  user   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([tenant_id])
+}
+
+

@@ -5,14 +5,14 @@ import { Loader2, CheckCircle, KeyRound } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 
-export type PasskeyButtonProps = {
+export type PasskeyAuthTriggerProps = {
   onSuccess?: () => void;
   onError?: (e: unknown) => void;
 };
 
 type State = 'idle' | 'loading' | 'success' | 'error_auth';
 
-export const PasskeyButton: React.FC<PasskeyButtonProps> = ({ onSuccess, onError }) => {
+export const PasskeyAuthTrigger: React.FC<PasskeyAuthTriggerProps> = ({ onSuccess, onError }) => {
   const { t } = useStaticI18n();
   const [state, setState] = useState<State>('idle');
 
@@ -50,4 +50,4 @@ export const PasskeyButton: React.FC<PasskeyButtonProps> = ({ onSuccess, onError
   );
 };
 
-export default PasskeyButton;
+export default PasskeyAuthTrigger;

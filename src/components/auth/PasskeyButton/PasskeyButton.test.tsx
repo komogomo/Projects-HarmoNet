@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PasskeyButton } from './PasskeyButton';
+import { PasskeyAuthTrigger } from './PasskeyButton';
 
 jest.mock('../../../../lib/supabaseClient', () => ({
   supabase: {
@@ -21,7 +21,7 @@ jest.mock('@/src/components/common/StaticI18nProvider/StaticI18nProvider', () =>
 
 const supabaseMock = require('../../../../lib/supabaseClient').supabase;
 
-describe('PasskeyButton', () => {
+describe('PasskeyAuthTrigger', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (window as any).corbado = { passkey: { login: jest.fn() } };
@@ -32,7 +32,7 @@ describe('PasskeyButton', () => {
     supabaseMock.auth.signInWithIdToken.mockResolvedValueOnce({ data: {}, error: null });
 
     const onSuccess = jest.fn();
-    render(<PasskeyButton onSuccess={onSuccess} />);
+    render(<PasskeyAuthTrigger onSuccess={onSuccess} />);
     fireEvent.click(screen.getByRole('button'));
 
     expect(await screen.findByText(/Success/i)).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('PasskeyButton', () => {
     supabaseMock.auth.signInWithIdToken.mockResolvedValueOnce({ data: {}, error: new Error('bad') });
 
     const onError = jest.fn();
-    render(<PasskeyButton onError={onError} />);
+    render(<PasskeyAuthTrigger onError={onError} />);
     fireEvent.click(screen.getByRole('button'));
 
     expect(await screen.findByText(/save/i)).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe('PasskeyButton', () => {
   it('handles missing token as error (UT03)', async () => {
     (window as any).corbado.passkey.login.mockResolvedValueOnce(undefined);
 
-    render(<PasskeyButton />);
+    render(<PasskeyAuthTrigger />);
     fireEvent.click(screen.getByRole('button'));
 
     expect(await screen.findByText(/save/i)).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('PasskeyButton', () => {
   it('shows loading state (UT04)', async () => {
     (window as any).corbado.passkey.login.mockImplementationOnce(() => new Promise(() => {}));
 
-    render(<PasskeyButton />);
+    render(<PasskeyAuthTrigger />);
     fireEvent.click(screen.getByRole('button'));
 
     expect(await screen.findByText(/Loading/i)).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('PasskeyButton', () => {
   it('prevents re-click while loading (UT05)', async () => {
     (window as any).corbado.passkey.login.mockImplementationOnce(() => new Promise(() => {}));
 
-    render(<PasskeyButton />);
+    render(<PasskeyAuthTrigger />);
     const btn = screen.getByRole('button');
     fireEvent.click(btn);
     expect(btn).toBeDisabled();
