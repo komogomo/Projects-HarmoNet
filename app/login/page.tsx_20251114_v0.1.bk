@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { AppHeader } from "@/src/components/common/AppHeader/AppHeader";
+import { AppFooter } from "@/src/components/common/AppFooter/AppFooter";
 import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
 
 export default function LoginPage() {
@@ -8,6 +10,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <AppHeader variant="login" />
+
       <main className="flex-1 flex flex-col items-center px-4 pt-28 pb-28">
         {/* タイトル */}
         <section className="w-full max-w-[420px] text-center mb-10">
@@ -41,6 +45,8 @@ export default function LoginPage() {
           <p>右上のボタンで言語を切り替えられます。</p>
         </section>
       </main>
+
+      <AppFooter />
     </div>
   );
 }

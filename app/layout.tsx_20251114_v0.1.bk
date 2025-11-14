@@ -1,8 +1,6 @@
 import "./globals.css";
 import React from "react";
 import { StaticI18nProvider } from "@/src/components/common/StaticI18nProvider";
-import { AppHeader } from "@/src/components/common/AppHeader/AppHeader";
-import { AppFooter } from "@/src/components/common/AppFooter/AppFooter";
 
 export default function RootLayout({
   children,
@@ -12,11 +10,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="bg-white text-gray-900 font-sans antialiased">
-        <StaticI18nProvider>
-          <AppHeader variant="login" />
-          {children}
-          <AppFooter />
-        </StaticI18nProvider>
+        <StaticI18nProvider>{children}</StaticI18nProvider>
       </body>
     </html>
   );
