@@ -14,7 +14,10 @@ jest.mock('lucide-react', () => ({
 }));
 
 function renderWithProvider(ui: React.ReactElement) {
-  return render(<StaticI18nProvider initialLocale="ja">{ui}</StaticI18nProvider>);
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('selectedLanguage', 'ja');
+  }
+  return render(<StaticI18nProvider>{ui}</StaticI18nProvider>);
 }
 
 beforeEach(() => {

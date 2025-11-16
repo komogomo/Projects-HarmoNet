@@ -14,25 +14,40 @@ type Story = StoryObj<typeof AppFooter>;
 
 export const Default: Story = {
   name: 'Japanese',
-  render: () => (
-    <StaticI18nProvider initialLocale="ja">
-      <AppFooter />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'ja');
+    }
+    return (
+      <StaticI18nProvider>
+        <AppFooter />
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const English: Story = {
-  render: () => (
-    <StaticI18nProvider initialLocale="en">
-      <AppFooter />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'en');
+    }
+    return (
+      <StaticI18nProvider>
+        <AppFooter />
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const Chinese: Story = {
-  render: () => (
-    <StaticI18nProvider initialLocale="zh">
-      <AppFooter />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'zh');
+    }
+    return (
+      <StaticI18nProvider>
+        <AppFooter />
+      </StaticI18nProvider>
+    );
+  },
 };

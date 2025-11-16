@@ -23,7 +23,10 @@ jest.mock('next/navigation', () => ({
 }));
 
 function renderWithProvider(ui: React.ReactElement, locale: 'ja' | 'en' | 'zh' = 'ja') {
-  return render(<StaticI18nProvider initialLocale={locale}>{ui}</StaticI18nProvider>);
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('selectedLanguage', locale);
+  }
+  return render(<StaticI18nProvider>{ui}</StaticI18nProvider>);
 }
 
 beforeEach(() => {

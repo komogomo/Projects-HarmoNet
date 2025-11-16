@@ -30,6 +30,33 @@
       "success": "Passkey sign-in successful",
       "progress": "Checking passkey availability...",
       "retry": "Try passkey again"
+    },
+    "login": {
+      "magiclink": {
+        "title": "Sign in with email",
+        "description": "We will send a login link to your registered email address.",
+        "button_login": "Sign in",
+        "button_sending": "Sending…"
+      },
+      "email": {
+        "label": "Email address"
+      },
+      "magiclink_sent": "We sent a login link to your email.",
+      "error": {
+        "email_invalid": "The email address format is invalid.",
+        "network": "A network error occurred. Please try again later.",
+        "auth": "Authentication failed. Please check your input and try again.",
+        "unexpected": "An unexpected error occurred. Please try again later."
+      },
+      "passkey": {
+        "title": "Sign in with Passkey",
+        "description": "Use your device's biometric authentication to continue.",
+        "error_denied": "Authentication was canceled.",
+        "error_origin": "This device or browser is not supported.",
+        "error_network": "A network error occurred.",
+        "error_auth": "Authentication failed.",
+        "error_unexpected": "An unexpected error occurred."
+      }
     }
   }
 }

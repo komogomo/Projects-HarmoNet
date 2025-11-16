@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint src",
     "test": "jest --config jest.config.ts",
+    "test:unit": "vitest --run",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -47,6 +48,7 @@
     "eslint-config-prettier": "^9.1.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^24.0.0",
     "postcss": "^8.5.6",
     "postcss-loader": "^8.2.0",
     "prettier": "^3.3.3",
@@ -55,7 +57,8 @@
     "tailwindcss": "^4",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.3"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

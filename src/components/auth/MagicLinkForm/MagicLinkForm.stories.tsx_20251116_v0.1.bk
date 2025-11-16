@@ -59,11 +59,19 @@ async function patchSupabaseAuth(overrides: any) {
   const auth = (mod as any).supabase.auth;
   const original = {
     signInWithOtp: auth.signInWithOtp.bind(auth),
+    signInWithIdToken: auth.signInWithIdToken?.bind(auth),
   };
   if (overrides.signInWithOtp) auth.signInWithOtp = overrides.signInWithOtp;
+  if (overrides.signInWithIdToken) auth.signInWithIdToken = overrides.signInWithIdToken;
   return () => {
     auth.signInWithOtp = original.signInWithOtp;
+    if (original.signInWithIdToken) auth.signInWithIdToken = original.signInWithIdToken;
   };
+}
+
+function setNoRedirect(on = true) {
+  (window as any).__NO_REDIRECT__ = on;
+  return () => { delete (window as any).__NO_REDIRECT__; };
 }
 
 export const Sending = {
@@ -72,6 +80,7 @@ export const Sending = {
     const restore = await patchSupabaseAuth({
       signInWithOtp: () => new Promise(() => {}), // keep sending state
     });
+    const restoreNoRedirect = setNoRedirect(true);
     const c = within(canvasElement);
     const input = await c.findByPlaceholderText(/name@example.com/i);
     await userEvent.clear(input);
@@ -80,16 +89,18 @@ export const Sending = {
     const button = (form?.querySelector('button[type="submit"]') || form?.querySelector('button')) as HTMLButtonElement | null;
     if (!button) throw new Error('submit button not found');
     await userEvent.click(button);
-    setTimeout(() => { restore(); }, 0);
+    setTimeout(() => { restore(); restoreNoRedirect(); }, 0);
   },
 };
 
 export const Sent = {
-  render: () => <MagicLinkForm />,
+  render: () => <MagicLinkForm />, 
   play: async ({ canvasElement }: any) => {
+    (window as any).__CORBADO_MODE = 'fail';
     const restore = await patchSupabaseAuth({
       signInWithOtp: async () => ({ data: {}, error: null }),
     });
+    const restoreNoRedirect = setNoRedirect(true);
     const c = within(canvasElement);
     const input = await c.findByPlaceholderText(/name@example.com/i);
     await userEvent.clear(input);
@@ -98,6 +109,26 @@ export const Sent = {
     const button = (form?.querySelector('button[type="submit"]') || form?.querySelector('button')) as HTMLButtonElement | null;
     if (!button) throw new Error('submit button not found');
     await userEvent.click(button);
-    setTimeout(() => { restore(); }, 0);
+    setTimeout(() => { restore(); restoreNoRedirect(); delete (window as any).__CORBADO_MODE; }, 0);
+  },
+};
+
+export const PasskeySuccess = {
+  render: () => <MagicLinkForm passkeyEnabled />, 
+  play: async ({ canvasElement }: any) => {
+    (window as any).__CORBADO_MODE = 'success';
+    const restore = await patchSupabaseAuth({
+      signInWithIdToken: async () => ({ data: {}, error: null }),
+    });
+    const restoreNoRedirect = setNoRedirect(true);
+    const c = within(canvasElement);
+    const input = await c.findByPlaceholderText(/name@example.com/i);
+    await userEvent.clear(input);
+    await userEvent.type(input, 'name@example.com');
+    const form = input.closest('form');
+    const button = (form?.querySelector('button[type="submit"]') || form?.querySelector('button')) as HTMLButtonElement | null;
+    if (!button) throw new Error('submit button not found');
+    await userEvent.click(button);
+    setTimeout(() => { restore(); restoreNoRedirect(); delete (window as any).__CORBADO_MODE; }, 0);
   },
 };

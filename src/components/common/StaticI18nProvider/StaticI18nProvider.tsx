@@ -1,39 +1,35 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { Locale, StaticI18nContextValue, StaticI18nProviderProps, Translations } from './StaticI18nProvider.types';
+import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
+import type { Locale, StaticI18nContextValue, StaticI18nProviderProps, Translations } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider.types';
 
 const I18NContext = createContext<StaticI18nContextValue | null>(null);
 
+const FALLBACK_LOCALE: Locale = 'ja';
 const LOCALES: Locale[] = ['ja', 'en', 'zh'];
-const DEFAULT_LOCALE: Locale = 'ja';
 
-const cache: Map<Locale, Translations> = new Map();
-
-function getFromLocalStorage(): Locale | null {
-  try {
-    const v = localStorage.getItem('locale');
-    if (v && (LOCALES as string[]).includes(v)) return v as Locale;
-    return null;
-  } catch {
-    return null;
-  }
-}
+const buildDictionaryPath = (locale: Locale): string => `/locales/${locale}/common.json`;
 
 async function fetchTranslations(locale: Locale): Promise<Translations> {
-  const res = await fetch(`/locales/${locale}/common.json`, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`Failed to load translations for ${locale}`);
+  const res = await fetch(buildDictionaryPath(locale));
+  if (!res.ok) {
+    throw new Error('LOAD_FAIL');
+  }
   return res.json();
 }
 
 function resolveKey(obj: Translations, key: string): string | undefined {
   const parts = key.split('.');
-  let cur: any = obj;
-  for (const p of parts) {
-    if (cur == null || typeof cur !== 'object' || !(p in cur)) return undefined;
-    cur = cur[p];
+  let current: any = obj;
+
+  for (const part of parts) {
+    if (!current || typeof current !== 'object' || !(part in current)) {
+      return undefined;
+    }
+    current = current[part];
   }
-  return typeof cur === 'string' ? cur : undefined;
+
+  return typeof current === 'string' ? current : undefined;
 }
 
 export function useStaticI18n(): StaticI18nContextValue {
@@ -44,86 +40,93 @@ export function useStaticI18n(): StaticI18nContextValue {
   return ctx;
 }
 
-export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({
-  children,
-  initialLocale,
-  enablePersistence = true,
-}) => {
-  const initial = useMemo<Locale>(() => {
-    const fromStorage = enablePersistence ? getFromLocalStorage() : null;
-    return initialLocale ?? fromStorage ?? DEFAULT_LOCALE;
-  }, [initialLocale, enablePersistence]);
-
-  const [currentLocale, setCurrentLocale] = useState<Locale>(initial);
+export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({ children }) => {
+  const [locale, setLocaleState] = useState<Locale>(FALLBACK_LOCALE);
   const [translations, setTranslations] = useState<Translations>({});
-  const loadingRef = useRef<Promise<void> | null>(null);
 
-  const load = useCallback(async (locale: Locale) => {
-    if (cache.has(locale)) {
-      setTranslations(cache.get(locale)!);
+  const initLocale = useEffectEvent(() => {
+    if (typeof window === 'undefined') {
+      setLocaleState(FALLBACK_LOCALE);
       return;
     }
+
     try {
-      const data = await fetchTranslations(locale);
-      cache.set(locale, data);
+      const saved = window.localStorage.getItem('selectedLanguage') as Locale | null;
+      const isValid = saved && (LOCALES as string[]).includes(saved);
+      const initial = isValid ? (saved as Locale) : FALLBACK_LOCALE;
+      setLocaleState(initial);
+    } catch {
+      setLocaleState(FALLBACK_LOCALE);
+    }
+  });
+
+  const loadTranslations = useEffectEvent(async (target: Locale) => {
+    try {
+      const data = await fetchTranslations(target);
       setTranslations(data);
-    } catch (e) {
-      console.warn(`[i18n] Failed to load ${locale}, falling back to 'ja'`, e);
-      if (locale !== 'ja') {
-        // Update locale immediately for UI consistency, then ensure ja translations
-        setCurrentLocale('ja');
-        if (cache.has('ja')) {
-          setTranslations(cache.get('ja')!);
-        } else {
-          const ja = await fetchTranslations('ja');
-          cache.set('ja', ja);
-          setTranslations(ja);
-        }
+    } catch (err) {
+      console.error('[i18n] Failed to load dictionary:', target, err);
+      if (target !== FALLBACK_LOCALE) {
+        setLocaleState(FALLBACK_LOCALE);
       }
     }
+  });
+
+  useEffect(() => {
+    initLocale();
   }, []);
 
   useEffect(() => {
-    let active = true;
-    loadingRef.current = Promise.resolve().then(() => {
-      if (active) {
-        return load(currentLocale);
-      }
-      return undefined as unknown as Promise<void>;
-    });
-    return () => {
-      active = false;
-    };
-  }, [currentLocale, load]);
+    loadTranslations(locale);
+  }, [locale]);
 
   useEffect(() => {
-    if (!enablePersistence) return;
+    if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('locale', currentLocale);
+      window.localStorage.setItem('selectedLanguage', locale);
     } catch {
       // ignore
     }
-  }, [currentLocale, enablePersistence]);
+  }, [locale]);
 
-  const setLocale = useCallback((locale: Locale) => {
-    if (locale === currentLocale) return;
-    setCurrentLocale(locale);
-  }, [currentLocale]);
-
-  const t = useCallback<StaticI18nContextValue['t']>((key: string) => {
-    const val = resolveKey(translations, key);
-    if (typeof val === 'string') return val;
-    console.warn(`[i18n] Missing key: ${key}`);
-    return key;
-  }, [translations]);
-
-  const value = useMemo<StaticI18nContextValue>(() => ({ currentLocale, setLocale, t }), [currentLocale, setLocale, t]);
-
-  return (
-    <I18NContext.Provider value={value}>
-      {children}
-    </I18NContext.Provider>
+  const setLocale = useCallback(
+    (next: Locale) => {
+      if (next === locale) return;
+      setLocaleState(next);
+    },
+    [locale],
   );
+
+  const t = useCallback<StaticI18nContextValue['t']>(
+    (key: string) => {
+      const hasLoadedDictionary = Object.keys(translations).length > 0;
+
+      if (!hasLoadedDictionary) {
+        // 初回ロード中は警告を出さずにキーをそのまま返す。
+        return key;
+      }
+
+      const value = resolveKey(translations, key);
+      if (typeof value === 'string') {
+        return value;
+      }
+      console.warn('[i18n] Missing key:', key);
+      return key;
+    },
+    [translations],
+  );
+
+  const value = useMemo<StaticI18nContextValue>(
+    () => ({
+      locale,
+      currentLocale: locale,
+      setLocale,
+      t,
+    }),
+    [locale, setLocale, t],
+  );
+
+  return <I18NContext.Provider value={value}>{children}</I18NContext.Provider>;
 };
 
 StaticI18nProvider.displayName = 'StaticI18nProvider';

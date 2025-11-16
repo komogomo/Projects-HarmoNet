@@ -1,151 +1,218 @@
 "use client";
-
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { Mail as MailIcon } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
-import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
-import { SUCCESS_EMAIL_SENT, ERROR_INVALID_EMAIL, ERROR_NETWORK } from '@/src/components/common/messages/authMessages';
+import { logInfo, logError } from '@/src/lib/logging/log.util';
+import type { MagicLinkError, MagicLinkFormProps, MagicLinkFormState } from './MagicLinkForm.types';
 
-export interface MagicLinkError {
-  code: string;
-  message: string;
-  type: 'error';
-}
+type BannerState = {
+  kind: 'info' | 'error';
+  messageKey: string;
+} | null;
 
-export interface MagicLinkFormProps {
-  className?: string;
-  passkeyEnabled?: boolean;
-  onSent?: () => void;
-  onError?: (error: MagicLinkError) => void;
-}
+const cardBaseClassName =
+  'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-gray-100 bg-white px-4 py-4';
 
-type State = 'idle' | 'sending' | 'sent' | 'error';
+const emailInputClassName =
+  'mt-1 block w-full h-11 px-3 rounded-2xl border border-gray-300 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
-type MessageState = {
-  type: 'none' | 'success' | 'error';
+const loginButtonClassName =
+  'mt-3 w-full h-11 rounded-2xl bg-[#6495ed] text-white text-sm font-medium flex items-center justify-center disabled:opacity-60 hover:bg-[#5386d9] transition-colors';
+
+type AuthErrorBannerProps = {
+  kind: 'info' | 'error';
   message: string;
 };
 
-export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, passkeyEnabled, onSent, onError }) => {
-  const { t } = useStaticI18n();
-  const [email, setEmail] = useState('');
-  const [state, setState] = useState<State>('idle');
-  const [messageState, setMessageState] = useState<MessageState>({ type: 'none', message: '' });
-
-  const isInvalidEmail = useMemo(() => !email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email), [email]);
-
-  const handleError = useCallback((err: MagicLinkError) => {
-    onError?.(err);
-  }, [onError]);
-
-  const onSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // 独自バリデーション: 空欄はメッセージ非表示、不正形式はエラーメッセージ
-    if (!email) {
-      setMessageState({ type: 'none', message: '' });
-      return;
-    }
-    if (isInvalidEmail) {
-      setMessageState({ type: 'error', message: ERROR_INVALID_EMAIL });
-      return;
-    }
-
-    setState('sending');
-    setMessageState({ type: 'none', message: '' });
-
-    try {
-      // 1) Supabase Magic Link (primary)
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
-      if (error) {
-        setState('error');
-        handleError({ code: 'network_error', message: error.message ?? 'Network error', type: 'error' });
-        setMessageState({ type: 'error', message: ERROR_NETWORK });
-        return;
-      }
-      setState('sent');
-      onSent?.();
-      setMessageState({ type: 'success', message: SUCCESS_EMAIL_SENT });
-
-      // 2) Optional: Passkey補助（WS-A01: passkeyEnabled時のみ、送信後に実行）
-      if (passkeyEnabled && typeof window !== 'undefined' && (window as any).__CORBADO_MODE === 'success') {
-        try {
-          const mod = await import('@corbado/web-js');
-          const Corbado = await (mod.default as any).load({ projectId: process.env.NEXT_PUBLIC_CORBADO_PROJECT_ID! } as any);
-          const result: any = await Corbado.passkey.login({ identifier: email });
-          const idToken: string | undefined = result?.id_token;
-          if (idToken) {
-            const { error: idErr } = await supabase.auth.signInWithIdToken({ provider: 'corbado', token: idToken });
-            if (idErr) throw idErr;
-            if (!(typeof window !== 'undefined' && (window as any).__NO_REDIRECT__)) {
-              window.location.replace('/mypage');
-            }
-          }
-        } catch (_e) {
-          // passkey補助はベストエフォート。失敗してもMagicLinkの送信結果は保持
-        }
-      }
-    } catch (err: any) {
-      setState('error');
-      handleError({ code: 'network_error', message: err?.message ?? 'Network error', type: 'error' });
-      setMessageState({ type: 'error', message: ERROR_NETWORK });
-    }
-  }, [email, isInvalidEmail, handleError, onSent, passkeyEnabled]);
-
+const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
+  if (!message) return null;
+  const base = 'mt-3 rounded-2xl px-3 py-2 text-sm flex items-start gap-2';
+  const palette = kind === 'info' ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-700';
   return (
-    <form noValidate onSubmit={onSubmit} className={`flex flex-col gap-4 ${className ?? ''}`}>
-      <label htmlFor="email" className="text-sm font-medium text-gray-700">
-        {t('auth.enter_email')}
-      </label>
-      <input
-        id="email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="name@example.com"
-        className="h-12 px-3 border rounded-2xl border-gray-300 focus:ring-2 focus:ring-blue-500"
-        required
-      />
-
-      <button
-        type="submit"
-        disabled={state === 'sending'}
-        className="
-          h-12 rounded-2xl shadow-sm
-          bg-[#6495ed] text-white
-          flex items-center justify-center gap-2
-          disabled:opacity-60
-          hover:bg-[#5386d9] transition-all
-        "
-      >
-        {state === 'sending' ? t('auth.sending') : t('auth.send_magic_link')}
-      </button>
-
-      <div className="min-h-[60px] flex items-center justify-center mt-2">
-        {messageState.type !== 'none' && (
-          <p
-            className={
-              messageState.type === 'success'
-                ? 'text-green-600 text-sm inline-flex items-center gap-2 text-center'
-                : 'text-red-600 text-sm inline-flex items-center gap-2 text-center'
-            }
-          >
-            {messageState.type === 'success' ? (
-              <CheckCircle className="h-4 w-4" />
-            ) : (
-              <AlertCircle className="h-4 w-4" />
-            )}
-            {messageState.message}
-          </p>
-        )}
-      </div>
-
-      <div aria-live="polite" className="sr-only">
-        {state === 'sending' ? t('auth.sending') : state === 'sent' ? t('auth.link_sent') : state === 'error' ? t('auth.error_generic') : ''}
-      </div>
-    </form>
+    <div className={`${base} ${palette}`} role={kind === 'error' ? 'alert' : 'status'} aria-live="polite">
+      <span className="flex-1">{message}</span>
+    </div>
   );
 };
 
+const InlineFieldError: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="mt-1 text-xs text-red-600">{children}</p>
+);
+
+export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError }) => {
+  const { t } = useStaticI18n();
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<MagicLinkFormState>('idle');
+  const [inlineErrorKey, setInlineErrorKey] = useState<string | null>(null);
+  const [banner, setBanner] = useState<BannerState>(null);
+
+  const handleLogin = useCallback(async () => {
+    if (!validateEmail(email)) {
+      const error: MagicLinkError = {
+        code: 'INVALID_EMAIL',
+        message: t('auth.login.error.email_invalid'),
+        type: 'error_input',
+      };
+
+      setState('error_input');
+      setInlineErrorKey('auth.login.error.email_invalid');
+
+      logError('auth.login.fail.input', {
+        screen: 'LoginPage',
+        method: 'magiclink',
+      });
+
+      onError?.(error);
+      return;
+    }
+
+    try {
+      setState('sending');
+      setInlineErrorKey(null);
+      setBanner(null);
+
+      logInfo('auth.login.start', {
+        screen: 'LoginPage',
+        method: 'magiclink',
+        email,
+      });
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        const isAuthError = isSupabaseAuthError(error);
+        const errorType: MagicLinkError['type'] = isAuthError ? 'error_auth' : 'error_network';
+
+        const messageKey = isAuthError
+          ? 'auth.login.error.auth'
+          : 'auth.login.error.network';
+
+        const magicError: MagicLinkError = {
+          code: error.code ?? 'SUPABASE_ERROR',
+          message: t(messageKey),
+          type: errorType,
+        };
+
+        setState(errorType);
+        setBanner({ kind: 'error', messageKey });
+
+        logError(
+          isAuthError
+            ? 'auth.login.fail.supabase.auth'
+            : 'auth.login.fail.supabase.network',
+          {
+            screen: 'LoginPage',
+            method: 'magiclink',
+            code: error.code,
+          },
+        );
+
+        onError?.(magicError);
+        return;
+      }
+
+      setState('sent');
+      setBanner({ kind: 'info', messageKey: 'auth.login.magiclink_sent' });
+
+      logInfo('auth.login.success.magiclink', {
+        screen: 'LoginPage',
+        method: 'magiclink',
+      });
+
+      onSent?.();
+    } catch (err: any) {
+      const magicError: MagicLinkError = {
+        code: err?.code ?? 'UNEXPECTED',
+        message: t('auth.login.error.unexpected'),
+        type: 'error_unexpected',
+      };
+
+      setState('error_unexpected');
+      setBanner({ kind: 'error', messageKey: 'auth.login.error.unexpected' });
+
+      logError('auth.login.fail.unexpected', {
+        screen: 'LoginPage',
+        method: 'magiclink',
+        reason: err?.message ?? 'unknown',
+      });
+
+      onError?.(magicError);
+    }
+  }, [email, t, onSent, onError]);
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      await handleLogin();
+    },
+    [handleLogin],
+  );
+
+  const cardClassName = `${cardBaseClassName} ${
+    state === 'sending' ? 'opacity-60 pointer-events-none' : ''
+  } ${className ?? ''}`;
+
+  return (
+    <div className={cardClassName}>
+      <div className="flex items-start gap-3">
+        <MailIcon className="w-7 h-7 text-gray-500" aria-hidden="true" />
+        <div className="flex-1">
+          <h2 className="text-base font-medium text-gray-900">
+            {t('auth.login.magiclink.title')}
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {t('auth.login.magiclink.description')}
+          </p>
+        </div>
+      </div>
+
+      <form className="mt-4 space-y-3" onSubmit={handleSubmit} noValidate>
+        <div>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="email">
+            {t('auth.login.email.label')}
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="name@example.com"
+            className={emailInputClassName}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={state === 'sending'}
+          />
+          {state === 'error_input' && inlineErrorKey && (
+            <InlineFieldError>{t(inlineErrorKey)}</InlineFieldError>
+          )}
+        </div>
+
+        <button type="submit" className={loginButtonClassName} disabled={state === 'sending'}>
+          {state === 'sending'
+            ? t('auth.login.magiclink.button_sending')
+            : t('auth.login.magiclink.button_login')}
+        </button>
+
+        {banner && <AuthErrorBanner kind={banner.kind} message={t(banner.messageKey)} />}
+      </form>
+    </div>
+  );
+};
+
+function validateEmail(value: string): boolean {
+  if (!value) return false;
+  return /.+@.+\..+/.test(value);
+}
+
+function isSupabaseAuthError(error: { code?: string }): boolean {
+  return !!error.code && !['NETWORK_ERROR', 'FETCH_ERROR'].includes(error.code);
+}
+
 export default MagicLinkForm;
+

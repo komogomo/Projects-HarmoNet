@@ -24,31 +24,46 @@ type Story = StoryObj<typeof FooterShortcutBar>;
 
 export const Default: Story = {
   name: 'Japanese',
-  render: (args) => (
-    <StaticI18nProvider initialLocale="ja">
-      <div style={{ paddingBottom: 64 }}>
-        <FooterShortcutBar {...args} />
-      </div>
-    </StaticI18nProvider>
-  ),
+  render: (args) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'ja');
+    }
+    return (
+      <StaticI18nProvider>
+        <div style={{ paddingBottom: 64 }}>
+          <FooterShortcutBar {...args} />
+        </div>
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const English: Story = {
-  render: (args) => (
-    <StaticI18nProvider initialLocale="en">
-      <div style={{ paddingBottom: 64 }}>
-        <FooterShortcutBar {...args} />
-      </div>
-    </StaticI18nProvider>
-  ),
+  render: (args) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'en');
+    }
+    return (
+      <StaticI18nProvider>
+        <div style={{ paddingBottom: 64 }}>
+          <FooterShortcutBar {...args} />
+        </div>
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const Chinese: Story = {
-  render: (args) => (
-    <StaticI18nProvider initialLocale="zh">
-      <div style={{ paddingBottom: 64 }}>
-        <FooterShortcutBar {...args} />
-      </div>
-    </StaticI18nProvider>
-  ),
+  render: (args) => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'zh');
+    }
+    return (
+      <StaticI18nProvider>
+        <div style={{ paddingBottom: 64 }}>
+          <FooterShortcutBar {...args} />
+        </div>
+      </StaticI18nProvider>
+    );
+  },
 };

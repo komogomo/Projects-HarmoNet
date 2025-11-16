@@ -1,105 +1,152 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
+
 import { MagicLinkForm } from './MagicLinkForm';
 
-jest.mock('../../../../lib/supabaseClient', () => ({
+vi.mock('../../../../lib/supabaseClient', () => ({
   supabase: {
     auth: {
-      signInWithOtp: jest.fn(),
-      signInWithIdToken: jest.fn(),
+      signInWithOtp: vi.fn(),
     },
   },
 }));
 
-jest.mock('@corbado/web-js', () => {
-  const load = jest.fn().mockResolvedValue({ passkey: { login: jest.fn() } });
-  const defaultExport = { load };
-  return { __esModule: true, default: defaultExport };
-});
+vi.mock('@/src/components/common/StaticI18nProvider/StaticI18nProvider', () => ({
+  useStaticI18n: () => ({ t: (k: string) => k }),
+}));
 
-jest.mock('@/src/components/common/StaticI18nProvider/StaticI18nProvider', () => {
-  const React = require('react');
-  const Ctx = React.createContext({ t: (k: string) => k, currentLocale: 'en', setLocale: () => {} });
-  return {
-    StaticI18nProvider: ({ children }: any) => React.createElement(React.Fragment, null, children),
-    useStaticI18n: () => React.useContext(Ctx),
-  };
-});
+vi.mock('@/src/lib/logging/log.util', () => ({
+  logInfo: vi.fn(),
+  logError: vi.fn(),
+  logDebug: vi.fn(),
+  logWarn: vi.fn(),
+}));
 
-const supabaseMock = require('../../../../lib/supabaseClient').supabase;
+import { supabase } from '../../../../lib/supabaseClient';
+import { logInfo, logError } from '@/src/lib/logging/log.util';
 
-describe('MagicLinkForm (WS-A01)', () => {
+const supabaseMock = supabase;
+
+describe('MagicLinkForm (A-01, v1.3)', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
-    delete (window as any).__CORBADO_MODE;
-    delete (window as any).__NO_REDIRECT__;
+    vi.clearAllMocks();
   });
 
-  it('T-A01-01: goes to sending state immediately after submit', async () => {
-    // keep promise pending to hold sending
-    (supabaseMock.auth.signInWithOtp as jest.Mock).mockImplementation(() => new Promise(() => {}));
-    render(<MagicLinkForm />);
-    fireEvent.change(screen.getByLabelText('auth.enter_email'), { target: { value: 'user@example.com' } });
-    fireEvent.click(screen.getByRole('button'));
-    const sendingEls = await screen.findAllByText('auth.sending');
-    expect(sendingEls.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('T-A01-02: sends magic link successfully (OTP success)', async () => {
-    const mod = require('@corbado/web-js').default;
-    mod.load.mockResolvedValueOnce({ passkey: { login: jest.fn().mockResolvedValue({ id_token: undefined }) } });
-    (supabaseMock.auth.signInWithOtp as jest.Mock).mockResolvedValueOnce({ data: {}, error: null });
+  it('UT-A01-01: succeeds with valid email and logs start/success events', async () => {
+    (supabaseMock.auth.signInWithOtp as any).mockResolvedValueOnce({ data: {}, error: null });
 
     render(<MagicLinkForm />);
-    fireEvent.change(screen.getByLabelText('auth.enter_email'), { target: { value: 'user@example.com' } });
-    fireEvent.click(screen.getByRole('button'));
-    const sentEls = await screen.findAllByText('auth.link_sent');
-    expect(sentEls.length).toBeGreaterThanOrEqual(1);
-  });
 
-  it('T-A01-03: handles error when OTP fails', async () => {
-    const mod = require('@corbado/web-js').default;
-    mod.load.mockResolvedValueOnce({ passkey: { login: jest.fn().mockResolvedValue({ id_token: undefined }) } });
-    (supabaseMock.auth.signInWithOtp as jest.Mock).mockResolvedValueOnce({ data: {}, error: new Error('fail') });
-
-    render(<MagicLinkForm />);
-    fireEvent.change(screen.getByLabelText('auth.enter_email'), { target: { value: 'user@example.com' } });
-    fireEvent.click(screen.getByRole('button'));
-    const errEls = await screen.findAllByText('auth.error_generic');
-    expect(errEls.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('T-A01-04: when passkeyEnabled and CORBADO success, signs in with id token after OTP', async () => {
-    const mod = require('@corbado/web-js').default;
-    mod.load.mockResolvedValueOnce({ passkey: { login: jest.fn().mockResolvedValue({ id_token: 'jwt' }) } });
-    (supabaseMock.auth.signInWithOtp as jest.Mock).mockResolvedValueOnce({ data: {}, error: null });
-    (supabaseMock.auth.signInWithIdToken as jest.Mock).mockResolvedValueOnce({ data: {}, error: null });
-
-    // mock window.location.replace to avoid navigation errors in test
-    const originalLocation = window.location;
-    const replaceSpy = jest.fn();
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { ...originalLocation, replace: replaceSpy },
+    fireEvent.change(screen.getByLabelText('auth.login.email.label'), {
+      target: { value: 'user@example.com' },
     });
-    (window as any).__CORBADO_MODE = 'success';
-    (window as any).__NO_REDIRECT__ = true;
-
-    render(<MagicLinkForm passkeyEnabled />);
-    fireEvent.change(screen.getByLabelText('auth.enter_email'), { target: { value: 'user@example.com' } });
     fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
-      expect(supabaseMock.auth.signInWithIdToken).toHaveBeenCalledWith({ provider: 'corbado', token: 'jwt' });
+      expect(supabaseMock.auth.signInWithOtp).toHaveBeenCalledTimes(1);
     });
 
-    // restore window.location
-    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    expect(await screen.findByText('auth.login.magiclink_sent')).toBeInTheDocument();
+
+    expect(logInfo).toHaveBeenCalledWith(
+      'auth.login.start',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+    expect(logInfo).toHaveBeenCalledWith(
+      'auth.login.success.magiclink',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
   });
 
-  it('T-A01-05: supports i18n switching (key rendering)', async () => {
+  it('UT-A01-02: shows inline error and logs input failure for empty email', async () => {
     render(<MagicLinkForm />);
-    // keys are returned as-is by test provider; ensure component uses t() for label
-    expect(screen.getByLabelText('auth.enter_email')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('auth.login.error.email_invalid')).toBeInTheDocument();
+    expect(supabaseMock.auth.signInWithOtp).not.toHaveBeenCalled();
+    expect(logError).toHaveBeenCalledWith(
+      'auth.login.fail.input',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+  });
+
+  it('UT-A01-03: shows inline error and logs input failure for invalid email format', async () => {
+    render(<MagicLinkForm />);
+
+    fireEvent.change(screen.getByLabelText('auth.login.email.label'), {
+      target: { value: 'invalid-email' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('auth.login.error.email_invalid')).toBeInTheDocument();
+    expect(supabaseMock.auth.signInWithOtp).not.toHaveBeenCalled();
+    expect(logError).toHaveBeenCalledWith(
+      'auth.login.fail.input',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+  });
+
+  it('UT-A01-04: handles Supabase network error and logs network failure', async () => {
+    (supabaseMock.auth.signInWithOtp as any).mockResolvedValueOnce({
+      data: {},
+      error: { code: 'NETWORK_ERROR' },
+    });
+
+    render(<MagicLinkForm />);
+
+    fireEvent.change(screen.getByLabelText('auth.login.email.label'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('auth.login.error.network')).toBeInTheDocument();
+    expect(logError).toHaveBeenCalledWith(
+      'auth.login.fail.supabase.network',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+  });
+
+  it('UT-A01-05: handles Supabase auth error and logs auth failure', async () => {
+    (supabaseMock.auth.signInWithOtp as any).mockResolvedValueOnce({
+      data: {},
+      error: { code: 'invalid_credentials' },
+    });
+
+    render(<MagicLinkForm />);
+
+    fireEvent.change(screen.getByLabelText('auth.login.email.label'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('auth.login.error.auth')).toBeInTheDocument();
+    expect(logError).toHaveBeenCalledWith(
+      'auth.login.fail.supabase.auth',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+  });
+
+  it('UT-A01-06: handles unexpected error and logs unexpected failure', async () => {
+    (supabaseMock.auth.signInWithOtp as any).mockRejectedValueOnce(new Error('boom'));
+
+    render(<MagicLinkForm />);
+
+    fireEvent.change(screen.getByLabelText('auth.login.email.label'), {
+      target: { value: 'user@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('auth.login.error.unexpected')).toBeInTheDocument();
+    expect(logError).toHaveBeenCalledWith(
+      'auth.login.fail.unexpected',
+      expect.objectContaining({ method: 'magiclink' }),
+    );
+  });
+
+  it('UT-A01-07: uses i18n keys for label text', () => {
+    render(<MagicLinkForm />);
+    expect(screen.getByLabelText('auth.login.email.label')).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import { StaticI18nProvider, useStaticI18n } from './index';
 function Consumer() {
   const { t, currentLocale, setLocale } = useStaticI18n();
   useEffect(() => {
+    // expose setter for tests via data attribute
     (window as any).__setLocale = setLocale;
   }, [setLocale]);
   return (
@@ -18,83 +19,76 @@ function Consumer() {
 describe('StaticI18nProvider', () => {
   const originalFetch = global.fetch;
   const originalWarn = console.warn;
-  const originalError = console.error;
   let setItemSpy: jest.SpyInstance | undefined;
 
   beforeEach(() => {
     console.warn = jest.fn();
-    console.error = jest.fn();
     global.fetch = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/locales/ja/common.json')) {
-        return { ok: true, json: async () => ({ common: { language: '言語' } }) } as any;
+        return { ok: true, json: async () => ({ common: { language: '言語', save: '保存', cancel: 'キャンセル' } }) } as any;
       }
       if (url.endsWith('/locales/en/common.json')) {
-        return { ok: true, json: async () => ({ common: { language: 'Language' } }) } as any;
+        return { ok: true, json: async () => ({ common: { language: 'Language', save: 'Save', cancel: 'Cancel' } }) } as any;
       }
       if (url.endsWith('/locales/zh/common.json')) {
-        return { ok: true, json: async () => ({ common: { language: '语言' } }) } as any;
+        return { ok: true, json: async () => ({ common: { language: '语言', save: '保存', cancel: '取消' } }) } as any;
       }
       return { ok: false, json: async () => ({}) } as any;
     }) as any;
     setItemSpy = jest.spyOn(Storage.prototype, 'setItem');
-    window.localStorage.clear();
   });
 
   afterEach(() => {
     global.fetch = originalFetch as any;
     console.warn = originalWarn;
-    console.error = originalError;
     setItemSpy?.mockRestore();
-    window.localStorage.clear();
   });
 
-  it('初期ロケールが localStorage 未設定時に ja となり辞書がロードされる', async () => {
+  it('初期ロケール読込（ja）', async () => {
     render(
-      <StaticI18nProvider>
+      <StaticI18nProvider initialLocale="ja">
         <Consumer />
-      </StaticI18nProvider>,
+      </StaticI18nProvider>
     );
-
-    await waitFor(() => expect(screen.getByTestId('locale')).toHaveTextContent('ja'));
+    await act(async () => {});
+    await new Promise((r) => setTimeout(r, 0));
     expect(await screen.findByTestId('label-language')).toHaveTextContent('言語');
+    await waitFor(() => expect(screen.getByTestId('locale')).toHaveTextContent('ja'));
   });
 
-  it('setLocale で辞書差し替え（ja -> en）し、選択ロケールを永続化する', async () => {
+  it('setLocale で辞書差し替え（ja -> en）', async () => {
     render(
-      <StaticI18nProvider>
+      <StaticI18nProvider initialLocale="ja">
         <Consumer />
-      </StaticI18nProvider>,
+      </StaticI18nProvider>
     );
-
     await act(async () => {
       (window as any).__setLocale('en');
     });
-
     expect(await screen.findByTestId('locale')).toHaveTextContent('en');
     expect(await screen.findByTestId('label-language')).toHaveTextContent('Language');
-    expect(setItemSpy).toHaveBeenCalledWith('selectedLanguage', 'en');
   });
 
   it('未定義キーは警告＋キーをそのまま返す', async () => {
-    function InnerMissing() {
-      const { t } = useStaticI18n();
-      return <span data-testid="missing">{t('unknown.key')}</span>;
-    }
-
     render(
-      <StaticI18nProvider>
+      <StaticI18nProvider initialLocale="ja">
         <div>
           <InnerMissing />
         </div>
-      </StaticI18nProvider>,
+      </StaticI18nProvider>
     );
-
-    expect(await screen.findByTestId('missing')).toHaveTextContent('unknown.key');
     expect(console.warn).toHaveBeenCalled();
+    expect(await screen.findByTestId('missing')).toHaveTextContent('unknown.key');
   });
 
+  function InnerMissing() {
+    const { t } = useStaticI18n();
+    return <span data-testid="missing">{t('unknown.key')}</span>;
+  }
+
   it('フォールバック: zh の取得失敗時 ja にフォールバック', async () => {
+    // override fetch: zh だけ失敗
     global.fetch = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/locales/ja/common.json')) {
@@ -106,17 +100,26 @@ describe('StaticI18nProvider', () => {
       return { ok: false, json: async () => ({}) } as any;
     }) as any;
 
-    window.localStorage.setItem('selectedLanguage', 'zh');
-
     render(
-      <StaticI18nProvider>
+      <StaticI18nProvider initialLocale="zh">
         <Consumer />
-      </StaticI18nProvider>,
+      </StaticI18nProvider>
     );
 
     await waitFor(() => expect(screen.getByTestId('locale')).toHaveTextContent('ja'));
     expect(await screen.findByTestId('label-language')).toHaveTextContent('言語');
-    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('localStorage 更新（enablePersistence デフォルト true）', async () => {
+    render(
+      <StaticI18nProvider initialLocale="ja">
+        <Consumer />
+      </StaticI18nProvider>
+    );
+    await act(async () => {
+      (window as any).__setLocale('en');
+    });
+    expect(setItemSpy).toHaveBeenCalledWith('locale', 'en');
   });
 
   it('Provider 外使用時は例外', () => {

@@ -5,10 +5,16 @@ import { LanguageSwitch } from './LanguageSwitch';
 import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 describe('LanguageSwitch (3-button)', () => {
+  beforeEach(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'ja');
+    }
+  });
+
   test('初期表示と各ボタンでの切替', async () => {
     const user = userEvent.setup();
     render(
-      <StaticI18nProvider initialLocale="ja">
+      <StaticI18nProvider>
         <LanguageSwitch />
       </StaticI18nProvider>
     );

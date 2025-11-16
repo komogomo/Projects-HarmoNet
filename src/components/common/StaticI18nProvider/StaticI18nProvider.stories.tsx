@@ -27,27 +27,42 @@ export default meta;
 type Story = StoryObj<typeof StaticI18nProvider>;
 
 export const Default: Story = {
-  render: () => (
-    <StaticI18nProvider initialLocale="ja">
-      <Demo />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'ja');
+    }
+    return (
+      <StaticI18nProvider>
+        <Demo />
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const English: Story = {
-  render: () => (
-    <StaticI18nProvider initialLocale="en">
-      <Demo />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'en');
+    }
+    return (
+      <StaticI18nProvider>
+        <Demo />
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const Chinese: Story = {
-  render: () => (
-    <StaticI18nProvider initialLocale="zh">
-      <Demo />
-    </StaticI18nProvider>
-  ),
+  render: () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('selectedLanguage', 'zh');
+    }
+    return (
+      <StaticI18nProvider>
+        <Demo />
+      </StaticI18nProvider>
+    );
+  },
 };
 
 export const WithDynamicSwitch: Story = {

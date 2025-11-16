@@ -30,6 +30,33 @@
       "success": "通行密钥登录成功",
       "progress": "正在检查通行密钥可用性...",
       "retry": "再次尝试通行密钥"
+    },
+    "login": {
+      "magiclink": {
+        "title": "使用邮箱登录",
+        "description": "我们会向您登记的邮箱发送登录链接。",
+        "button_login": "登录",
+        "button_sending": "发送中…"
+      },
+      "email": {
+        "label": "电子邮件地址"
+      },
+      "magiclink_sent": "登录链接已发送到您的邮箱。",
+      "error": {
+        "email_invalid": "电子邮件地址格式不正确。",
+        "network": "发生网络错误。请稍后重试。",
+        "auth": "认证失败。请检查输入内容后重试。",
+        "unexpected": "发生未知错误。请稍后重试。"
+      },
+      "passkey": {
+        "title": "使用通行密钥登录",
+        "description": "使用设备的生物识别认证进行登录。",
+        "error_denied": "操作已取消。",
+        "error_origin": "此设备或浏览器不受支持。",
+        "error_network": "发生网络错误。",
+        "error_auth": "认证失败。",
+        "error_unexpected": "发生未知错误。"
+      }
     }
   }
 }
