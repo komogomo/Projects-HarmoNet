@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useState } from 'react';
-import { Mail as MailIcon } from 'lucide-react';
+import { Mail as MailIcon, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
@@ -27,24 +27,22 @@ type AuthErrorBannerProps = {
 
 const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
   if (!message) return null;
-  const base = 'mt-3 rounded-2xl px-3 py-2 text-sm flex items-start gap-2';
+  const base = 'w-full rounded-2xl px-3 py-2 text-sm flex items-start gap-2';
   const palette = kind === 'info' ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-700';
   return (
     <div className={`${base} ${palette}`} role={kind === 'error' ? 'alert' : 'status'} aria-live="polite">
+      {kind === 'info' && (
+        <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+      )}
       <span className="flex-1">{message}</span>
     </div>
   );
 };
 
-const InlineFieldError: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="mt-1 text-xs text-red-600">{children}</p>
-);
-
 export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError }) => {
   const { t } = useStaticI18n();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
-  const [inlineErrorKey, setInlineErrorKey] = useState<string | null>(null);
   const [banner, setBanner] = useState<BannerState>(null);
 
   const handleLogin = useCallback(async () => {
@@ -56,7 +54,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       };
 
       setState('error_input');
-      setInlineErrorKey('auth.login.error.email_invalid');
+      setBanner({ kind: 'error', messageKey: 'auth.login.error.email_invalid' });
 
       logError('auth.login.fail.input', {
         screen: 'LoginPage',
@@ -69,7 +67,6 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
 
     try {
       setState('sending');
-      setInlineErrorKey(null);
       setBanner(null);
 
       logInfo('auth.login.start', {
@@ -188,9 +185,6 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
             onChange={(event) => setEmail(event.target.value)}
             disabled={state === 'sending'}
           />
-          {state === 'error_input' && inlineErrorKey && (
-            <InlineFieldError>{t(inlineErrorKey)}</InlineFieldError>
-          )}
         </div>
 
         <button type="submit" className={loginButtonClassName} disabled={state === 'sending'}>
@@ -199,7 +193,9 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
             : t('auth.login.magiclink.button_login')}
         </button>
 
-        {banner && <AuthErrorBanner kind={banner.kind} message={t(banner.messageKey)} />}
+        <div className="mt-3 min-h-[44px] flex items-start w-full">
+          {banner && <AuthErrorBanner kind={banner.kind} message={t(banner.messageKey)} />}
+        </div>
       </form>
     </div>
   );

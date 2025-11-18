@@ -2,7 +2,6 @@
 
 import React from "react";
 import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
-import { PasskeyAuthTrigger } from "@/src/components/auth/PasskeyAuthTrigger";
 
 const LoginPage: React.FC = () => {
   return (
@@ -14,14 +13,11 @@ const LoginPage: React.FC = () => {
           <p className="text-sm text-gray-500">入居者様専用コミュニティアプリ</p>
         </section>
 
-        {/* MagicLink / Passkey カードタイルコンテナ */}
+        {/* MagicLink カードタイルのみ */}
         <section className="w-full max-w-md">
           <div className="flex flex-col gap-4">
             <div className="flex-1">
               <MagicLinkForm className="h-full" />
-            </div>
-            <div className="flex-1">
-              <PasskeyAuthTrigger />
             </div>
           </div>
         </section>

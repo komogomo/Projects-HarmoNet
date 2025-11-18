@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
@@ -13,9 +13,10 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@corbado/web-js": "^2.19.0",
+    "@corbado/web-js": "^3.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
     "@supabase/supabase-js": "^2.79.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.473.0",
     "next": "16.0.1",
     "react": "19.2.0",
@@ -62,5 +63,23 @@
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
-  }
+  },
+  "description": "",
+  "main": "postcss.config.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/komogomo/Projects-HarmoNet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/komogomo/Projects-HarmoNet/issues"
+  },
+  "homepage": "https://github.com/komogomo/Projects-HarmoNet#readme"
 }

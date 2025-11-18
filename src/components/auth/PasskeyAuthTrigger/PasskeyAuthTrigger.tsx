@@ -2,7 +2,6 @@
 
 import React, { useCallback, useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
 import type {
@@ -49,24 +48,53 @@ export const PasskeyAuthTrigger: React.FC<PasskeyAuthTriggerProps> = ({
       method: 'passkey',
     });
 
+    console.log('[passkey-debug] button clicked');
+
     try {
       const mod = await import('@corbado/web-js');
-      const Corbado: any = await (mod.default as any).load({
+      const Corbado: any = (mod as any).Corbado ?? (mod as any).default;
+
+      console.log('[passkey-debug] Corbado module keys:', Object.keys(mod || {}));
+      console.log('[passkey-debug] Corbado keys:', Corbado ? Object.keys(Corbado) : []);
+      console.log('[passkey-debug] Corbado.load type:', typeof Corbado?.load);
+      console.log('[passkey-debug] Corbado.passkey type:', typeof (Corbado as any)?.passkey);
+
+      if (!Corbado || typeof Corbado.load !== 'function') {
+        throw new Error('CORBADO_SDK_LOAD_NOT_FOUND');
+      }
+
+      await Corbado.load({
         projectId: process.env.NEXT_PUBLIC_CORBADO_PROJECT_ID!,
       });
 
-      const result: any = await Corbado.passkey.login();
-      if (!result?.id_token) {
+      const openPasskeyLogin: any =
+        (Corbado as any).openPasskeyLogin ?? (Corbado as any).startPasskeyLogin;
+      if (!openPasskeyLogin || typeof openPasskeyLogin !== 'function') {
+        throw new Error('CORBADO_SDK_HOSTED_FLOW_NOT_FOUND');
+      }
+
+      const result: any = await openPasskeyLogin();
+      console.log('[passkey-debug] result', result);
+      const idToken = result?.id_token as string | undefined;
+
+      console.log('[passkey-debug] idToken length:', idToken ? idToken.length : 0);
+
+      if (!idToken) {
         throw new Error('NO_TOKEN');
       }
 
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: 'corbado',
-        token: result.id_token,
+      const resp = await fetch('/api/auth/passkey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
       });
 
-      if (error) {
-        throw error;
+      const responseBody: any = await resp.json().catch(() => ({}));
+      console.log('[passkey-debug] /api/auth/passkey:', resp.status, responseBody);
+
+      if (!(resp.ok && responseBody?.status === 'ok')) {
+        console.error('[passkey-debug] server returned error', responseBody);
+        throw new Error(responseBody?.message || responseBody?.code || 'server_error');
       }
 
       logInfo('auth.login.success.passkey', {
@@ -77,6 +105,8 @@ export const PasskeyAuthTrigger: React.FC<PasskeyAuthTriggerProps> = ({
       onSuccess?.();
       window.location.href = '/mypage';
     } catch (err: any) {
+      console.error('[passkey-debug] client error:', err);
+
       const classified = classifyError(err, t);
       const messageKey = resolvePasskeyMessageKey(classified.type);
 
