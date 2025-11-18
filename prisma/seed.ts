@@ -112,6 +112,37 @@ async function main() {
 
   console.log('✅ ttakeda43+admin@gmail.com 登録 + tenant_adminロール付与完了')
 
+  // === 4.5. 認証テスト用ユーザー作成（WS-A03: ttakeda43@gmail.com） ===
+  const loginTestUser = await prisma.users.upsert({
+    where: { email: 'ttakeda43@gmail.com' },
+    update: {},
+    create: {
+      tenant_id: tenant.id,
+      email: 'ttakeda43@gmail.com',
+      display_name: '認証テストユーザー（竹田）',
+      language: 'ja',
+    },
+  })
+
+  // 認証テストユーザーに tenant_admin ロールを付与
+  await prisma.user_roles.deleteMany({
+    where: {
+      user_id: loginTestUser.id,
+      tenant_id: tenant.id,
+      role_id: tenantAdminRole.id,
+    },
+  })
+
+  await prisma.user_roles.create({
+    data: {
+      user_id: loginTestUser.id,
+      tenant_id: tenant.id,
+      role_id: tenantAdminRole.id,
+    },
+  })
+
+  console.log('✅ ttakeda43@gmail.com 登録 + tenant_adminロール付与完了')
+
   // === 5. 一般利用者ユーザー作成（住民） ===
   const user1 = await prisma.users.upsert({
     where: { email: 'ttakeda43+user1@gmail.com' },
@@ -154,6 +185,20 @@ async function main() {
     update: {},
     create: {
       user_id: sysAdmin.id,
+      tenant_id: tenant.id,
+    },
+  })
+
+  await prisma.user_tenants.upsert({
+    where: {
+      user_id_tenant_id: {
+        user_id: loginTestUser.id,
+        tenant_id: tenant.id,
+      },
+    },
+    update: {},
+    create: {
+      user_id: loginTestUser.id,
       tenant_id: tenant.id,
     },
   })
@@ -300,8 +345,10 @@ async function main() {
   console.log('✅ 駐車場区画12台分登録完了（表F1～F6、裏B1～B6）')
 
   // === 11. Passkey認証情報（テスト用ダミーデータ） ===
-  await prisma.passkey_credentials.create({
-    data: {
+  await prisma.passkey_credentials.upsert({
+    where: { credential_id: 'dummy-credential-id-sysadmin-device1' },
+    update: {},
+    create: {
       user_id: sysAdmin.id,
       tenant_id: tenant.id,
       credential_id: 'dummy-credential-id-sysadmin-device1',
@@ -314,8 +361,10 @@ async function main() {
     },
   })
 
-  await prisma.passkey_credentials.create({
-    data: {
+  await prisma.passkey_credentials.upsert({
+    where: { credential_id: 'dummy-credential-id-admin-device1' },
+    update: {},
+    create: {
       user_id: tenantAdmin.id,
       tenant_id: tenant.id,
       credential_id: 'dummy-credential-id-admin-device1',
@@ -328,8 +377,10 @@ async function main() {
     },
   })
 
-  await prisma.passkey_credentials.create({
-    data: {
+  await prisma.passkey_credentials.upsert({
+    where: { credential_id: 'dummy-credential-id-user1-device1' },
+    update: {},
+    create: {
       user_id: user1.id,
       tenant_id: tenant.id,
       credential_id: 'dummy-credential-id-user1-device1',

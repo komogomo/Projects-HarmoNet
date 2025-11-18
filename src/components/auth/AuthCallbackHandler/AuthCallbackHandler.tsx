@@ -1,49 +1,105 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../../../lib/supabaseClient';
 import { AuthLoadingIndicator } from '@/src/components/common/AuthLoadingIndicator/AuthLoadingIndicator';
-import { AlertCircle } from 'lucide-react';
-
-type State = 'loading' | 'success' | 'error';
+import { logInfo, logError } from '@/src/lib/logging/log.util';
 
 export const AuthCallbackHandler: React.FC = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [state, setState] = useState<State>('loading');
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code) {
-      setState('error');
-      return;
-    }
-    const run = async () => {
-      try {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-        setState('success');
-        router.replace('/mypage');
-      } catch (_) {
-        setState('error');
+    let mounted = true;
+    let handled = false;
+
+    logInfo('auth.callback.start');
+
+    const completeSuccess = () => {
+      if (!mounted || handled) return;
+      handled = true;
+      logInfo('auth.callback.success');
+      logInfo('auth.callback.redirect.home');
+      router.replace('/home');
+    };
+
+    const completeFailure = (reason: string) => {
+      if (!mounted || handled) return;
+      handled = true;
+      logError('auth.callback.fail.session', {
+        reason,
+      });
+      router.replace('/login?error=auth_failed');
+    };
+
+    const href = window.location.href;
+    logInfo('auth.callback.debug.url', {
+      href,
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      logInfo('auth.callback.onAuthStateChange', {
+        event,
+        hasSession: !!session,
+      });
+
+      if (event === 'SIGNED_IN' && session) {
+        completeSuccess();
+      }
+    });
+
+    const checkInitialSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      logInfo('auth.callback.debug.initial_getSession', {
+        hasSession: !!data?.session,
+        error: error?.message ?? null,
+      });
+
+      if (error) {
+        completeFailure(error.message ?? 'unknown');
+        return;
+      }
+
+      if (data?.session) {
+        completeSuccess();
       }
     };
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  if (state === 'loading') {
-    return <AuthLoadingIndicator label="Processing..." />;
-  }
-  if (state === 'error') {
-    return (
-      <div className="rounded-md border border-destructive bg-background p-4 text-destructive">
-        <p className="flex items-center gap-2 text-sm"><AlertCircle className="h-4 w-4" /> Authentication failed</p>
-      </div>
-    );
-  }
-  return null;
+    void checkInitialSession();
+
+    const timeoutId = window.setTimeout(async () => {
+      if (!mounted || handled) return;
+
+      const { data, error } = await supabase.auth.getSession();
+
+      logInfo('auth.callback.debug.timeout_getSession', {
+        hasSession: !!data?.session,
+        error: error?.message ?? null,
+      });
+
+      if (error) {
+        completeFailure(error.message ?? 'timeout_error');
+        return;
+      }
+
+      if (data?.session) {
+        completeSuccess();
+      } else {
+        completeFailure('timeout_no_session');
+      }
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  return <AuthLoadingIndicator label="Processing..." />;
 };
 
 export default AuthCallbackHandler;

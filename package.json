@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@corbado/web-js": "^3.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.79.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.473.0",
