@@ -2,6 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
+import { HomeFooterShortcuts } from '@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts';
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -92,13 +93,16 @@ export default async function HomePage() {
   });
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto w-full max-w-4xl px-4 py-8">
-        <h1 className="text-xl font-semibold text-gray-900">Home</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          認証後のホーム画面プレースホルダです。詳細な UI は別タスクで実装されます。
-        </p>
-      </div>
-    </main>
+    <>
+      <main className="min-h-screen bg-white">
+        <div className="mx-auto w-full max-w-4xl px-4 py-8">
+          <h1 className="text-xl font-semibold text-gray-900">Home</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            認証後のホーム画面プレースホルダです。詳細な UI は別タスクで実装されます。
+          </p>
+        </div>
+      </main>
+      <HomeFooterShortcuts />
+    </>
   );
 }

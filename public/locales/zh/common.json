@@ -58,5 +58,12 @@
         "error_unexpected": "发生未知错误。"
       }
     }
+  },
+  "nav": {
+    "home": "首页",
+    "board": "公告板",
+    "facility": "设施预约",
+    "mypage": "我的页面",
+    "logout": "登出"
   }
 }

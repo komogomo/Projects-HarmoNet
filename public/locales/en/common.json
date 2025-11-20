@@ -58,5 +58,12 @@
         "error_unexpected": "An unexpected error occurred."
       }
     }
+  },
+  "nav": {
+    "home": "Home",
+    "board": "Board",
+    "facility": "Facility",
+    "mypage": "My page",
+    "logout": "Logout"
   }
 }

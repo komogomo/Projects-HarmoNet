@@ -12,11 +12,11 @@ export const LanguageSwitch: React.FC<LanguageSwitchProps> = ({
   const buttons: { code: Locale; label: string }[] = [
     { code: 'ja', label: 'JA' },
     { code: 'en', label: 'EN' },
-    { code: 'zh', label: '中文' },
+    { code: 'zh', label: 'ZH' },
   ];
 
   return (
-    <div className={`flex gap-2 ${className}`} data-testid={testId}>
+    <div className={`flex gap-1.5 justify-end ${className}`} data-testid={testId}>
       {buttons.map(({ code, label }) => {
         const active = currentLocale === code;
         return (
@@ -26,10 +26,10 @@ export const LanguageSwitch: React.FC<LanguageSwitchProps> = ({
             onClick={() => setLocale(code)}
             aria-label={`${label}に切り替え`}
             aria-pressed={active}
-            className={`min-w-[48px] min-h-[36px] rounded-lg border text-sm font-semibold px-3 py-2 transition-colors focus-visible:ring-2 focus-visible:ring-blue-600 ${
+            className={`min-w-[40px] min-h-[30px] rounded-lg border text-xs font-semibold px-2.5 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-blue-600 ${
               active
-                ? 'bg-blue-50 text-blue-600 border-blue-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                ? 'bg-white text-blue-600 border-blue-600 border-2'
+                : 'bg-white text-gray-500 border-transparent hover:bg-gray-50'
             }`}
           >
             {label}
