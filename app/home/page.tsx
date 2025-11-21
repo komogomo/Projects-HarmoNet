@@ -3,6 +3,22 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
 import { HomeFooterShortcuts } from '@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts';
+import { HomeNoticeSection } from '@/src/components/home/HomeNoticeSection/HomeNoticeSection';
+import type { HomeNoticeItem } from '@/src/components/home/HomeNoticeSection/HomeNoticeSection.types';
+import { HomeFeatureTiles } from '@/src/components/home/HomeFeatureTiles/HomeFeatureTiles';
+
+const MOCK_HOME_NOTICE_ITEMS: HomeNoticeItem[] = [
+  {
+    id: 'notice-1',
+    title: '共用部分清掃のお知らせ（11/25 実施）',
+    publishedAt: '2025/11/20 10:00:00',
+  },
+  {
+    id: 'notice-2',
+    title: 'エレベーター点検のお知らせ（12/05 実施）',
+    publishedAt: '2025/11/18 09:30:00',
+  },
+];
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -92,14 +108,16 @@ export default async function HomePage() {
     tenantId: membership.tenant_id,
   });
 
+  const noticeItems: HomeNoticeItem[] = MOCK_HOME_NOTICE_ITEMS;
+
   return (
     <>
       <main className="min-h-screen bg-white">
-        <div className="mx-auto w-full max-w-4xl px-4 py-8">
-          <h1 className="text-xl font-semibold text-gray-900">Home</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            認証後のホーム画面プレースホルダです。詳細な UI は別タスクで実装されます。
-          </p>
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+          <div className="flex-1 space-y-6">
+            <HomeNoticeSection items={noticeItems} maxItems={2} />
+            <HomeFeatureTiles tiles={[]} />
+          </div>
         </div>
       </main>
       <HomeFooterShortcuts />

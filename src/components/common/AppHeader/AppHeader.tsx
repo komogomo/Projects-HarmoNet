@@ -30,7 +30,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* ロゴ */}
         <div className="flex items-center">
           <Image
-            src="/images/logo-harmone.png"
+            src="/images/logo-harmonet.png"
             alt="HarmoNet"
             width={128}
             height={32}

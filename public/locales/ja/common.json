@@ -3,7 +3,8 @@
     "language": "言語",
     "save": "保存",
     "cancel": "キャンセル",
-    "copyright": "© 2025 HarmoNet. All rights reserved."
+    "copyright": "© 2025 HarmoNet. All rights reserved.",
+    "shortcut_navigation": "ショートカット"
   },
   "shortcut": {
     "board": "掲示板",
@@ -70,5 +71,41 @@
     "key1": "",
     "key2": "",
     "key3": ""
+  },
+  "home": {
+    "noticeSection": {
+      "title": "最新のお知らせ",
+      "emptyMessage": "現在表示するお知らせはありません。",
+      "badge": "お知らせ"
+    },
+    "features": {
+      "title": "機能メニュー"
+    },
+    "tiles": {
+      "notice": {
+        "label": "お知らせ",
+        "description": "管理組合からのお知らせ一覧"
+      },
+      "board": {
+        "label": "掲示板",
+        "description": "すべての掲示情報を一覧表示"
+      },
+      "facility": {
+        "label": "施設予約",
+        "description": "共用施設の予約状況と予約申請"
+      },
+      "rules": {
+        "label": "運用ルール",
+        "description": "管理規約・運用ルールを確認"
+      },
+      "notification": {
+        "label": "通知設定",
+        "description": "通知の受信方法を設定"
+      },
+      "dummy": {
+        "label": "準備中",
+        "description": "今後追加予定の機能です"
+      }
+    }
   }
 }

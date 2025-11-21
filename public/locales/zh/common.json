@@ -3,7 +3,8 @@
     "language": "语言",
     "save": "保存",
     "cancel": "取消",
-    "copyright": "© 2025 HarmoNet. 版权所有。"
+    "copyright": "© 2025 HarmoNet. 版权所有。",
+    "shortcut_navigation": "快捷入口"
   },
   "shortcut": {
     "board": "论坛",
@@ -65,5 +66,41 @@
     "facility": "设施预约",
     "mypage": "我的页面",
     "logout": "登出"
+  },
+  "home": {
+    "noticeSection": {
+      "title": "最新通知",
+      "emptyMessage": "目前没有可显示的通知。",
+      "badge": "通知"
+    },
+    "features": {
+      "title": "功能菜单"
+    },
+    "tiles": {
+      "notice": {
+        "label": "通知",
+        "description": "查看管理委员会的通知。"
+      },
+      "board": {
+        "label": "公告板",
+        "description": "查看所有公告。"
+      },
+      "facility": {
+        "label": "设施预订",
+        "description": "查看并预订公共设施。"
+      },
+      "rules": {
+        "label": "使用规则",
+        "description": "查看管理规定和使用规则。"
+      },
+      "notification": {
+        "label": "通知设置",
+        "description": "设置通知接收方式。"
+      },
+      "dummy": {
+        "label": "敬请期待",
+        "description": "此功能将在以后提供。"
+      }
+    }
   }
 }

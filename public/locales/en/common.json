@@ -3,7 +3,8 @@
     "language": "Language",
     "save": "Save",
     "cancel": "Cancel",
-    "copyright": "© 2025 HarmoNet. All rights reserved."
+    "copyright": "© 2025 HarmoNet. All rights reserved.",
+    "shortcut_navigation": "Shortcuts"
   },
   "shortcut": {
     "board": "Board",
@@ -65,5 +66,41 @@
     "facility": "Facility",
     "mypage": "My page",
     "logout": "Logout"
+  },
+  "home": {
+    "noticeSection": {
+      "title": "Latest notices",
+      "emptyMessage": "There are no notices to display.",
+      "badge": "Notice"
+    },
+    "features": {
+      "title": "Features"
+    },
+    "tiles": {
+      "notice": {
+        "label": "Notices",
+        "description": "Announcements from the management."
+      },
+      "board": {
+        "label": "Board",
+        "description": "View all posts."
+      },
+      "facility": {
+        "label": "Facility booking",
+        "description": "Check and book shared facilities."
+      },
+      "rules": {
+        "label": "Rules",
+        "description": "View house rules and policies."
+      },
+      "notification": {
+        "label": "Notification settings",
+        "description": "Configure how you receive notifications."
+      },
+      "dummy": {
+        "label": "Coming soon",
+        "description": "This feature will be available later."
+      }
+    }
   }
 }
