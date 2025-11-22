@@ -26,12 +26,6 @@
     "check_your_email": "メールを確認してください",
     "invalid_email": "無効なメールアドレスです",
     "network_error": "ネットワークエラーが発生しました",
-    "passkey": {
-      "login": "パスキーでサインイン",
-      "success": "パスキーでのサインインに成功しました",
-      "progress": "パスキーの利用可否を確認中...",
-      "retry": "パスキーでもう一度試す"
-    },
     "login": {
       "magiclink": {
         "title": "メールでログイン",
@@ -48,15 +42,6 @@
         "network": "通信エラーが発生しました。時間をおいて再度お試しください。",
         "auth": "認証に失敗しました。入力内容をご確認のうえ、再度お試しください。",
         "unexpected": "予期しないエラーが発生しました。しばらくしてから再度お試しください。"
-      },
-      "passkey": {
-        "title": "Passkeyでログイン",
-        "description": "デバイスの生体認証を使用してログインします。",
-        "error_denied": "認証がキャンセルされました。",
-        "error_origin": "デバイスまたはブラウザが対応していません。",
-        "error_network": "通信エラーが発生しました。",
-        "error_auth": "認証に失敗しました。",
-        "error_unexpected": "予期しないエラーが発生しました。"
       }
     }
   },
@@ -66,11 +51,6 @@
     "facility": "施設予約",
     "mypage": "マイページ",
     "logout": "ログアウト"
-  },
-  "WS-A01": {
-    "key1": "",
-    "key2": "",
-    "key3": ""
   },
   "home": {
     "noticeSection": {
@@ -106,6 +86,41 @@
         "label": "準備中",
         "description": "今後追加予定の機能です"
       }
+    }
+  },
+   "board": {
+    "top": {
+      "title": "掲示板",
+      "subtitle": "管理組合からのお知らせや回覧板を一覧で確認できます。",
+      "tab": {
+        "all": "すべて",
+        "notice": "お知らせ",
+        "rules": "規約・ルール"
+      },
+      "scope": {
+        "all": "すべて",
+        "global": "全体（全住民向け）",
+        "group": "グループのみ"
+      },
+      "newPost": {
+        "button": "新規投稿"
+      },
+      "attachment": {
+        "tooltip": "添付ファイルあり"
+      },
+      "empty": {
+        "title": "表示できる投稿がありません",
+        "description": "選択した条件に該当する掲示板投稿はありません。"
+      },
+      "error": {
+        "title": "掲示板を読み込めませんでした",
+        "description": "通信状況をご確認のうえ、もう一度お試しください。",
+        "retry": "再読み込み"
+      }
+    },
+    "authorType": {
+      "admin": "管理組合",
+      "user": "一般利用者"
     }
   }
 }

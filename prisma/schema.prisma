@@ -141,6 +141,8 @@ model tenants {
   user_notification_settings user_notification_settings[]
   audit_logs                 audit_logs[]
   moderation_logs            moderation_logs[]
+  board_post_translations    board_post_translations[]
+  board_comment_translations board_comment_translations[]
 }
 
 /// テナント設定(JSON)
@@ -327,13 +329,14 @@ model board_posts {
   updated_at  DateTime          @updatedAt
 
   // Relations
-  tenant        tenants               @relation(fields: [tenant_id], references: [id])
-  author        users                 @relation(fields: [author_id], references: [id])
-  category      board_categories      @relation(fields: [category_id], references: [id])
+  tenant        tenants                   @relation(fields: [tenant_id], references: [id])
+  author        users                     @relation(fields: [author_id], references: [id])
+  category      board_categories          @relation(fields: [category_id], references: [id])
   comments      board_comments[]
   reactions     board_reactions[]
   attachments   board_attachments[]
   approval_logs board_approval_logs[]
+  translations  board_post_translations[]
 }
 
 /// 投稿コメント
@@ -348,9 +351,10 @@ model board_comments {
   updated_at        DateTime @updatedAt
 
   // Relations
-  tenant tenants     @relation(fields: [tenant_id], references: [id])
-  post   board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  author users       @relation(fields: [author_id], references: [id])
+  tenant                   tenants                      @relation(fields: [tenant_id], references: [id])
+  post                     board_posts                  @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  author                   users                        @relation(fields: [author_id], references: [id])
+  boardCommentTranslations board_comment_translations[]
 }
 
 /// 投稿リアクション
@@ -643,20 +647,57 @@ model moderation_logs {
 /// テナント別フッターショートカットメニュー構成
 /// フッターショートカットバーの表示項目・順序・アイコンを定義
 model tenant_shortcut_menu {
-  id            String                @id @default(uuid())
+  id            String               @id @default(uuid())
   tenant_id     String
   feature_key   shortcut_feature_key
-  label_key     String                // i18nキー（例: "nav.home"）
-  icon          String                // lucideアイコン名（例: "Home", "MessageSquare"）
+  label_key     String // i18nキー（例: "nav.home"）
+  icon          String // lucideアイコン名（例: "Home", "MessageSquare"）
   display_order Int
-  enabled       Boolean               @default(true)  // UI表示の有効/無効
-  created_at    DateTime              @default(now())
-  updated_at    DateTime              @updatedAt
-  status        status                @default(active) // 論理削除用
+  enabled       Boolean              @default(true) // UI表示の有効/無効
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @updatedAt
+  status        status               @default(active) // 論理削除用
 
   // Relations
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, feature_key])
   @@index([tenant_id, display_order])
+}
+
+/// 掲示板新規投稿用の翻訳
+model board_post_translations {
+  id        String  @id @default(uuid())
+  tenant_id String
+  post_id   String
+  lang      String
+  title     String?
+  content   String  @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant tenants     @relation(fields: [tenant_id], references: [id])
+  post   board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, lang])
+  @@index([tenant_id, lang, created_at])
+}
+
+/// 掲示板投稿画面返信用の翻訳
+model board_comment_translations {
+  id         String @id @default(uuid())
+  tenant_id  String
+  comment_id String
+  lang       String
+  content    String @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant  tenants        @relation(fields: [tenant_id], references: [id])
+  comment board_comments @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+
+  @@unique([comment_id, lang])
+  @@index([tenant_id, lang, created_at])
 }

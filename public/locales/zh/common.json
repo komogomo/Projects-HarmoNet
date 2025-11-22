@@ -26,12 +26,6 @@
     "invalid_email": "电子邮件地址无效",
     "network_error": "发生网络错误",
     "check_your_email": "请检查您的电子邮件",
-    "passkey": {
-      "login": "使用通行密钥登录",
-      "success": "通行密钥登录成功",
-      "progress": "正在检查通行密钥可用性...",
-      "retry": "再次尝试通行密钥"
-    },
     "login": {
       "magiclink": {
         "title": "使用邮箱登录",
@@ -48,15 +42,6 @@
         "network": "发生网络错误。请稍后重试。",
         "auth": "认证失败。请检查输入内容后重试。",
         "unexpected": "发生未知错误。请稍后重试。"
-      },
-      "passkey": {
-        "title": "使用通行密钥登录",
-        "description": "使用设备的生物识别认证进行登录。",
-        "error_denied": "操作已取消。",
-        "error_origin": "此设备或浏览器不受支持。",
-        "error_network": "发生网络错误。",
-        "error_auth": "认证失败。",
-        "error_unexpected": "发生未知错误。"
       }
     }
   },
@@ -101,6 +86,41 @@
         "label": "敬请期待",
         "description": "此功能将在以后提供。"
       }
+    }
+  },
+  "board": {
+    "top": {
+      "title": "公告栏",
+      "subtitle": "可以在此一次查看管理委员会的通知和传阅文件。",
+      "tab": {
+        "all": "全部",
+        "notice": "通知",
+        "rules": "规约・规则"
+      },
+      "scope": {
+        "all": "全部",
+        "global": "面向全体住户",
+        "group": "仅限所属群组"
+      },
+      "newPost": {
+        "button": "新建帖子"
+      },
+      "attachment": {
+        "tooltip": "包含附件"
+      },
+      "empty": {
+        "title": "没有可显示的帖子",
+        "description": "没有符合当前条件的公告帖子。"
+      },
+      "error": {
+        "title": "无法加载公告栏",
+        "description": "请检查网络连接后再试一次。",
+        "retry": "重新加载"
+      }
+    },
+    "authorType": {
+      "admin": "管理委员会",
+      "user": "一般住户"
     }
   }
 }
