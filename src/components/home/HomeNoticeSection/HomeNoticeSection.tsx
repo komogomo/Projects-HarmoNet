@@ -1,12 +1,14 @@
 "use client";
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { HomeNoticeSectionProps } from './HomeNoticeSection.types';
 import { clampNoticeCount, DEFAULT_HOME_NOTICE_COUNT } from './HomeNoticeSection.types';
 
 export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, maxItems }) => {
   const { t } = useI18n();
+  const router = useRouter();
 
   const hasItems = items && items.length > 0;
 
@@ -36,6 +38,9 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
             type="button"
             className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             aria-label={`${item.publishedAt} ${item.title}`}
+            onClick={() => {
+              router.push(`/board/${item.id}`);
+            }}
           >
             <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
               <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
@@ -44,7 +49,12 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
               <span>{item.publishedAt}</span>
             </div>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium text-gray-900 line-clamp-2">{item.title}</p>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium text-gray-900 line-clamp-2">{item.title}</p>
+                {item.content && (
+                  <p className="text-xs text-gray-600 line-clamp-2">{item.content}</p>
+                )}
+              </div>
               <span className="ml-1 text-gray-400" aria-hidden="true">
                 &gt;
               </span>

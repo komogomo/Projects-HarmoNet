@@ -22,9 +22,9 @@ function renderWithProvider(ui: React.ReactElement) {
 }
 
 const BASE_ITEMS: HomeNoticeItem[] = [
-  { id: '1', title: 'お知らせ1', publishedAt: '2025/11/20' },
-  { id: '2', title: 'お知らせ2', publishedAt: '2025/11/19' },
-  { id: '3', title: 'お知らせ3', publishedAt: '2025/11/18' },
+  { id: '1', title: 'お知らせ1', publishedAt: '2025/11/20', content: '本文1' },
+  { id: '2', title: 'お知らせ2', publishedAt: '2025/11/19', content: '本文2' },
+  { id: '3', title: 'お知らせ3', publishedAt: '2025/11/18', content: '本文3' },
 ];
 
 describe('HomeNoticeSection', () => {

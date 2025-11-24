@@ -2,6 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
+import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import BoardPostForm from "@/src/components/board/BoardPostForm/BoardPostForm";
 
 export default async function BoardNewPage() {
@@ -184,18 +185,21 @@ export default async function BoardNewPage() {
   }));
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
-        <div className="flex-1 space-y-6">
-          <BoardPostForm
-            tenantId={tenantId}
-            viewerUserId={appUser.id}
-            viewerRole={viewerRole}
-            isManagementMember={isManagementMember}
-            categories={categoryOptions}
-          />
+    <>
+      <main className="min-h-screen bg-white">
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+          <div className="flex-1 space-y-6">
+            <BoardPostForm
+              tenantId={tenantId}
+              viewerUserId={appUser.id}
+              viewerRole={viewerRole}
+              isManagementMember={isManagementMember}
+              categories={categoryOptions}
+            />
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+      <HomeFooterShortcuts />
+    </>
   );
 }

@@ -3,22 +3,9 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
 import { HomeFooterShortcuts } from '@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts';
-import { HomeNoticeSection } from '@/src/components/home/HomeNoticeSection/HomeNoticeSection';
-import type { HomeNoticeItem } from '@/src/components/home/HomeNoticeSection/HomeNoticeSection.types';
 import { HomeFeatureTiles } from '@/src/components/home/HomeFeatureTiles/HomeFeatureTiles';
-
-const MOCK_HOME_NOTICE_ITEMS: HomeNoticeItem[] = [
-  {
-    id: 'notice-1',
-    title: '共用部分清掃のお知らせ（11/25 実施）',
-    publishedAt: '2025/11/20 10:00:00',
-  },
-  {
-    id: 'notice-2',
-    title: 'エレベーター点検のお知らせ（12/05 実施）',
-    publishedAt: '2025/11/18 09:30:00',
-  },
-];
+import { HomeBoardNoticeContainer } from '@/src/components/home/HomeNoticeSection/HomeBoardNoticeContainer';
+import { clampNoticeCount, DEFAULT_HOME_NOTICE_COUNT } from '@/src/components/home/HomeNoticeSection/HomeNoticeSection.types';
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -103,19 +90,61 @@ export default async function HomePage() {
     redirect('/login?error=unauthorized');
   }
 
+  const tenantId = membership.tenant_id as string;
+
   logInfo('auth.callback.authorized', {
     userId: appUser.id,
-    tenantId: membership.tenant_id,
+    tenantId,
   });
 
-  const noticeItems: HomeNoticeItem[] = MOCK_HOME_NOTICE_ITEMS;
+  // テナント設定から Home のお知らせ表示件数を取得（将来的に管理画面から変更可能にする想定）。
+  const { data: tenantSettingsRows } = await supabase
+    .from('tenant_settings')
+    .select('config_json')
+    .eq('tenant_id', tenantId)
+    .limit(1);
+
+  const rawConfigValue = tenantSettingsRows?.[0]?.config_json as unknown;
+  let config: any = {};
+
+  if (typeof rawConfigValue === 'string') {
+    try {
+      config = JSON.parse(rawConfigValue) as any;
+    } catch {
+      config = {};
+    }
+  } else if (typeof rawConfigValue === 'object' && rawConfigValue !== null) {
+    config = rawConfigValue;
+  }
+
+  let homeSection: any = config.home;
+  if (typeof homeSection === 'string') {
+    try {
+      homeSection = JSON.parse(homeSection) as any;
+    } catch {
+      homeSection = {};
+    }
+  }
+
+  const rawNoticeConfig = (homeSection?.notice ?? null) as unknown;
+  let noticeMaxCountRaw: unknown;
+
+  if (typeof rawNoticeConfig === 'number') {
+    noticeMaxCountRaw = rawNoticeConfig;
+  } else if (typeof rawNoticeConfig === 'object' && rawNoticeConfig !== null) {
+    noticeMaxCountRaw = (rawNoticeConfig as any).maxCount;
+  }
+
+  const noticeMaxCount = clampNoticeCount(
+    typeof noticeMaxCountRaw === 'number' ? noticeMaxCountRaw : DEFAULT_HOME_NOTICE_COUNT,
+  );
 
   return (
     <>
       <main className="min-h-screen bg-white">
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
           <div className="flex-1 space-y-6">
-            <HomeNoticeSection items={noticeItems} maxItems={2} />
+            <HomeBoardNoticeContainer tenantId={tenantId} maxItems={noticeMaxCount} />
             <HomeFeatureTiles tiles={[]} />
           </div>
         </div>

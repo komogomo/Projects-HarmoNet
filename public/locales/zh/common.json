@@ -136,6 +136,25 @@
         "forbidden": "您没有权限查看该帖子。",
         "generic": "加载帖子失败。请稍后重试。"
       },
+      "section": {
+        "content": "正文",
+        "attachments": "附件",
+        "comments": "评论"
+      },
+      "attachments": {
+        "title": "附件",
+        "preview": "预览",
+        "download": "下载",
+        "closePreview": "关闭预览"
+      },
+      "comments": {
+        "title": "评论一览",
+        "readonly": "仅限查看",
+        "empty": "暂无可显示的评论。"
+      },
+      "actions": {
+        "backToList": "返回公告列表"
+      },
       "comment": {
         "input": {
           "placeholder": "请输入评论"
@@ -213,6 +232,7 @@
         "rules": "规则・规约",
         "question": "问题",
         "request": "需求",
+        "group": "群组",
         "other": "其他"
       },
       "option": {

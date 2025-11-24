@@ -88,7 +88,7 @@
       }
     }
   },
-   "board": {
+  "board": {
     "top": {
       "title": "掲示板",
       "subtitle": "管理組合からのお知らせや回覧板を一覧で確認できます。",
@@ -116,11 +116,131 @@
         "title": "掲示板を読み込めませんでした",
         "description": "通信状況をご確認のうえ、もう一度お試しください。",
         "retry": "再読み込み"
+      },
+      "i18n": {
+        "translate": "翻訳",
+        "translating": "翻訳しています…",
+        "viewOriginal": "原文で表示",
+        "viewTranslated": "翻訳を表示",
+        "error": "翻訳に失敗しました。時間をおいて再度お試しください。"
+      },
+      "tts": {
+        "play": "読み上げる",
+        "stop": "読み上げを停止",
+        "error": "読み上げに失敗しました。時間をおいて再度お試しください。"
       }
     },
     "authorType": {
       "admin": "管理組合",
       "user": "一般利用者"
+    },
+    "postForm": {
+      "field": {
+        "category": {
+          "label": "カテゴリ",
+          "placeholder": "カテゴリを選択してください"
+        },
+        "displayName": {
+          "label": "表示名"
+        },
+        "authorRole": {
+          "label": "投稿者区分"
+        },
+        "posterType": {
+          "label": "投稿者区分"
+        },
+        "title": {
+          "label": "タイトル"
+        },
+        "content": {
+          "label": "本文"
+        }
+      },
+      "category": {
+        "important": "重要なお知らせ",
+        "circular": "回覧板",
+        "event": "イベント",
+        "rules": "ルール・規約",
+        "question": "質問",
+        "request": "要望",
+        "other": "その他"
+      },
+      "option": {
+        "anonymous": "匿名で投稿する",
+        "nickname": "ニックネームを表示する",
+        "authorRole": {
+          "admin": "管理組合として投稿する",
+          "user": "一般利用者として投稿する"
+        },
+        "posterType": {
+          "management": "管理組合として投稿する",
+          "general": "一般利用者として投稿する"
+        }
+      },
+      "section": {
+        "attachment": "添付ファイル"
+      },
+      "note": {
+        "attachment": {
+          "description": "掲示板の投稿には関連する資料ファイルを添付できます。",
+          "attachmentAllowed": "PDF / Office ファイル（Word / Excel / PowerPoint）および画像（JPG / PNG）を添付できます。",
+          "sizeLimit": "1 ファイルあたり 5MB まで添付できます。",
+          "previewNote": "PDF は画面上でプレビューでき、それ以外のファイルはダウンロードして閲覧します。"
+        }
+      },
+      "button": {
+        "cancel": "キャンセル",
+        "submit": "投稿する",
+        "submitting": "投稿しています...",
+        "attachFile": "ファイルを選択",
+        "submitMasked": "この伏字済み内容で投稿"
+      },
+      "error": {
+        "category": {
+          "required": "カテゴリを選択してください。"
+        },
+        "displayName": {
+          "required": "表示名の種類を選択してください。"
+        },
+        "title": {
+          "required": "タイトルを入力してください。"
+        },
+        "content": {
+          "required": "本文を入力してください。"
+        },
+        "attachment": {
+          "invalidType": "許可されていない形式のファイルが含まれています。PDF / Office ファイルおよび画像（JPG / PNG）のみ添付できます。",
+          "tooLarge": "ファイルサイズが上限を超えています。1 ファイルあたり 5MB 以内にしてください。"
+        },
+        "summary": {
+          "validation": "入力内容に不備があります。各項目のエラーメッセージを確認してください。",
+          "attachment": "添付ファイルに関するエラーがあります。内容を確認してください。"
+        },
+        "submit": {
+          "server": "投稿処理に失敗しました。時間をおいて再度お試しください。",
+          "auth": "認証エラーが発生しました。再度ログインしてからやり直してください。",
+          "validation": "入力内容に不備があります。修正してから再度投稿してください。",
+          "moderation": {
+            "blocked": "不適切な表現が含まれている可能性があります。内容を修正してから再度お試しください。",
+            "masked": "不適切な表現が含まれている可能性があります。伏字にした内容を確認し、必要に応じて修正してから投稿してください。"
+          },
+          "network": "通信エラーが発生しました。ネットワーク状態を確認してから再度お試しください。"
+        }
+      },
+      "confirm": {
+        "submit": {
+          "title": "この内容で掲示板に投稿しますか？",
+          "notice": "投稿内容を確認し、「投稿する」ボタンを押してください。",
+          "cancel": "修正する",
+          "ok": "投稿する"
+        },
+        "preview": {
+          "title": "タイトル",
+          "category": "カテゴリ",
+          "content": "本文",
+          "attachment": "添付ファイル"
+        }
+      }
     }
   }
 }

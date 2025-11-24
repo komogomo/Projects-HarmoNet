@@ -81,4 +81,46 @@ export class GoogleTranslationService implements TranslationService {
       throw error;
     }
   }
+
+  async detectLanguageOnce(text: string): Promise<SupportedLang | null> {
+    const startedAt = Date.now();
+
+    try {
+      const request = {
+        parent: `projects/${this.projectId}/locations/${this.location}`,
+        content: text,
+        mimeType: 'text/plain',
+      };
+
+      const [response] = await this.client.detectLanguage(request as any, {
+        timeout: 3000,
+      } as any);
+
+      const code = response.languages?.[0]?.languageCode?.toLowerCase();
+
+      const durationMs = Date.now() - startedAt;
+
+      if (code === 'ja' || code === 'en' || code === 'zh') {
+        logInfo('board.translation.detect.success', {
+          detectedLang: code,
+          durationMs,
+        });
+        return code as SupportedLang;
+      }
+
+      logInfo('board.translation.detect.unsupported', {
+        detectedLang: code ?? 'unknown',
+        durationMs,
+      });
+
+      return null;
+    } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      logError('board.translation.detect.error', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        durationMs,
+      });
+      return null;
+    }
+  }
 }

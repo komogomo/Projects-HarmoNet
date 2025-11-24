@@ -78,7 +78,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          shouldCreateUser: true,
+          shouldCreateUser: false,
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });

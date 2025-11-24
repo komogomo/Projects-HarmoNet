@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
+import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 import { logError, logInfo } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
 import { callOpenAiModeration, decideModeration, maskSensitiveText, saveModerationLog, type TenantModerationConfig } from '@/src/server/services/moderationService';
 import { BoardPostTranslationService } from '@/src/server/services/translation/BoardPostTranslationService';
-import { GoogleTranslationService } from '@/src/server/services/translation/GoogleTranslationService';
+import { GoogleTranslationService, type SupportedLang } from '@/src/server/services/translation/GoogleTranslationService';
 
 interface UpsertBoardPostRequest {
   tenantId: string;
@@ -15,6 +16,153 @@ interface UpsertBoardPostRequest {
   title: string;
   content: string;
    forceMasked?: boolean;
+  uiLanguage?: SupportedLang;
+}
+
+interface BoardPostTranslationDto {
+  lang: 'ja' | 'en' | 'zh';
+  title: string | null;
+  content: string;
+}
+
+interface BoardPostSummaryDto {
+  id: string;
+  categoryKey: string;
+  categoryName: string | null;
+  originalTitle: string;
+  originalContent: string;
+  authorDisplayName: string;
+  authorDisplayType: 'management' | 'user';
+  createdAt: string;
+  hasAttachment: boolean;
+  translations: BoardPostTranslationDto[];
+}
+
+export async function GET(req: Request) {
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    const url = new URL(req.url);
+    const tenantIdFromQuery = url.searchParams.get('tenantId');
+
+    if (!tenantIdFromQuery) {
+      return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user || !user.email) {
+      logError('board.posts.api.auth_error', {
+        reason: authError?.message ?? 'no_session',
+      });
+      return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
+    }
+
+    const {
+      data: appUser,
+      error: appUserError,
+    } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (appUserError || !appUser) {
+      logError('board.posts.api.user_not_found', {
+        email: user.email,
+      });
+      return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
+    }
+
+    const {
+      data: membership,
+      error: membershipError,
+    } = await supabase
+      .from('user_tenants')
+      .select('tenant_id')
+      .eq('user_id', appUser.id)
+      .eq('tenant_id', tenantIdFromQuery)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (membershipError || !membership?.tenant_id) {
+      logError('board.posts.api.membership_error', {
+        userId: appUser.id,
+      });
+      return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
+    }
+
+    const tenantId = membership.tenant_id as string;
+
+    const posts = await prisma.board_posts.findMany({
+      where: {
+        tenant_id: tenantId,
+        status: 'published',
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 50,
+      include: {
+        category: {
+          select: {
+            category_key: true,
+            category_name: true,
+          },
+        },
+        translations: {
+          select: {
+            lang: true,
+            title: true,
+            content: true,
+          },
+        },
+        attachments: {
+          select: {
+            id: true,
+          },
+        },
+        author: {
+          select: {
+            display_name: true,
+          },
+        },
+      },
+    });
+
+    const summaries: BoardPostSummaryDto[] = posts.map((post) => ({
+      id: post.id,
+      categoryKey: post.category.category_key,
+      categoryName: post.category.category_name,
+      originalTitle: post.title,
+      originalContent: post.content,
+      authorDisplayName: post.author.display_name,
+      authorDisplayType: 'user',
+      createdAt: post.created_at.toISOString(),
+      hasAttachment: post.attachments.length > 0,
+      translations: post.translations.map((t) => ({
+        lang: t.lang as 'ja' | 'en' | 'zh',
+        title: t.title,
+        content: t.content,
+      })),
+    }));
+
+    return NextResponse.json(
+      {
+        posts: summaries,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    logError('board.posts.api.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -34,7 +182,15 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as UpsertBoardPostRequest;
-    const { tenantId: tenantIdFromBody, authorId, categoryKey, title, content, forceMasked = false } = body;
+    const {
+      tenantId: tenantIdFromBody,
+      authorId,
+      categoryKey,
+      title,
+      content,
+      forceMasked = false,
+      uiLanguage,
+    } = body;
 
     if (!tenantIdFromBody || !authorId || !categoryKey || !title || !content) {
       return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
@@ -261,16 +417,31 @@ export async function POST(req: Request) {
 
     try {
       const translationService = new GoogleTranslationService();
+      // 翻訳キャッシュは service_role クライアントを用いて RLS ポリシー（*_service）に沿って書き込む。
+      const serviceRoleSupabase = createSupabaseServiceRoleClient();
       const boardTranslation = new BoardPostTranslationService({
-        supabase,
+        supabase: serviceRoleSupabase,
         translationService,
       });
+      const preferredUiLanguage: SupportedLang = uiLanguage === 'en' || uiLanguage === 'zh' ? uiLanguage : 'ja';
+
+      const textForDetect = [effectiveTitle, effectiveContent].join('\n\n');
+
+      let sourceLang: SupportedLang = preferredUiLanguage;
+
+      const detected = await translationService.detectLanguageOnce(textForDetect);
+      if (detected) {
+        sourceLang = detected;
+      }
+
+      const allLangs: SupportedLang[] = ['ja', 'en', 'zh'];
+      const targetLangs = allLangs.filter((lang) => lang !== sourceLang) as SupportedLang[];
 
       await boardTranslation.translateAndCacheForPost({
         tenantId,
         postId,
-        sourceLang: 'ja',
-        targetLangs: ['ja', 'en', 'zh'],
+        sourceLang,
+        targetLangs,
         originalTitle: effectiveTitle,
         originalBody: effectiveContent,
       });

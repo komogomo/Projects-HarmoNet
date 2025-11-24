@@ -31,7 +31,7 @@ const SHORTCUT_ITEMS: ShortcutItem[] = [
   {
     key: "board",
     labelKey: "nav.board",
-    href: "",
+    href: "/board",
     Icon: MessageSquare,
   },
   {
@@ -108,7 +108,6 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
           `;
 
           const commonProps = {
-            key: item.key,
             "aria-label": t(item.labelKey),
             "data-testid": `${testId}-item-${item.key}`,
             className: baseClasses,
@@ -118,6 +117,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
             return (
               <button
                 type="button"
+                key={item.key}
                 {...commonProps}
                 onClick={() => {
                   void handleClick(item);
@@ -130,7 +130,16 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
           }
 
           return (
-            <button type="button" {...commonProps}>
+            <button
+              type="button"
+              key={item.key}
+              {...commonProps}
+              onClick={() => {
+                if (item.href) {
+                  router.push(item.href);
+                }
+              }}
+            >
               <Icon aria-hidden="true" className="h-5 w-5" />
               <span>{t(item.labelKey)}</span>
             </button>

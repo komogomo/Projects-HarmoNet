@@ -7,6 +7,14 @@ import { HomeFeatureTile } from '@/src/components/home/HomeFeatureTiles/HomeFeat
 import type { HomeFeatureTileDefinition } from '@/src/components/home/HomeFeatureTiles/HomeFeatureTile.types';
 import { HOME_FEATURE_TILES } from '@/src/components/home/HomeFeatureTiles/HomeFeatureTiles.types';
 
+const pushMock = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
+
 function mockFetchForHome() {
   (globalThis as any).fetch = jest.fn().mockResolvedValue({
     ok: true,
@@ -32,6 +40,10 @@ function renderWithProvider(ui: React.ReactElement) {
 }
 
 describe('HomeFeatureTiles', () => {
+  beforeEach(() => {
+    pushMock.mockClear();
+  });
+
   test('HOME_FEATURE_TILES を渡したときに 6 件のタイルが描画される', () => {
     renderWithProvider(<HomeFeatureTiles tiles={HOME_FEATURE_TILES} />);
 
@@ -51,6 +63,28 @@ describe('HomeFeatureTiles', () => {
     renderWithProvider(<HomeFeatureTiles tiles={HOME_FEATURE_TILES} />);
 
     expect(await screen.findByText('機能メニュー')).toBeInTheDocument();
+  });
+
+  test('BOARD タイルをクリックすると /board に push される', async () => {
+    const user = userEvent.setup();
+
+    renderWithProvider(<HomeFeatureTiles tiles={HOME_FEATURE_TILES} />);
+
+    const boardTile = screen.getByRole('button', { name: /掲示板/ });
+
+    await user.click(boardTile);
+    expect(pushMock).toHaveBeenCalledWith('/board');
+  });
+
+  test('NOTICE タイルをクリックすると /board?tab=notice に push される', async () => {
+    const user = userEvent.setup();
+
+    renderWithProvider(<HomeFeatureTiles tiles={HOME_FEATURE_TILES} />);
+
+    const noticeTile = screen.getByRole('button', { name: /お知らせ/ });
+
+    await user.click(noticeTile);
+    expect(pushMock).toHaveBeenCalledWith('/board?tab=important');
   });
 });
 

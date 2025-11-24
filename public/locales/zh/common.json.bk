@@ -29,7 +29,7 @@
     "login": {
       "magiclink": {
         "title": "使用邮箱登录",
-        "description": "我们会向您登记的邮箱发送登录链接。",
+        "description": "我们会向登记的邮箱发送登录链接。",
         "button_login": "登录",
         "button_sending": "发送中…"
       },
@@ -116,11 +116,181 @@
         "title": "无法加载公告栏",
         "description": "请检查网络连接后再试一次。",
         "retry": "重新加载"
+      },
+      "i18n": {
+        "translate": "翻译",
+        "translating": "正在翻译…",
+        "viewOriginal": "显示原文",
+        "viewTranslated": "显示译文",
+        "error": "翻译失败。"
+      },
+      "tts": {
+        "play": "朗读",
+        "stop": "停止",
+        "error": "朗读失败。"
+      }
+    },
+    "detail": {
+      "error": {
+        "notFound": "找不到该帖子。",
+        "forbidden": "您没有权限查看该帖子。",
+        "generic": "加载帖子失败。请稍后重试。"
+      },
+      "comment": {
+        "input": {
+          "placeholder": "请输入评论"
+        },
+        "submit": "发布评论",
+        "submitResult": {
+          "success": "评论已发布。",
+          "error": "发布评论失败。",
+          "moderationBlocked": "评论可能包含不适当内容。请修改后再试。"
+        },
+        "disabled": "此帖子不允许发表评论。",
+        "delete": "删除评论",
+        "deleteConfirmTitle": "要删除此评论吗？",
+        "deleteConfirmMessage": "此操作无法撤销。确定要删除吗？",
+        "deleteSuccess": "评论已删除。",
+        "deleteError": "删除评论失败。"
+      },
+      "post": {
+        "reply": "回复",
+        "edit": "编辑",
+        "delete": "删除帖子",
+        "deleteConfirmTitle": "要删除此帖子吗？",
+        "deleteConfirmMessage": "该帖子将不再显示在公告栏中。确定要删除吗？",
+        "deleteConfirmYes": "删除",
+        "deleteConfirmNo": "取消",
+        "deleteSuccess": "帖子已删除。",
+        "deleteError": "删除帖子失败。"
+      },
+      "i18n": {
+        "translateButton": "显示译文",
+        "viewOriginal": "显示原文",
+        "viewTranslated": "显示译文",
+        "error": "翻译失败。"
+      },
+      "tts": {
+        "play": "朗读",
+        "stop": "停止",
+        "error": "朗读失败。"
+      },
+      "pdf": {
+        "close": "关闭",
+        "tapToClose": "点击关闭"
       }
     },
     "authorType": {
       "admin": "管理委员会",
       "user": "一般住户"
+    },
+    "postForm": {
+      "field": {
+        "category": {
+          "label": "类别",
+          "placeholder": "请选择类别"
+        },
+        "displayName": {
+          "label": "显示名称"
+        },
+        "authorRole": {
+          "label": "发帖身份"
+        },
+        "posterType": {
+          "label": "发帖身份"
+        },
+        "title": {
+          "label": "标题"
+        },
+        "content": {
+          "label": "正文"
+        }
+      },
+      "category": {
+        "important": "重要通知",
+        "circular": "回览板",
+        "event": "活动",
+        "rules": "规则・规约",
+        "question": "问题",
+        "request": "需求",
+        "other": "其他"
+      },
+      "option": {
+        "anonymous": "以匿名方式发帖",
+        "nickname": "显示昵称",
+        "authorRole": {
+          "admin": "以管理委员会身份发帖",
+          "user": "以一般住户身份发帖"
+        },
+        "posterType": {
+          "management": "以管理委员会身份发帖",
+          "general": "以一般住户身份发帖"
+        }
+      },
+      "section": {
+        "attachment": "附件"
+      },
+      "note": {
+        "attachment": {
+          "description": "您可以为公告帖子附加相关资料文件。",
+          "attachmentAllowed": "可以附加 PDF、Office 文件（Word / Excel / PowerPoint）以及图片（JPG / PNG）。",
+          "sizeLimit": "每个文件最大 5MB。",
+          "previewNote": "PDF 可在页面中预览，其他文件可下载查看。"
+        }
+      },
+      "button": {
+        "cancel": "取消",
+        "submit": "发布",
+        "submitting": "正在发布...",
+        "attachFile": "选择文件",
+        "submitMasked": "以当前打码内容发布"
+      },
+      "error": {
+        "category": {
+          "required": "请选择类别。"
+        },
+        "displayName": {
+          "required": "请选择显示名称的方式。"
+        },
+        "title": {
+          "required": "请输入标题。"
+        },
+        "content": {
+          "required": "请输入正文内容。"
+        },
+        "attachment": {
+          "invalidType": "部分所选文件格式不受支持。仅允许附加 PDF、Office 文件和 JPG/PNG 图片。",
+          "tooLarge": "部分文件大小超过 5MB 上限。"
+        },
+        "summary": {
+          "validation": "输入内容存在问题。请检查各项目下方的错误信息。",
+          "attachment": "附件相关设置存在错误，请检查后重试。"
+        },
+        "submit": {
+          "server": "发布失败。请稍后重试。",
+          "auth": "认证错误。请重新登录后再试。",
+          "validation": "输入内容存在不符合要求的地方，请修正后再试。",
+          "moderation": {
+            "blocked": "内容可能包含不适当表达。请修改内容后再试。",
+            "masked": "内容可能包含不适当表达，部分文字已被打码。请确认并根据需要修改后再尝试发布。"
+          },
+          "network": "发生网络错误。请检查网络连接后再试。"
+        }
+      },
+      "confirm": {
+        "submit": {
+          "title": "要以此内容发布到公告栏吗？",
+          "notice": "请确认内容后点击“发布”按钮。",
+          "cancel": "返回修改",
+          "ok": "发布"
+        },
+        "preview": {
+          "title": "标题",
+          "category": "类别",
+          "content": "正文",
+          "attachment": "附件"
+        }
+      }
     }
   }
 }

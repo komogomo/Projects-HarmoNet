@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type {
-  TranslationService,
-  SupportedLang,
-} from './GoogleTranslationService';
+import { logError } from '@/src/lib/logging/log.util';
+import type { TranslationService, SupportedLang } from './GoogleTranslationService';
 
 export interface BoardPostTranslationServiceDeps {
   supabase: SupabaseClient;
@@ -53,28 +51,60 @@ export class BoardPostTranslationService {
     const tasks = targetLangs
       .filter((targetLang) => targetLang !== sourceLang)
       .map(async (targetLang) => {
+        let translatedTitle: string | null = null;
+
+        if (originalTitle && originalTitle.trim().length > 0) {
+          try {
+            const titleResult = await this.translationService.translateOnce({
+              tenantId,
+              sourceLang,
+              targetLang,
+              text: originalTitle,
+            });
+
+            translatedTitle = titleResult.text || null;
+          } catch {
+            translatedTitle = null;
+          }
+        }
+
         try {
-          const result = await this.translationService.translateOnce({
+          const bodyResult = await this.translationService.translateOnce({
             tenantId,
             sourceLang,
             targetLang,
             text: originalBody,
           });
 
-          await this.supabase
+          const { error } = await this.supabase
             .from('board_post_translations')
             .upsert(
               {
                 tenant_id: tenantId,
                 post_id: postId,
                 lang: targetLang,
-                title: originalTitle ?? null,
-                content: result.text,
+                title: translatedTitle,
+                content: bodyResult.text,
               },
               { onConflict: 'post_id,lang' },
             );
-        } catch {
+
+          if (error) {
+            logError('board.translation.cache_error.post', {
+              tenantId,
+              postId,
+              targetLang,
+              errorMessage: error.message ?? String(error),
+            });
+          }
+        } catch (error) {
           // フェイルソフト: 単一言語での失敗は握りつぶし、他言語は継続する。
+          logError('board.translation.cache_exception.post', {
+            tenantId,
+            postId,
+            targetLang,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
         }
       });
 
@@ -123,7 +153,7 @@ export class BoardPostTranslationService {
             text: originalBody,
           });
 
-          await this.supabase
+          const { error } = await this.supabase
             .from('board_comment_translations')
             .upsert(
               {
@@ -134,7 +164,22 @@ export class BoardPostTranslationService {
               },
               { onConflict: 'comment_id,lang' },
             );
-        } catch {
+
+          if (error) {
+            logError('board.translation.cache_error.comment', {
+              tenantId,
+              commentId,
+              targetLang,
+              errorMessage: error.message ?? String(error),
+            });
+          }
+        } catch (error) {
+          logError('board.translation.cache_exception.comment', {
+            tenantId,
+            commentId,
+            targetLang,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
         }
       });
 

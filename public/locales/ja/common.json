@@ -116,6 +116,87 @@
         "title": "掲示板を読み込めませんでした",
         "description": "通信状況をご確認のうえ、もう一度お試しください。",
         "retry": "再読み込み"
+      },
+      "i18n": {
+        "translate": "翻訳",
+        "translating": "翻訳しています…",
+        "viewOriginal": "原文で表示",
+        "viewTranslated": "翻訳を表示",
+        "error": "翻訳に失敗しました。時間をおいて再度お試しください。"
+      },
+      "tts": {
+        "play": "読み上げる",
+        "stop": "読み上げを停止",
+        "error": "読み上げに失敗しました。時間をおいて再度お試しください。"
+      }
+    },
+    "detail": {
+      "error": {
+        "notFound": "この投稿は見つかりませんでした。",
+        "forbidden": "この投稿を閲覧する権限がありません。",
+        "generic": "投稿の読み込みに失敗しました。時間をおいて再度お試しください。"
+      },
+      "section": {
+        "content": "本文",
+        "attachments": "添付ファイル",
+        "comments": "コメント"
+      },
+      "attachments": {
+        "title": "添付ファイル",
+        "preview": "プレビュー",
+        "download": "ダウンロード",
+        "closePreview": "プレビューを閉じる"
+      },
+      "comments": {
+        "title": "コメント一覧",
+        "readonly": "閲覧専用",
+        "empty": "表示できるコメントはありません。"
+      },
+      "actions": {
+        "backToList": "掲示板一覧へ戻る"
+      },
+      "comment": {
+        "input": {
+          "placeholder": "コメントを入力してください"
+        },
+        "submit": "コメントを投稿",
+        "submitResult": {
+          "success": "コメントを投稿しました。",
+          "error": "コメントの投稿に失敗しました。",
+          "moderationBlocked": "不適切な表現が含まれている可能性があります。内容を修正してから再度お試しください。"
+        },
+        "disabled": "この投稿にはコメントできません。",
+        "delete": "コメントを削除",
+        "deleteConfirmTitle": "このコメントを削除しますか？",
+        "deleteConfirmMessage": "この操作は元に戻せません。本当に削除してよろしいですか？",
+        "deleteSuccess": "コメントを削除しました。",
+        "deleteError": "コメントの削除に失敗しました。"
+      },
+      "post": {
+        "reply": "返信する",
+        "edit": "編集する",
+        "delete": "投稿を削除",
+        "deleteConfirmTitle": "この投稿を削除しますか？",
+        "deleteConfirmMessage": "削除すると、この投稿は掲示板に表示されなくなります。本当に削除してよろしいですか？",
+        "deleteConfirmYes": "削除する",
+        "deleteConfirmNo": "キャンセル",
+        "deleteSuccess": "投稿を削除しました。",
+        "deleteError": "投稿の削除に失敗しました。"
+      },
+      "i18n": {
+        "translateButton": "翻訳を表示",
+        "viewOriginal": "原文で表示",
+        "viewTranslated": "翻訳で表示",
+        "error": "翻訳に失敗しました。"
+      },
+      "tts": {
+        "play": "読み上げる",
+        "stop": "読み上げを停止",
+        "error": "読み上げに失敗しました。時間をおいて再度お試しください。"
+      },
+      "pdf": {
+        "close": "閉じる",
+        "tapToClose": "タップして閉じる"
       }
     },
     "authorType": {
@@ -151,6 +232,7 @@
         "rules": "ルール・規約",
         "question": "質問",
         "request": "要望",
+        "group": "グループ",
         "other": "その他"
       },
       "option": {

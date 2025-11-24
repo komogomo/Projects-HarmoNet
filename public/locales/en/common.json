@@ -122,12 +122,12 @@
         "translating": "Translating...",
         "viewOriginal": "View original",
         "viewTranslated": "View translation",
-        "error": "Translation failed."
+        "error": "Translation failed. Please try again later."
       },
       "tts": {
         "play": "Read aloud",
         "stop": "Stop",
-        "error": "Failed to start text-to-speech."
+        "error": "Failed to start text-to-speech. Please try again later."
       }
     },
     "detail": {
@@ -135,6 +135,25 @@
         "notFound": "This post could not be found.",
         "forbidden": "You do not have permission to view this post.",
         "generic": "Failed to load the post. Please try again later."
+      },
+      "section": {
+        "content": "Content",
+        "attachments": "Attachments",
+        "comments": "Comments"
+      },
+      "attachments": {
+        "title": "Attachments",
+        "preview": "Preview",
+        "download": "Download",
+        "closePreview": "Close preview"
+      },
+      "comments": {
+        "title": "Comments",
+        "readonly": "Read-only",
+        "empty": "There are no comments to display."
+      },
+      "actions": {
+        "backToList": "Back to board list"
       },
       "comment": {
         "input": {
@@ -213,6 +232,7 @@
         "rules": "Rules & regulations",
         "question": "Question",
         "request": "Request",
+        "group": "Group",
         "other": "Other"
       },
       "option": {
