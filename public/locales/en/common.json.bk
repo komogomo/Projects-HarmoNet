@@ -1,0 +1,126 @@
+{
+  "common": {
+    "language": "Language",
+    "save": "Save",
+    "cancel": "Cancel",
+    "copyright": "© 2025 HarmoNet. All rights reserved.",
+    "shortcut_navigation": "Shortcuts"
+  },
+  "shortcut": {
+    "board": "Board",
+    "booking": "Booking",
+    "survey": "Survey",
+    "mypage": "My Page",
+    "settings": "Settings",
+    "tenants": "Tenants",
+    "logs": "Logs"
+  },
+  "auth": {
+    "enter_email": "Enter your email address",
+    "send_magic_link": "Send login link",
+    "email_sent": "Email sent successfully",
+    "sending": "Sending...",
+    "link_sent": "Sent. Please check your email.",
+    "error_generic": "Failed to send. Please try again.",
+    "retry": "Retry",
+    "invalid_email": "Invalid email address",
+    "network_error": "Network error occurred",
+    "check_your_email": "Please check your email",
+    "login": {
+      "magiclink": {
+        "title": "Sign in with email",
+        "description": "We will send a login link to your registered email address.",
+        "button_login": "Sign in",
+        "button_sending": "Sending…"
+      },
+      "email": {
+        "label": "Email address"
+      },
+      "magiclink_sent": "We sent a login link to your email.",
+      "error": {
+        "email_invalid": "The email address format is invalid.",
+        "network": "A network error occurred. Please try again later.",
+        "auth": "Authentication failed. Please check your input and try again.",
+        "unexpected": "An unexpected error occurred. Please try again later."
+      }
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "board": "Board",
+    "facility": "Facility",
+    "mypage": "My page",
+    "logout": "Logout"
+  },
+  "home": {
+    "noticeSection": {
+      "title": "Latest notices",
+      "emptyMessage": "There are no notices to display.",
+      "badge": "Notice"
+    },
+    "features": {
+      "title": "Features"
+    },
+    "tiles": {
+      "notice": {
+        "label": "Notices",
+        "description": "Announcements from the management."
+      },
+      "board": {
+        "label": "Board",
+        "description": "View all posts."
+      },
+      "facility": {
+        "label": "Facility booking",
+        "description": "Check and book shared facilities."
+      },
+      "rules": {
+        "label": "Rules",
+        "description": "View house rules and policies."
+      },
+      "notification": {
+        "label": "Notification settings",
+        "description": "Configure how you receive notifications."
+      },
+      "dummy": {
+        "label": "Coming soon",
+        "description": "This feature will be available later."
+      }
+    }
+  },
+    "board": {
+    "top": {
+      "title": "Bulletin board",
+      "subtitle": "You can view announcements and circulars from the management association in a single list.",
+      "tab": {
+        "all": "All",
+        "notice": "Announcements",
+        "rules": "Rules & regulations"
+      },
+      "scope": {
+        "all": "All",
+        "global": "All residents",
+        "group": "Groups only"
+      },
+      "newPost": {
+        "button": "New post"
+      },
+      "attachment": {
+        "tooltip": "Has attachment"
+      },
+      "empty": {
+        "title": "No posts to display",
+        "description": "There are no bulletin posts that match the selected conditions."
+      },
+      "error": {
+        "title": "Failed to load the bulletin board",
+        "description": "Please check your connection and try again.",
+        "retry": "Reload"
+      }
+    },
+    "authorType": {
+      "admin": "Management association",
+      "user": "Resident"
+    }
+  }
+}

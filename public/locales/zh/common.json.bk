@@ -1,0 +1,126 @@
+{
+  "common": {
+    "language": "语言",
+    "save": "保存",
+    "cancel": "取消",
+    "copyright": "© 2025 HarmoNet. 版权所有。",
+    "shortcut_navigation": "快捷入口"
+  },
+  "shortcut": {
+    "board": "论坛",
+    "booking": "预约",
+    "survey": "问卷",
+    "mypage": "我的主页",
+    "settings": "设置",
+    "tenants": "租户管理",
+    "logs": "日志"
+  },
+  "auth": {
+    "enter_email": "请输入电子邮件地址",
+    "send_magic_link": "发送登录链接",
+    "email_sent": "邮件已发送",
+    "sending": "发送中...",
+    "link_sent": "已发送。请检查您的邮件。",
+    "error_generic": "发送失败。请重试。",
+    "retry": "重试",
+    "invalid_email": "电子邮件地址无效",
+    "network_error": "发生网络错误",
+    "check_your_email": "请检查您的电子邮件",
+    "login": {
+      "magiclink": {
+        "title": "使用邮箱登录",
+        "description": "我们会向您登记的邮箱发送登录链接。",
+        "button_login": "登录",
+        "button_sending": "发送中…"
+      },
+      "email": {
+        "label": "电子邮件地址"
+      },
+      "magiclink_sent": "登录链接已发送到您的邮箱。",
+      "error": {
+        "email_invalid": "电子邮件地址格式不正确。",
+        "network": "发生网络错误。请稍后重试。",
+        "auth": "认证失败。请检查输入内容后重试。",
+        "unexpected": "发生未知错误。请稍后重试。"
+      }
+    }
+  },
+  "nav": {
+    "home": "首页",
+    "board": "公告板",
+    "facility": "设施预约",
+    "mypage": "我的页面",
+    "logout": "登出"
+  },
+  "home": {
+    "noticeSection": {
+      "title": "最新通知",
+      "emptyMessage": "目前没有可显示的通知。",
+      "badge": "通知"
+    },
+    "features": {
+      "title": "功能菜单"
+    },
+    "tiles": {
+      "notice": {
+        "label": "通知",
+        "description": "查看管理委员会的通知。"
+      },
+      "board": {
+        "label": "公告板",
+        "description": "查看所有公告。"
+      },
+      "facility": {
+        "label": "设施预订",
+        "description": "查看并预订公共设施。"
+      },
+      "rules": {
+        "label": "使用规则",
+        "description": "查看管理规定和使用规则。"
+      },
+      "notification": {
+        "label": "通知设置",
+        "description": "设置通知接收方式。"
+      },
+      "dummy": {
+        "label": "敬请期待",
+        "description": "此功能将在以后提供。"
+      }
+    }
+  },
+  "board": {
+    "top": {
+      "title": "公告栏",
+      "subtitle": "可以在此一次查看管理委员会的通知和传阅文件。",
+      "tab": {
+        "all": "全部",
+        "notice": "通知",
+        "rules": "规约・规则"
+      },
+      "scope": {
+        "all": "全部",
+        "global": "面向全体住户",
+        "group": "仅限所属群组"
+      },
+      "newPost": {
+        "button": "新建帖子"
+      },
+      "attachment": {
+        "tooltip": "包含附件"
+      },
+      "empty": {
+        "title": "没有可显示的帖子",
+        "description": "没有符合当前条件的公告帖子。"
+      },
+      "error": {
+        "title": "无法加载公告栏",
+        "description": "请检查网络连接后再试一次。",
+        "retry": "重新加载"
+      }
+    },
+    "authorType": {
+      "admin": "管理委员会",
+      "user": "一般住户"
+    }
+  }
+}

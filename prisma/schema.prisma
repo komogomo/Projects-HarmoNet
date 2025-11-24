@@ -100,6 +100,13 @@ enum shortcut_feature_key {
   logout
 }
 
+enum comment_status {
+  active   // 通常表示
+  deleted  // 論理削除（UIには出さない or 特別扱い）
+}
+
+
+
 // ===== Models =====
 
 // --- 1. Tenant Management ---
@@ -143,6 +150,7 @@ model tenants {
   moderation_logs            moderation_logs[]
   board_post_translations    board_post_translations[]
   board_comment_translations board_comment_translations[]
+  tenant_residents           tenant_residents[] 
 }
 
 /// テナント設定(JSON)
@@ -173,7 +181,7 @@ model tenant_features {
 
 // --- 2. Users / Auth ---
 
-/// ユーザー基本情報（Supabase auth.users と1:1）
+/// ユーザー認証情報（Supabase auth.users と1:1）
 model users {
   id           String   @id @default(uuid())
   tenant_id    String? // 最後に所属したテナントIDなど (nullable)
@@ -199,7 +207,27 @@ model users {
   user_notification_settings user_notification_settings[]
   audit_logs                 audit_logs[]
   moderation_logs_reviewer   moderation_logs[] // 承認者としてのリレーション
+  tenant_residents           tenant_residents[]
 }
+
+/// 住民基本情報
+model tenant_residents {
+  id             String   @id @default(uuid())
+  tenant_id      String
+  user_id        String?
+  residence_code String
+  real_name      String
+  real_name_kana String
+  phone_number   String?
+  status         status  @default(active)
+
+  // Relations
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+  user   users?  @relation(fields: [user_id], references: [id])
+
+  @@unique([tenant_id, residence_code])
+}
+
 
 /// ユーザーとテナントの所属関係
 model user_tenants {
@@ -349,6 +377,7 @@ model board_comments {
   parent_comment_id String?
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
+  status            comment_status @default(active) 
 
   // Relations
   tenant                   tenants                      @relation(fields: [tenant_id], references: [id])

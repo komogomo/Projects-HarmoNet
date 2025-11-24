@@ -1,0 +1,670 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { logError, logInfo } from "@/src/lib/logging/log.util";
+
+export type ViewerRole = "admin" | "user";
+type PosterType = "management" | "general";
+
+export interface BoardCategoryOption {
+  key: string;
+  label: string;
+}
+
+export interface BoardPostFormProps {
+  tenantId: string;
+  viewerUserId: string;
+  viewerRole: ViewerRole;
+  isManagementMember: boolean;
+  categories: BoardCategoryOption[];
+}
+
+type DisplayNameMode = "anonymous" | "nickname";
+
+type AttachmentStatus = "selected" | "uploading" | "uploaded" | "error" | "existing";
+
+interface AttachmentItem {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  status: AttachmentStatus;
+  fileObject?: File;
+  fileUrl?: string;
+}
+
+interface FieldErrors {
+  categoryKey?: string;
+  displayNameMode?: string;
+  title?: string;
+  content?: string;
+  attachments?: string;
+}
+
+const MAX_ATTACHMENT_SIZE_MB = 5;
+const MAX_ATTACHMENT_COUNT = 5;
+// TODO: tenant_settings から添付ファイルの上限値を取得するように変更する
+
+const ALLOWED_ATTACHMENT_EXTENSIONS = [
+  "pdf",
+  "xls",
+  "xlsx",
+  "doc",
+  "docx",
+  "ppt",
+  "pptx",
+  "jpg",
+  "jpeg",
+  "png",
+];
+
+const ADMIN_CATEGORY_KEYS: string[] = ["important", "circular", "event", "rules"];
+const USER_CATEGORY_KEYS: string[] = ["question", "request", "other"];
+
+const BoardPostForm: React.FC<BoardPostFormProps> = ({
+  tenantId,
+  viewerUserId,
+  viewerRole,
+  isManagementMember,
+  categories,
+}) => {
+  const router = useRouter();
+  const { t } = useI18n();
+
+  const [categoryKey, setCategoryKey] = useState<string>("");
+  const [displayNameMode, setDisplayNameMode] = useState<DisplayNameMode | null>(null);
+  const [posterType, setPosterType] = useState<PosterType>(
+    isManagementMember ? "management" : "general",
+  );
+  const [title, setTitle] = useState<string>("");
+  const [content, setContent] = useState<string>("");
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitErrorKey, setSubmitErrorKey] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+  const [isMaskedMode, setIsMaskedMode] = useState<boolean>(false);
+  const [forceMaskedOnNextSubmit, setForceMaskedOnNextSubmit] = useState<boolean>(false);
+
+  const getCategoryLabel = (category: BoardCategoryOption): string => {
+    const key = `board.postForm.category.${category.key}`;
+    const value = t(key);
+    // t() returns the key itself when missing; fall back to DB label in that case
+    return value === key ? category.label : value;
+  };
+
+  const getVisibleCategories = (): BoardCategoryOption[] => {
+    const isPostingAsManagement = viewerRole === "admin" && posterType === "management";
+
+    if (isPostingAsManagement) {
+      return categories.filter((category) => ADMIN_CATEGORY_KEYS.includes(category.key));
+    }
+
+    return categories.filter((category) => USER_CATEGORY_KEYS.includes(category.key));
+  };
+
+  const visibleCategories = getVisibleCategories();
+
+  useEffect(() => {
+    const allowedKeys = new Set(visibleCategories.map((category) => category.key));
+    if (categoryKey && !allowedKeys.has(categoryKey)) {
+      setCategoryKey("");
+    }
+  }, [categoryKey, visibleCategories]);
+
+  useEffect(() => {
+    logInfo("board.post.form_open", {
+      tenantId,
+      viewerUserId,
+      viewerRole,
+    });
+  }, [tenantId, viewerUserId, viewerRole]);
+
+  useEffect(() => {
+    if (viewerRole === "admin" && posterType === "management") {
+      setDisplayNameMode("nickname");
+    }
+  }, [viewerRole, posterType]);
+
+  const validate = (): boolean => {
+    const nextErrors: FieldErrors = {};
+
+    const isPostingAsManagement = viewerRole === "admin" && posterType === "management";
+
+    if (!categoryKey) {
+      nextErrors.categoryKey = "board.postForm.error.category.required";
+    }
+
+    if (!displayNameMode && !isPostingAsManagement) {
+      nextErrors.displayNameMode = "board.postForm.error.displayName.required";
+    }
+
+    if (!title.trim()) {
+      nextErrors.title = "board.postForm.error.title.required";
+    }
+
+    if (!content.trim()) {
+      nextErrors.content = "board.postForm.error.content.required";
+    }
+
+    if (errors.attachments) {
+      nextErrors.attachments = errors.attachments;
+    }
+
+    setErrors(nextErrors);
+    const errorKeys = Object.keys(nextErrors);
+
+    if (errorKeys.length > 0) {
+      if (nextErrors.attachments) {
+        setSubmitErrorKey("board.postForm.error.summary.attachment");
+      } else {
+        setSubmitErrorKey("board.postForm.error.summary.validation");
+      }
+      return false;
+    }
+
+    setSubmitErrorKey(null);
+    return true;
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    setForceMaskedOnNextSubmit(false);
+
+    logInfo("board.post.submit_click", {
+      tenantId,
+      viewerUserId,
+      viewerRole,
+      categoryKey,
+      posterType,
+    });
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleSubmitWithMaskedContent = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    setForceMaskedOnNextSubmit(true);
+
+    logInfo("board.post.submit_click", {
+      tenantId,
+      viewerUserId,
+      viewerRole,
+      categoryKey,
+      posterType,
+    });
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitErrorKey(null);
+    setIsMaskedMode(false);
+
+    try {
+      const response = await fetch("/api/board/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tenantId,
+          authorId: viewerUserId,
+          posterType,
+          displayNameMode,
+          categoryKey,
+          title,
+          content,
+          forceMasked: forceMaskedOnNextSubmit,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        postId?: string;
+        errorCode?: string;
+        maskedTitle?: string;
+        maskedContent?: string;
+      };
+
+      if (!response.ok) {
+        const errorCode = data.errorCode;
+        if (errorCode === "ai_moderation_masked") {
+          if (typeof data.maskedTitle === "string") {
+            setTitle(data.maskedTitle);
+          }
+          if (typeof data.maskedContent === "string") {
+            setContent(data.maskedContent);
+          }
+          setSubmitErrorKey("board.postForm.error.submit.moderation.masked");
+          setIsMaskedMode(true);
+          logError("board.post.create_failed", {
+            tenantId,
+            viewerUserId,
+            errorCode,
+          });
+          return;
+        }
+        let errorKey = "board.postForm.error.submit.server";
+
+        if (errorCode === "auth_error" || errorCode === "unauthorized") {
+          errorKey = "board.postForm.error.submit.auth";
+        } else if (
+          errorCode === "validation_error" ||
+          errorCode === "category_not_found" ||
+          errorCode === "invalid_category"
+        ) {
+          errorKey = "board.postForm.error.submit.validation";
+        } else if (errorCode === "ai_moderation_blocked") {
+          errorKey = "board.postForm.error.submit.moderation.blocked";
+        } else if (errorCode === "insert_failed") {
+          errorKey = "board.postForm.error.submit.server";
+        }
+
+        setSubmitErrorKey(errorKey);
+        logError("board.post.create_failed", {
+          tenantId,
+          viewerUserId,
+          errorCode,
+        });
+      } else {
+        const postId = data.postId;
+        if (postId) {
+          router.push(`/board/${postId}`);
+        }
+      }
+    } catch (error) {
+      setSubmitErrorKey("board.postForm.error.submit.network");
+      logError("board.post.create_failed", {
+        tenantId,
+        viewerUserId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsConfirmOpen(false);
+    }
+  };
+
+  const handleCancelConfirm = () => {
+    if (isSubmitting) return;
+    setIsConfirmOpen(false);
+  };
+
+  const handleClickCancel = () => {
+    router.back();
+  };
+
+  const handleSelectAttachmentFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const maxSizeBytes = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+    const currentAttachments = [...attachments];
+    let attachmentError: string | null = null;
+
+    for (const file of Array.from(files)) {
+      if (currentAttachments.length >= MAX_ATTACHMENT_COUNT) {
+        // TODO: 添付ファイル数の上限超過時のエラーメッセージキーが定義されたら、ここでエラー表示を追加する
+        break;
+      }
+
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ALLOWED_ATTACHMENT_EXTENSIONS.includes(extension)) {
+        attachmentError = "board.postForm.error.attachment.invalidType";
+        continue;
+      }
+
+      if (file.size > maxSizeBytes) {
+        attachmentError = "board.postForm.error.attachment.tooLarge";
+        continue;
+      }
+
+      currentAttachments.push({
+        id: `${Date.now()}-${file.name}-${currentAttachments.length}`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        status: "selected",
+        fileObject: file,
+      });
+    }
+
+    setAttachments(currentAttachments);
+
+    if (attachmentError) {
+      setErrors((prev) => ({
+        ...prev,
+        attachments: attachmentError as string,
+      }));
+    } else {
+      setErrors((prev) => {
+        if (!prev.attachments) return prev;
+        const { attachments: _removed, ...rest } = prev;
+        return rest;
+      });
+    }
+
+    // 同じファイルを再度選択できるように value をリセット
+    event.target.value = "";
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+  };
+
+  const selectedCategory = categories.find((c) => c.key === categoryKey) ?? null;
+  const selectedCategoryLabel = selectedCategory ? getCategoryLabel(selectedCategory) : "";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6" data-testid="board-post-form">
+      {submitErrorKey && (
+        <div
+          className="rounded-md bg-red-50 p-3 text-sm text-red-700"
+          data-testid="board-post-form-error-summary"
+        >
+          {t(submitErrorKey)}
+        </div>
+      )}
+
+      {isManagementMember && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-700">
+            {t("board.postForm.field.posterType.label")}
+          </div>
+          <div className="flex gap-4 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="posterType"
+                value="management"
+                checked={posterType === "management"}
+                onChange={() => setPosterType("management")}
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{t("board.postForm.option.posterType.management")}</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="posterType"
+                value="general"
+                checked={posterType === "general"}
+                onChange={() => setPosterType("general")}
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{t("board.postForm.option.posterType.general")}</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          {t("board.postForm.field.category.label")}
+          <select
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={categoryKey}
+            onChange={(event) => setCategoryKey(event.target.value)}
+            data-testid="board-post-form-category"
+          >
+            <option value="">{t("board.postForm.field.category.placeholder")}</option>
+            {visibleCategories.map((category) => (
+              <option key={category.key} value={category.key}>
+                {getCategoryLabel(category)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {errors.categoryKey && (
+          <p className="mt-1 text-xs text-red-600">{t(errors.categoryKey)}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">
+          {t("board.postForm.field.displayName.label")}
+        </div>
+        {viewerRole === "admin" && posterType === "management" ? (
+          <div className="text-sm text-gray-900">{t("board.authorType.admin")}</div>
+        ) : (
+          <>
+            <div className="flex gap-4 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="displayNameMode"
+                  value="anonymous"
+                  checked={displayNameMode === "anonymous"}
+                  onChange={() => setDisplayNameMode("anonymous")}
+                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                  data-testid="board-post-form-displayname-anonymous"
+                />
+                <span>{t("board.postForm.option.anonymous")}</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="displayNameMode"
+                  value="nickname"
+                  checked={displayNameMode === "nickname"}
+                  onChange={() => setDisplayNameMode("nickname")}
+                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                  data-testid="board-post-form-displayname-nickname"
+                />
+                <span>{t("board.postForm.option.nickname")}</span>
+              </label>
+            </div>
+            {errors.displayNameMode && (
+              <p className="mt-1 text-xs text-red-600">{t(errors.displayNameMode)}</p>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          {t("board.postForm.field.title.label")}
+          <input
+            type="text"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            data-testid="board-post-form-title"
+          />
+        </label>
+        {errors.title && <p className="mt-1 text-xs text-red-600">{t(errors.title)}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          {t("board.postForm.field.content.label")}
+          <textarea
+            className="mt-1 block w-full min-h-[160px] rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            data-testid="board-post-form-content"
+          />
+        </label>
+        {errors.content && <p className="mt-1 text-xs text-red-600">{t(errors.content)}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">
+          {t("board.postForm.section.attachment")}
+        </div>
+        <div className="space-y-1 text-xs text-gray-500">
+          <p>{t("board.postForm.note.attachment.description")}</p>
+          <p>{t("board.postForm.note.attachmentAllowed")}</p>
+          <p>{t("board.postForm.note.attachment.sizeLimit")}</p>
+          <p>{t("board.postForm.note.attachment.previewNote")}</p>
+        </div>
+        <div>
+          <label
+            htmlFor="board-post-form-attachment-input"
+            className="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            {t("board.postForm.button.attachFile")}
+          </label>
+          <input
+            id="board-post-form-attachment-input"
+            type="file"
+            multiple
+            accept=".pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={handleSelectAttachmentFile}
+            data-testid="board-post-form-attachment-input"
+          />
+        </div>
+        {attachments.length > 0 && (
+          <ul className="space-y-1 text-xs text-gray-700">
+            {attachments.map((attachment) => (
+              <li
+                key={attachment.id}
+                className="flex items-center justify-between rounded border border-gray-200 px-2 py-1"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{attachment.fileName}</span>
+                  <span className="text-[11px] text-gray-500">
+                    {(attachment.fileSize / 1024).toFixed(0)} KB
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(attachment.id)}
+                  className="text-xs text-red-600 hover:underline"
+                  aria-label={t("common.cancel")}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {errors.attachments && (
+          <p className="mt-1 text-xs text-red-600">{t(errors.attachments)}</p>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={handleClickCancel}
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          {t("board.postForm.button.cancel")} 
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="board-post-form-submit-button"
+        >
+          {isSubmitting ? t("board.postForm.button.submitting") : t("board.postForm.button.submit")}
+        </button>
+        {isMaskedMode && (
+          <button
+            type="button"
+            onClick={handleSubmitWithMaskedContent}
+            disabled={isSubmitting}
+            className="rounded-md bg-yellow-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="board-post-form-submit-masked-button"
+          >
+            {t("board.postForm.button.submitMasked")}
+          </button>
+        )}
+      </div>
+
+      {isConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40"
+          data-testid="board-post-form-confirm"
+        >
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t("board.postForm.confirm.submit.title")}
+              </h2>
+              <p className="text-sm text-gray-600">
+                {t("board.postForm.confirm.submit.notice")}
+              </p>
+              <div className="space-y-2 rounded-md bg-gray-50 p-3 text-sm text-gray-800">
+                <div>
+                  <div className="font-medium">
+                    {t("board.postForm.confirm.preview.title")}
+                  </div>
+                  <div>{title}</div>
+                </div>
+                <div>
+                  <div className="font-medium">
+                    {t("board.postForm.confirm.preview.category")}
+                  </div>
+                  <div>{selectedCategoryLabel}</div>
+                </div>
+                <div>
+                  <div className="font-medium">
+                    {t("board.postForm.confirm.preview.content")}
+                  </div>
+                  <div className="whitespace-pre-wrap">
+                    {content.length > 200 ? `${content.slice(0, 200)}...` : content}
+                  </div>
+                </div>
+                {attachments.length > 0 && (
+                  <div>
+                    <div className="font-medium">
+                      {t("board.postForm.confirm.preview.attachment")}
+                    </div>
+                    <ul className="list-disc pl-5">
+                      {attachments.map((attachment) => (
+                        <li key={attachment.id}>{attachment.fileName}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelConfirm}
+                  disabled={isSubmitting}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {t("board.postForm.confirm.submit.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  disabled={isSubmitting}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  data-testid="board-post-form-confirm-ok"
+                >
+                  {isSubmitting
+                    ? t("board.postForm.button.submitting")
+                    : t("board.postForm.confirm.submit.ok")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+};
+
+export default BoardPostForm;

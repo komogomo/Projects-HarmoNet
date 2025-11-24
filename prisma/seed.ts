@@ -4,18 +4,24 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🚀 HarmoNet Phase9 全部入りSeed開始')
 
+  // 既存の harmonet-demo テナントコードを SEC001 にリネーム（初期に投入したデータとの互換用）
+  await prisma.tenants.updateMany({
+    where: { tenant_code: 'harmonet-demo' },
+    data: { tenant_code: 'SEC001' },
+  })
+
   // === 1. テナント作成 ===
   const tenant = await prisma.tenants.upsert({
-    where: { tenant_code: 'harmonet-demo' },
+    where: { tenant_code: 'SEC001' },
     update: {},
     create: {
-      tenant_code: 'harmonet-demo',
+      tenant_code: 'SEC001',
       tenant_name: 'HarmoNet Demo',
       timezone: 'Asia/Tokyo',
       is_active: true,
     },
   })
-  console.log('✅ tenant: harmonet-demo 作成完了')
+  console.log('✅ tenant: SEC001 作成完了')
 
   // === 2. ロール定義 ===
   const systemAdminRole = await prisma.roles.upsert({
@@ -174,6 +180,67 @@ async function main() {
 
   console.log('✅ ttakeda43+user1@gmail.com 登録 + general_userロール付与完了')
 
+  // === 5.1. シンプルなテスト用アカウント（admin@gmail.com, user01@gmail.com） ===
+  const simpleAdmin = await prisma.users.upsert({
+    where: { email: 'admin@gmail.com' },
+    update: {},
+    create: {
+      tenant_id: tenant.id,
+      email: 'admin@gmail.com',
+      display_name: '管理組合アカウント',
+      language: 'ja',
+    },
+  })
+
+  // admin@gmail.com に tenant_admin ロールを付与
+  await prisma.user_roles.deleteMany({
+    where: {
+      user_id: simpleAdmin.id,
+      tenant_id: tenant.id,
+      role_id: tenantAdminRole.id,
+    },
+  })
+
+  await prisma.user_roles.create({
+    data: {
+      user_id: simpleAdmin.id,
+      tenant_id: tenant.id,
+      role_id: tenantAdminRole.id,
+    },
+  })
+
+  console.log('✅ admin@gmail.com 登録 + tenant_adminロール付与完了')
+
+  const simpleUser01 = await prisma.users.upsert({
+    where: { email: 'user01@gmail.com' },
+    update: {},
+    create: {
+      tenant_id: tenant.id,
+      email: 'user01@gmail.com',
+      display_name: '一般利用者 user01',
+      language: 'ja',
+    },
+  })
+
+  // user01@gmail.com に general_user ロールを付与
+  await prisma.user_roles.deleteMany({
+    where: {
+      user_id: simpleUser01.id,
+      tenant_id: tenant.id,
+      role_id: generalUserRole.id,
+    },
+  })
+
+  await prisma.user_roles.create({
+    data: {
+      user_id: simpleUser01.id,
+      tenant_id: tenant.id,
+      role_id: generalUserRole.id,
+    },
+  })
+
+  console.log('✅ user01@gmail.com 登録 + general_userロール付与完了')
+
   // === 6. user_tenants登録（ユーザーとテナントの紐付け） ===
   await prisma.user_tenants.upsert({
     where: {
@@ -231,15 +298,46 @@ async function main() {
     },
   })
 
+  await prisma.user_tenants.upsert({
+    where: {
+      user_id_tenant_id: {
+        user_id: simpleAdmin.id,
+        tenant_id: tenant.id,
+      },
+    },
+    update: {},
+    create: {
+      user_id: simpleAdmin.id,
+      tenant_id: tenant.id,
+    },
+  })
+
+  await prisma.user_tenants.upsert({
+    where: {
+      user_id_tenant_id: {
+        user_id: simpleUser01.id,
+        tenant_id: tenant.id,
+      },
+    },
+    update: {},
+    create: {
+      user_id: simpleUser01.id,
+      tenant_id: tenant.id,
+    },
+  })
+
   console.log('✅ user_tenants 紐付け完了')
 
   // === 7. 掲示板カテゴリ ===
   await prisma.board_categories.createMany({
     data: [
       { tenant_id: tenant.id, category_key: 'important', category_name: '重要なお知らせ', display_order: 1 },
-      { tenant_id: tenant.id, category_key: 'question', category_name: '質問・相談', display_order: 2 },
-      { tenant_id: tenant.id, category_key: 'circular', category_name: '回覧板', display_order: 3 },
+      { tenant_id: tenant.id, category_key: 'circular', category_name: '回覧板', display_order: 2 },
+      { tenant_id: tenant.id, category_key: 'event', category_name: 'イベント', display_order: 3 },
       { tenant_id: tenant.id, category_key: 'rules', category_name: 'ルール・規約', display_order: 4 },
+      { tenant_id: tenant.id, category_key: 'question', category_name: '質問', display_order: 5 },
+      { tenant_id: tenant.id, category_key: 'request', category_name: '要望', display_order: 6 },
+      { tenant_id: tenant.id, category_key: 'other', category_name: 'その他', display_order: 7 },
     ],
     skipDuplicates: true,
   })

@@ -1,0 +1,126 @@
+{
+  "common": {
+    "language": "言語",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "copyright": "© 2025 HarmoNet. All rights reserved.",
+    "shortcut_navigation": "ショートカット"
+  },
+  "shortcut": {
+    "board": "掲示板",
+    "booking": "施設予約",
+    "survey": "アンケート",
+    "mypage": "マイページ",
+    "settings": "設定",
+    "tenants": "テナント管理",
+    "logs": "ログ"
+  },
+  "auth": {
+    "enter_email": "メールアドレスを入力してください",
+    "send_magic_link": "ログインリンクを送信",
+    "email_sent": "メールを送信しました",
+    "sending": "送信中...",
+    "link_sent": "送信しました。メールをご確認ください。",
+    "error_generic": "送信に失敗しました。再度お試しください。",
+    "retry": "再試行",
+    "check_your_email": "メールを確認してください",
+    "invalid_email": "無効なメールアドレスです",
+    "network_error": "ネットワークエラーが発生しました",
+    "login": {
+      "magiclink": {
+        "title": "メールでログイン",
+        "description": "ご登録のメールアドレス宛にログイン用リンクを送信します。",
+        "button_login": "ログイン",
+        "button_sending": "送信中…"
+      },
+      "email": {
+        "label": "メールアドレス"
+      },
+      "magiclink_sent": "ログイン用リンクを送信しました。",
+      "error": {
+        "email_invalid": "メールアドレスの形式が正しくありません。",
+        "network": "通信エラーが発生しました。時間をおいて再度お試しください。",
+        "auth": "認証に失敗しました。入力内容をご確認のうえ、再度お試しください。",
+        "unexpected": "予期しないエラーが発生しました。しばらくしてから再度お試しください。"
+      }
+    }
+  },
+  "nav": {
+    "home": "ホーム",
+    "board": "掲示板",
+    "facility": "施設予約",
+    "mypage": "マイページ",
+    "logout": "ログアウト"
+  },
+  "home": {
+    "noticeSection": {
+      "title": "最新のお知らせ",
+      "emptyMessage": "現在表示するお知らせはありません。",
+      "badge": "お知らせ"
+    },
+    "features": {
+      "title": "機能メニュー"
+    },
+    "tiles": {
+      "notice": {
+        "label": "お知らせ",
+        "description": "管理組合からのお知らせ一覧"
+      },
+      "board": {
+        "label": "掲示板",
+        "description": "すべての掲示情報を一覧表示"
+      },
+      "facility": {
+        "label": "施設予約",
+        "description": "共用施設の予約状況と予約申請"
+      },
+      "rules": {
+        "label": "運用ルール",
+        "description": "管理規約・運用ルールを確認"
+      },
+      "notification": {
+        "label": "通知設定",
+        "description": "通知の受信方法を設定"
+      },
+      "dummy": {
+        "label": "準備中",
+        "description": "今後追加予定の機能です"
+      }
+    }
+  },
+   "board": {
+    "top": {
+      "title": "掲示板",
+      "subtitle": "管理組合からのお知らせや回覧板を一覧で確認できます。",
+      "tab": {
+        "all": "すべて",
+        "notice": "お知らせ",
+        "rules": "規約・ルール"
+      },
+      "scope": {
+        "all": "すべて",
+        "global": "全体（全住民向け）",
+        "group": "グループのみ"
+      },
+      "newPost": {
+        "button": "新規投稿"
+      },
+      "attachment": {
+        "tooltip": "添付ファイルあり"
+      },
+      "empty": {
+        "title": "表示できる投稿がありません",
+        "description": "選択した条件に該当する掲示板投稿はありません。"
+      },
+      "error": {
+        "title": "掲示板を読み込めませんでした",
+        "description": "通信状況をご確認のうえ、もう一度お試しください。",
+        "retry": "再読み込み"
+      }
+    },
+    "authorType": {
+      "admin": "管理組合",
+      "user": "一般利用者"
+    }
+  }
+}

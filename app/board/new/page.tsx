@@ -1,0 +1,201 @@
+import React from "react";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { logError, logInfo } from "@/src/lib/logging/log.util";
+import BoardPostForm from "@/src/components/board/BoardPostForm/BoardPostForm";
+
+export default async function BoardNewPage() {
+  logInfo("board.post.form.enter");
+
+  const supabase = await createSupabaseServerClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user || !user.email) {
+    logError("auth.callback.no_session", {
+      reason: authError?.message ?? "no_session",
+      screen: "BoardNew",
+    });
+    redirect("/login?error=no_session");
+  }
+
+  const email = user.email;
+
+  const {
+    data: appUser,
+    error: appUserError,
+  } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (appUserError) {
+    logError("auth.callback.db_error", {
+      screen: "BoardNew",
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=server_error");
+  }
+
+  if (!appUser) {
+    logError("auth.callback.unauthorized.user_not_found", {
+      screen: "BoardNew",
+      email,
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=unauthorized");
+  }
+
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
+    .from("user_tenants")
+    .select("tenant_id")
+    .eq("user_id", appUser.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (membershipError) {
+    logError("auth.callback.db_error", {
+      screen: "BoardNew",
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=server_error");
+  }
+
+  if (!membership || !membership.tenant_id) {
+    logError("auth.callback.unauthorized.no_tenant", {
+      screen: "BoardNew",
+      userId: appUser.id,
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=unauthorized");
+  }
+
+  const tenantId = membership.tenant_id as string;
+
+  logInfo("board.post.form.membership_resolved", {
+    userId: appUser.id,
+    tenantId,
+  });
+
+  const {
+    data: userRoles,
+    error: userRolesError,
+  } = await supabase
+    .from("user_roles")
+    .select("role_id")
+    .eq("user_id", appUser.id)
+    .eq("tenant_id", tenantId);
+
+  let viewerRole: "admin" | "user" = "user";
+
+  logInfo("board.post.form.user_roles_result", {
+    userId: appUser.id,
+    tenantId,
+    userRoles,
+    userRolesError,
+  });
+
+  if (!userRolesError && userRoles && userRoles.length > 0) {
+    const roleIds = userRoles
+      .map((row: any) => row.role_id)
+      .filter((id: unknown): id is string => typeof id === "string");
+
+    if (roleIds.length > 0) {
+      const {
+        data: roles,
+        error: rolesError,
+      } = await supabase
+        .from("roles")
+        .select("id, role_key")
+        .in("id", roleIds as string[]);
+
+      if (!rolesError && roles && Array.isArray(roles)) {
+        logInfo("board.post.form.roles_debug", {
+          userId: appUser.id,
+          tenantId,
+          roleIds,
+          roles,
+          rolesError,
+        });
+
+        const hasAdmin = roles.some(
+          (role: any) =>
+            role.role_key === "tenant_admin" || role.role_key === "system_admin",
+        );
+        if (hasAdmin) {
+          viewerRole = "admin";
+        }
+      }
+    }
+  }
+
+  const isManagementMember = viewerRole === "admin";
+
+  logInfo("board.post.form_context", {
+    userId: appUser.id,
+    tenantId,
+    viewerRole,
+    isManagementMember,
+  });
+
+  const {
+    data: rawCategories,
+    error: categoryError,
+  } = await supabase
+    .from("board_categories")
+    .select("tenant_id, category_key, category_name, display_order, status")
+    .eq("status", "active")
+    .order("display_order", { ascending: true });
+
+  const categories = (rawCategories ?? []).filter(
+    (category: any) => category.tenant_id === tenantId,
+  );
+
+  logInfo("board.post.form.categories_fetched", {
+    tenantId,
+    hasError: !!categoryError,
+    errorMessage: categoryError?.message ?? null,
+    rawLength: rawCategories?.length ?? 0,
+    filteredLength: categories.length,
+  });
+
+  if (categoryError || categories.length === 0) {
+    logError("board.post.form.category_error", {
+      tenantId,
+      hasError: !!categoryError,
+      errorMessage: categoryError?.message ?? null,
+      rawLength: rawCategories?.length ?? 0,
+      filteredLength: categories.length,
+    });
+    redirect("/home");
+  }
+
+  const categoryOptions = categories.map((category: any) => ({
+    key: category.category_key as string,
+    label: category.category_name as string,
+  }));
+
+  return (
+    <main className="min-h-screen bg-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+        <div className="flex-1 space-y-6">
+          <BoardPostForm
+            tenantId={tenantId}
+            viewerUserId={appUser.id}
+            viewerRole={viewerRole}
+            isManagementMember={isManagementMember}
+            categories={categoryOptions}
+          />
+        </div>
+      </div>
+    </main>
+  );
+}
