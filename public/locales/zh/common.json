@@ -95,7 +95,8 @@
       "tab": {
         "all": "全部",
         "notice": "通知",
-        "rules": "规约・规则"
+        "rules": "规约・规则",
+        "favorite": "收藏"
       },
       "scope": {
         "all": "全部",
@@ -107,6 +108,9 @@
       },
       "attachment": {
         "tooltip": "包含附件"
+      },
+      "reply": {
+        "tooltip": "回复"
       },
       "empty": {
         "title": "没有可显示的帖子",
@@ -194,6 +198,11 @@
         "stop": "停止",
         "error": "朗读失败。"
       },
+      "favorite": {
+        "add": "加入收藏",
+        "remove": "取消收藏",
+        "error": "更新收藏状态失败，请稍后重试。"
+      },
       "pdf": {
         "close": "关闭",
         "tapToClose": "点击关闭"
@@ -252,11 +261,14 @@
       },
       "note": {
         "attachment": {
-          "description": "您可以为公告帖子附加相关资料文件。",
-          "attachmentAllowed": "可以附加 PDF、Office 文件（Word / Excel / PowerPoint）以及图片（JPG / PNG）。",
+          "description": "可以为公告帖子附加相关资料文件。",
+          "attachmentAllowed": "可以附加 PDF / Office 文件（Word / Excel / PowerPoint）以及图片（JPG / PNG）。",
           "sizeLimit": "每个文件最大 5MB。",
-          "previewNote": "PDF 可在页面中预览，其他文件可下载查看。"
+          "previewNote": "PDF 文件可以在画面上预览，其他文件需要下载后查看。"
         }
+      },
+      "reply": {
+        "notice": "您正在回复此帖子。回复的类别将与原始帖子一致。"
       },
       "button": {
         "cancel": "取消",

@@ -101,11 +101,9 @@ enum shortcut_feature_key {
 }
 
 enum comment_status {
-  active   // 通常表示
-  deleted  // 論理削除（UIには出さない or 特別扱い）
+  active // 通常表示
+  deleted // 論理削除（UIには出さない or 特別扱い）
 }
-
-
 
 // ===== Models =====
 
@@ -136,6 +134,7 @@ model tenants {
   board_reactions            board_reactions[]
   board_attachments          board_attachments[]
   board_approval_logs        board_approval_logs[]
+  board_favorites            board_favorites[]
   announcements              announcements[]
   facilities                 facilities[]
   facility_settings          facility_settings[]
@@ -150,7 +149,7 @@ model tenants {
   moderation_logs            moderation_logs[]
   board_post_translations    board_post_translations[]
   board_comment_translations board_comment_translations[]
-  tenant_residents           tenant_residents[] 
+  tenant_residents           tenant_residents[]
 }
 
 /// テナント設定(JSON)
@@ -201,6 +200,7 @@ model users {
   board_comments             board_comments[]
   board_reactions            board_reactions[]
   board_approval_logs        board_approval_logs[]
+  board_favorites            board_favorites[]
   announcement_reads         announcement_reads[]
   facility_reservations      facility_reservations[]
   notifications              notifications[]
@@ -212,7 +212,7 @@ model users {
 
 /// 住民基本情報
 model tenant_residents {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid())
   tenant_id      String
   user_id        String?
   residence_code String
@@ -228,12 +228,12 @@ model tenant_residents {
   @@unique([tenant_id, residence_code])
 }
 
-
 /// ユーザーとテナントの所属関係
 model user_tenants {
   user_id   String
   tenant_id String
   joined_at DateTime @default(now())
+  board_last_seen_at DateTime?
   status    status   @default(active)
 
   user   users   @relation(fields: [user_id], references: [id])
@@ -346,15 +346,16 @@ model board_categories {
 
 /// 掲示板投稿
 model board_posts {
-  id          String            @id @default(uuid())
-  tenant_id   String
-  category_id String
-  author_id   String
-  title       String
-  content     String            @db.Text
-  status      board_post_status @default(draft)
-  created_at  DateTime          @default(now())
-  updated_at  DateTime          @updatedAt
+  id                  String            @id @default(uuid())
+  tenant_id           String
+  category_id         String
+  author_id           String
+  author_display_name String?
+  title               String
+  content             String            @db.Text
+  status              board_post_status @default(draft)
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
 
   // Relations
   tenant        tenants                   @relation(fields: [tenant_id], references: [id])
@@ -365,19 +366,20 @@ model board_posts {
   attachments   board_attachments[]
   approval_logs board_approval_logs[]
   translations  board_post_translations[]
+  favorites     board_favorites[]
 }
 
 /// 投稿コメント
 model board_comments {
-  id                String   @id @default(uuid())
+  id                String         @id @default(uuid())
   tenant_id         String
   post_id           String
   author_id         String
-  content           String   @db.Text
+  content           String         @db.Text
   parent_comment_id String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-  status            comment_status @default(active) 
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  status            comment_status @default(active)
 
   // Relations
   tenant                   tenants                      @relation(fields: [tenant_id], references: [id])
@@ -433,6 +435,21 @@ model board_approval_logs {
   tenant   tenants     @relation(fields: [tenant_id], references: [id])
   post     board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
   approver users       @relation(fields: [approver_id], references: [id])
+}
+
+/// 投稿記事のお気に入り
+model board_favorites {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  user_id    String
+  post_id    String
+  created_at DateTime @default(now())
+
+  tenant tenants     @relation(fields: [tenant_id], references: [id])
+  user   users       @relation(fields: [user_id], references: [id])
+  post   board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, user_id, post_id])
 }
 
 // --- 5. Announcements ---

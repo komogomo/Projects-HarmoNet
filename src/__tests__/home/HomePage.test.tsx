@@ -5,6 +5,7 @@ import type { HomeNoticeItem } from '@/src/components/home/HomeNoticeSection/Hom
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 
 const HomeNoticeSectionMock = jest.fn();
+const HomeBoardNoticeContainerMock = jest.fn();
 const HomeFeatureTilesMock = jest.fn();
 const HomeFooterShortcutsMock = jest.fn();
 
@@ -29,6 +30,14 @@ jest.mock('@/src/components/home/HomeNoticeSection/HomeNoticeSection', () => ({
   },
 }));
 
+jest.mock('@/src/components/home/HomeNoticeSection/HomeBoardNoticeContainer', () => ({
+  __esModule: true,
+  HomeBoardNoticeContainer: (props: any) => {
+    HomeBoardNoticeContainerMock(props);
+    return <div data-testid="home-board-notice-container" />;
+  },
+}));
+
 jest.mock('@/src/components/home/HomeFeatureTiles/HomeFeatureTiles', () => ({
   __esModule: true,
   HomeFeatureTiles: (props: any) => {
@@ -50,6 +59,7 @@ function mockSupabaseSuccess() {
     const chain: any = {
       select: jest.fn(() => chain),
       eq: jest.fn(() => chain),
+      limit: jest.fn(() => chain),
       maybeSingle: jest.fn(),
     };
 
@@ -85,17 +95,17 @@ describe('HomePage', () => {
     const ui = await HomePage();
     render(ui);
 
-    expect(HomeNoticeSectionMock).toHaveBeenCalledTimes(1);
     expect(HomeFeatureTilesMock).toHaveBeenCalledTimes(1);
     expect(HomeFooterShortcutsMock).toHaveBeenCalledTimes(1);
 
-    const noticeProps = (HomeNoticeSectionMock.mock.calls[0]?.[0] ?? { items: [] }) as {
-      items: HomeNoticeItem[];
+    expect(HomeBoardNoticeContainerMock).toHaveBeenCalledTimes(1);
+    const containerProps = (HomeBoardNoticeContainerMock.mock.calls[0]?.[0] ?? {}) as {
+      tenantId?: string;
+      maxItems?: number;
     };
-    expect(Array.isArray(noticeProps.items)).toBe(true);
-    expect(noticeProps.items).toHaveLength(2);
+    expect(containerProps.tenantId).toBe('tenant-1');
 
-    expect(screen.getByTestId('home-notice-section')).toBeInTheDocument();
+    expect(screen.getByTestId('home-board-notice-container')).toBeInTheDocument();
     expect(screen.getByTestId('home-feature-tiles')).toBeInTheDocument();
     expect(screen.getByTestId('home-footer-shortcuts')).toBeInTheDocument();
   });

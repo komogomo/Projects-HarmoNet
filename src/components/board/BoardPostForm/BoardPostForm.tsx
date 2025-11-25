@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
+import { BOARD_ATTACHMENT_DEFAULTS } from "@/src/lib/boardAttachmentSettings";
 
 export type ViewerRole = "admin" | "user";
 type PosterType = "management" | "general";
@@ -43,22 +44,14 @@ interface FieldErrors {
   attachments?: string;
 }
 
-const MAX_ATTACHMENT_SIZE_MB = 5;
-const MAX_ATTACHMENT_COUNT = 5;
+const ATTACHMENT_SETTINGS = BOARD_ATTACHMENT_DEFAULTS;
+const MAX_ATTACHMENT_SIZE_MB = ATTACHMENT_SETTINGS.maxSizePerFileBytes / (1024 * 1024);
+const MAX_ATTACHMENT_COUNT =
+  ATTACHMENT_SETTINGS.maxCountPerPost !== null
+    ? ATTACHMENT_SETTINGS.maxCountPerPost
+    : Number.MAX_SAFE_INTEGER;
 // TODO: tenant_settings から添付ファイルの上限値を取得するように変更する
-
-const ALLOWED_ATTACHMENT_EXTENSIONS = [
-  "pdf",
-  "xls",
-  "xlsx",
-  "doc",
-  "docx",
-  "ppt",
-  "pptx",
-  "jpg",
-  "jpeg",
-  "png",
-];
+const ALLOWED_ATTACHMENT_MIME_TYPES = ATTACHMENT_SETTINGS.allowedMimeTypes;
 
 const ADMIN_CATEGORY_KEYS: string[] = ["important", "circular", "event", "rules"];
 const USER_CATEGORY_KEYS: string[] = ["question", "request", "group", "other"];
@@ -72,6 +65,10 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 }) => {
   const router = useRouter();
   const { t, currentLocale } = useI18n();
+
+  const searchParams = useSearchParams();
+  const replyTo = searchParams.get("replyTo");
+  const isReplyMode = !!replyTo;
 
   const [categoryKey, setCategoryKey] = useState<string>("");
   const [displayNameMode, setDisplayNameMode] = useState<DisplayNameMode | null>(null);
@@ -133,11 +130,11 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
     const isPostingAsManagement = viewerRole === "admin" && posterType === "management";
 
-    if (!categoryKey) {
+    if (!isReplyMode && !categoryKey) {
       nextErrors.categoryKey = "board.postForm.error.category.required";
     }
 
-    if (!displayNameMode && !isPostingAsManagement) {
+    if (!isReplyMode && !displayNameMode && !isPostingAsManagement) {
       nextErrors.displayNameMode = "board.postForm.error.displayName.required";
     }
 
@@ -150,7 +147,14 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
     }
 
     if (errors.attachments) {
-      nextErrors.attachments = errors.attachments;
+      const isTooManyError =
+        errors.attachments === "board.postForm.error.attachment.tooMany";
+
+      // ファイル数上限超過は「これ以上追加できない」ことを知らせるだけで、
+      // 既に添付されているファイル数が上限以内であれば送信はブロックしない。
+      if (!isTooManyError) {
+        nextErrors.attachments = errors.attachments;
+      }
     }
 
     setErrors(nextErrors);
@@ -216,23 +220,82 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
     setSubmitErrorKey(null);
     setIsMaskedMode(false);
 
+    // 返信モード: /api/board/comments に投稿し、親投稿の詳細に戻す
+    if (isReplyMode && replyTo) {
+      try {
+        const response = await fetch("/api/board/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId: replyTo,
+            content,
+          }),
+        });
+
+        const data = (await response.json().catch(() => ({}))) as {
+          errorCode?: string;
+        };
+
+        if (!response.ok) {
+          const errorCode = data.errorCode;
+          let errorKey = "board.postForm.error.submit.server";
+
+          if (errorCode === "auth_error" || errorCode === "unauthorized") {
+            errorKey = "board.postForm.error.submit.auth";
+          } else if (
+            errorCode === "validation_error" ||
+            errorCode === "comment_empty" ||
+            errorCode === "post_not_found"
+          ) {
+            errorKey = "board.postForm.error.submit.validation";
+          }
+
+          setSubmitErrorKey(errorKey);
+          logError("board.comment.create_failed", {
+            tenantId,
+            viewerUserId,
+            errorCode,
+          });
+        } else {
+          router.push(`/board/${replyTo}`);
+        }
+      } catch (error) {
+        setSubmitErrorKey("board.postForm.error.submit.network");
+        logError("board.comment.create_failed", {
+          tenantId,
+          viewerUserId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        setIsSubmitting(false);
+        setIsConfirmOpen(false);
+      }
+      return;
+    }
+
     try {
+      const formData = new FormData();
+      formData.append("tenantId", tenantId);
+      formData.append("authorId", viewerUserId);
+      formData.append("posterType", posterType);
+      if (displayNameMode) {
+        formData.append("displayNameMode", displayNameMode);
+      }
+      formData.append("categoryKey", categoryKey);
+      formData.append("title", title);
+      formData.append("content", content);
+      formData.append("forceMasked", forceMaskedOnNextSubmit ? "true" : "false");
+      formData.append("uiLanguage", currentLocale);
+
+      attachments
+        .filter((attachment) => attachment.status === "selected" && attachment.fileObject)
+        .forEach((attachment) => {
+          formData.append("attachments", attachment.fileObject as File);
+        });
+
       const response = await fetch("/api/board/posts", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tenantId,
-          authorId: viewerUserId,
-          posterType,
-          displayNameMode,
-          categoryKey,
-          title,
-          content,
-          forceMasked: forceMaskedOnNextSubmit,
-          uiLanguage: currentLocale,
-        }),
+        body: formData,
       });
 
       const data = (await response.json().catch(() => ({}))) as {
@@ -272,7 +335,10 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
           errorKey = "board.postForm.error.submit.validation";
         } else if (errorCode === "ai_moderation_blocked") {
           errorKey = "board.postForm.error.submit.moderation.blocked";
-        } else if (errorCode === "insert_failed") {
+        } else if (
+          errorCode === "insert_failed" ||
+          errorCode === "attachment_upload_failed"
+        ) {
           errorKey = "board.postForm.error.submit.server";
         }
 
@@ -317,18 +383,19 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
       return;
     }
 
-    const maxSizeBytes = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+    const maxSizeBytes = ATTACHMENT_SETTINGS.maxSizePerFileBytes;
     const currentAttachments = [...attachments];
     let attachmentError: string | null = null;
 
     for (const file of Array.from(files)) {
       if (currentAttachments.length >= MAX_ATTACHMENT_COUNT) {
+        attachmentError = "board.postForm.error.attachment.tooMany";
         // TODO: 添付ファイル数の上限超過時のエラーメッセージキーが定義されたら、ここでエラー表示を追加する
         break;
       }
 
-      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-      if (!ALLOWED_ATTACHMENT_EXTENSIONS.includes(extension)) {
+      const mimeType = file.type;
+      if (!ALLOWED_ATTACHMENT_MIME_TYPES.includes(mimeType)) {
         attachmentError = "board.postForm.error.attachment.invalidType";
         continue;
       }
@@ -369,6 +436,12 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
   const handleRemoveAttachment = (id: string) => {
     setAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+
+    setErrors((prev) => {
+      if (!prev.attachments) return prev;
+      const { attachments: _removed, ...rest } = prev;
+      return rest;
+    });
   };
 
   const selectedCategory = categories.find((c) => c.key === categoryKey) ?? null;
@@ -385,7 +458,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         </div>
       )}
 
-      {isManagementMember && (
+      {!isReplyMode && isManagementMember && (
         <div className="space-y-2">
           <div className="text-sm font-medium text-gray-500">
             {t("board.postForm.field.posterType.label")}
@@ -417,68 +490,72 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         </div>
       )}
 
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-500">
-          {t("board.postForm.field.category.label")}
-          <select
-            className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={categoryKey}
-            onChange={(event) => setCategoryKey(event.target.value)}
-            data-testid="board-post-form-category"
-          >
-            <option value="">{t("board.postForm.field.category.placeholder")}</option>
-            {visibleCategories.map((category) => (
-              <option key={category.key} value={category.key}>
-                {getCategoryLabel(category)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {errors.categoryKey && (
-          <p className="mt-1 text-xs text-red-600">{t(errors.categoryKey)}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-gray-500">
-          {t("board.postForm.field.displayName.label")}
+      {!isReplyMode && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-500">
+            {t("board.postForm.field.category.label")}
+            <select
+              className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={categoryKey}
+              onChange={(event) => setCategoryKey(event.target.value)}
+              data-testid="board-post-form-category"
+            >
+              <option value="">{t("board.postForm.field.category.placeholder")}</option>
+              {visibleCategories.map((category) => (
+                <option key={category.key} value={category.key}>
+                  {getCategoryLabel(category)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.categoryKey && (
+            <p className="mt-1 text-xs text-red-600">{t(errors.categoryKey)}</p>
+          )}
         </div>
-        {viewerRole === "admin" && posterType === "management" ? (
-          <div className="text-sm text-gray-500">{t("board.authorType.admin")}</div>
-        ) : (
-          <>
-            <div className="flex gap-4 text-sm">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="displayNameMode"
-                  value="anonymous"
-                  checked={displayNameMode === "anonymous"}
-                  onChange={() => setDisplayNameMode("anonymous")}
-                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                  data-testid="board-post-form-displayname-anonymous"
-                />
-                <span>{t("board.postForm.option.anonymous")}</span>
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="displayNameMode"
-                  value="nickname"
-                  checked={displayNameMode === "nickname"}
-                  onChange={() => setDisplayNameMode("nickname")}
-                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                  data-testid="board-post-form-displayname-nickname"
-                />
-                <span>{t("board.postForm.option.nickname")}</span>
-              </label>
-            </div>
-            {errors.displayNameMode && (
-              <p className="mt-1 text-xs text-red-600">{t(errors.displayNameMode)}</p>
-            )}
-          </>
-        )}
-      </div>
+      )}
+
+      {!isReplyMode && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">
+            {t("board.postForm.field.displayName.label")}
+          </div>
+          {viewerRole === "admin" && posterType === "management" ? (
+            <div className="text-sm text-gray-500">{t("board.authorType.admin")}</div>
+          ) : (
+            <>
+              <div className="flex gap-4 text-sm">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="displayNameMode"
+                    value="anonymous"
+                    checked={displayNameMode === "anonymous"}
+                    onChange={() => setDisplayNameMode("anonymous")}
+                    className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    data-testid="board-post-form-displayname-anonymous"
+                  />
+                  <span>{t("board.postForm.option.anonymous")}</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="displayNameMode"
+                    value="nickname"
+                    checked={displayNameMode === "nickname"}
+                    onChange={() => setDisplayNameMode("nickname")}
+                    className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    data-testid="board-post-form-displayname-nickname"
+                  />
+                  <span>{t("board.postForm.option.nickname")}</span>
+                </label>
+              </div>
+              {errors.displayNameMode && (
+                <p className="mt-1 text-xs text-red-600">{t(errors.displayNameMode)}</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-500">
@@ -542,7 +619,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
             id="board-post-form-attachment-input"
             type="file"
             multiple
-            accept=".pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png"
+            accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
             className="hidden"
             onChange={handleSelectAttachmentFile}
             data-testid="board-post-form-attachment-input"
@@ -627,12 +704,14 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                   </div>
                   <div>{title}</div>
                 </div>
-                <div>
-                  <div className="font-medium">
-                    {t("board.postForm.confirm.preview.category")}
+                {!isReplyMode && (
+                  <div>
+                    <div className="font-medium">
+                      {t("board.postForm.confirm.preview.category")}
+                    </div>
+                    <div>{selectedCategoryLabel}</div>
                   </div>
-                  <div>{selectedCategoryLabel}</div>
-                </div>
+                )}
                 <div>
                   <div className="font-medium">
                     {t("board.postForm.confirm.preview.content")}

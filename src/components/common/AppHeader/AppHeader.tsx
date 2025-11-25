@@ -1,16 +1,49 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { useRouter, usePathname } from 'next/navigation';
+import { Bell } from 'lucide-react';
 import { LanguageSwitch } from '@/src/components/common/LanguageSwitch';
 import { useStaticI18n as useI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import type { AppHeaderProps } from './AppHeader.types';
-import Image from 'next/image';
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   variant = 'login',
   className = '',
   testId = 'app-header',
 }) => {
-  const { currentLocale, setLocale } = useI18n();
+  const { t } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [hasUnread, setHasUnread] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch('/api/board/notifications/has-unread', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as { hasUnread?: boolean };
+        if (!isCancelled && typeof data.hasUnread === 'boolean') {
+          setHasUnread(data.hasUnread);
+        }
+      } catch {
+        // noop: 通知未読情報取得の失敗は致命的ではないため握りつぶす
+      }
+    };
+
+    if (variant === 'authenticated') {
+      fetchUnread();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [variant, pathname]);
   return (
     <header
       className={`
@@ -48,15 +81,30 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 relative
                 w-10 h-10
                 flex items-center justify-center
-                text-gray-600
+                text-yellow-500
                 hover:bg-gray-100
                 rounded-lg
                 transition-colors
               "
-              aria-label="通知を表示"
+              aria-label={t('home.noticeSection.title')}
               data-testid={`${testId}-notification`}
+              type="button"
+              onClick={() => {
+                router.push('/board');
+              }}
             >
-              <span className="text-2xl" aria-hidden="true">🔔</span>
+              <div className="relative">
+                <Bell className="h-5 w-5" aria-hidden="true" />
+                {hasUnread && (
+                  <span
+                    className="absolute -top-1 -right-1 inline-flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white"
+                    aria-hidden="true"
+                    data-testid={`${testId}-notification-badge`}
+                  >
+                    !
+                  </span>
+                )}
+              </div>
             </button>
           )}
 

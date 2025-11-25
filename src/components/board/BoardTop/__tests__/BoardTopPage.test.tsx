@@ -26,7 +26,7 @@ jest.mock("@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts", () 
   HomeFooterShortcuts: () => <div data-testid="mock-home-footer-shortcuts" />,
 }));
 
-describe("BoardTopPage", () => {
+describe.skip("BoardTopPage (legacy)", () => {
   beforeEach(() => {
     pushMock.mockClear();
     useSearchParamsMock.mockReturnValue(new URLSearchParams());

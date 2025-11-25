@@ -18,11 +18,18 @@ export interface BoardAttachmentDto {
   fileSize: number;
 }
 
+export interface BoardCommentTranslationDto {
+  lang: SupportedBoardLang;
+  content: string;
+}
+
 export interface BoardCommentDto {
   id: string;
   content: string;
   authorDisplayName: string;
   createdAt: string;
+  isDeletable: boolean;
+  translations: BoardCommentTranslationDto[];
 }
 
 export interface BoardPostDetailDto {
@@ -38,6 +45,8 @@ export interface BoardPostDetailDto {
   translations: BoardPostTranslationDto[];
   attachments: BoardAttachmentDto[];
   comments: BoardCommentDto[];
+  isFavorite: boolean;
+  isDeletable: boolean;
 }
 
 export interface GetBoardPostByIdParams {
@@ -49,7 +58,7 @@ export interface GetBoardPostByIdParams {
 export async function getBoardPostById(
   params: GetBoardPostByIdParams,
 ): Promise<BoardPostDetailDto | null> {
-  const { tenantId, postId } = params;
+  const { tenantId, postId, currentUserId } = params;
 
   const post = await prisma.board_posts.findFirst({
     where: {
@@ -87,7 +96,14 @@ export async function getBoardPostById(
         select: {
           id: true,
           content: true,
+          author_id: true,
           created_at: true,
+          boardCommentTranslations: {
+            select: {
+              lang: true,
+              content: true,
+            },
+          },
           author: {
             select: {
               display_name: true,
@@ -130,7 +146,7 @@ export async function getBoardPostById(
     }): BoardAttachmentDto => ({
       id: attachment.id,
       fileName: attachment.file_name,
-      fileUrl: attachment.file_url,
+      fileUrl: `/api/board/attachments/${attachment.id}`,
       fileType: attachment.file_type,
       fileSize: attachment.file_size,
     }),
@@ -140,15 +156,53 @@ export async function getBoardPostById(
     (comment: {
       id: string;
       content: string;
+      author_id: string;
       created_at: Date;
+      boardCommentTranslations?: { lang: string | null; content: string }[];
       author: { display_name: string };
-    }): BoardCommentDto => ({
-      id: comment.id,
-      content: comment.content,
-      authorDisplayName: comment.author.display_name,
-      createdAt: comment.created_at.toISOString(),
-    }),
+    }): BoardCommentDto => {
+      const translations: BoardCommentTranslationDto[] =
+        (comment.boardCommentTranslations ?? [])
+          .filter((tr) =>
+            SUPPORTED_LANGS.includes((tr.lang ?? '') as SupportedBoardLang),
+          )
+          .map((tr) => ({
+            lang: tr.lang as SupportedBoardLang,
+            content: tr.content,
+          }));
+
+      return {
+        id: comment.id,
+        content: comment.content,
+        authorDisplayName: comment.author.display_name,
+        createdAt: comment.created_at.toISOString(),
+        isDeletable: comment.author_id === currentUserId,
+        translations,
+      };
+    },
   );
+
+  const authorDisplayName =
+    (post as any).author_display_name && typeof (post as any).author_display_name === 'string'
+      ? ((post as any).author_display_name as string)
+      : post.author.display_name;
+
+  let isFavorite = false;
+  try {
+    const favorite = await (prisma as any).board_favorites.findFirst({
+      where: {
+        tenant_id: tenantId,
+        user_id: currentUserId,
+        post_id: postId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    isFavorite = !!favorite;
+  } catch {
+    isFavorite = false;
+  }
 
   return {
     id: post.id,
@@ -156,12 +210,14 @@ export async function getBoardPostById(
     categoryName: post.category.category_name,
     originalTitle: post.title,
     originalContent: post.content,
-    authorDisplayName: post.author.display_name,
+    authorDisplayName,
     authorDisplayType: 'user',
     createdAt: post.created_at.toISOString(),
     hasAttachment: attachments.length > 0,
     translations,
     attachments,
     comments,
+    isFavorite,
+    isDeletable: (post as any).author_id === currentUserId,
   };
 }

@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 import { logError, logInfo } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
+import { sendBoardNotificationEmailsForPost } from '@/src/server/services/BoardNotificationEmailService';
 import { callOpenAiModeration, decideModeration, maskSensitiveText, saveModerationLog, type TenantModerationConfig } from '@/src/server/services/moderationService';
 import { BoardPostTranslationService } from '@/src/server/services/translation/BoardPostTranslationService';
 import { GoogleTranslationService, type SupportedLang } from '@/src/server/services/translation/GoogleTranslationService';
+import { getBoardAttachmentSettingsForTenant } from '@/src/lib/boardAttachmentSettings';
 
 interface UpsertBoardPostRequest {
   tenantId: string;
   authorId: string;
   authorRole: 'admin' | 'user';
-  displayNameMode: 'anonymous' | 'nickname';
+  displayNameMode?: 'anonymous' | 'nickname';
   categoryKey: string;
   title: string;
   content: string;
@@ -36,6 +39,8 @@ interface BoardPostSummaryDto {
   createdAt: string;
   hasAttachment: boolean;
   translations: BoardPostTranslationDto[];
+  isFavorite: boolean;
+  replyCount: number;
 }
 
 export async function GET(req: Request) {
@@ -98,7 +103,7 @@ export async function GET(req: Request) {
 
     const tenantId = membership.tenant_id as string;
 
-    const posts = await prisma.board_posts.findMany({
+    const posts = (await prisma.board_posts.findMany({
       where: {
         tenant_id: tenantId,
         status: 'published',
@@ -131,25 +136,54 @@ export async function GET(req: Request) {
             display_name: true,
           },
         },
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
+        favorites: {
+          where: {
+            tenant_id: tenantId,
+            user_id: appUser.id,
+          },
+          select: {
+            id: true,
+          },
+        },
       },
-    });
+    } as any)) as any[];
 
-    const summaries: BoardPostSummaryDto[] = posts.map((post) => ({
-      id: post.id,
-      categoryKey: post.category.category_key,
-      categoryName: post.category.category_name,
-      originalTitle: post.title,
-      originalContent: post.content,
-      authorDisplayName: post.author.display_name,
-      authorDisplayType: 'user',
-      createdAt: post.created_at.toISOString(),
-      hasAttachment: post.attachments.length > 0,
-      translations: post.translations.map((t) => ({
-        lang: t.lang as 'ja' | 'en' | 'zh',
-        title: t.title,
-        content: t.content,
-      })),
-    }));
+    const summaries: BoardPostSummaryDto[] = posts.map((post) => {
+      const authorDisplayName =
+        (post as any).author_display_name && typeof (post as any).author_display_name === 'string'
+          ? ((post as any).author_display_name as string)
+          : post.author.display_name;
+
+      const favorites = (post as any).favorites as { id: string }[] | undefined;
+      const isFavorite = Array.isArray(favorites) && favorites.length > 0;
+
+      const rawReplyCount = (post as any)._count?.comments;
+      const replyCount = typeof rawReplyCount === 'number' ? rawReplyCount : 0;
+
+      return {
+        id: post.id,
+        categoryKey: post.category.category_key,
+        categoryName: post.category.category_name,
+        originalTitle: post.title,
+        originalContent: post.content,
+        authorDisplayName,
+        authorDisplayType: 'user',
+        createdAt: post.created_at.toISOString(),
+        hasAttachment: post.attachments.length > 0,
+        translations: post.translations.map((t: any) => ({
+          lang: t.lang as 'ja' | 'en' | 'zh',
+          title: t.title,
+          content: t.content,
+        })),
+        isFavorite,
+        replyCount,
+      };
+    });
 
     return NextResponse.json(
       {
@@ -181,16 +215,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
     }
 
-    const body = (await req.json()) as UpsertBoardPostRequest;
-    const {
-      tenantId: tenantIdFromBody,
-      authorId,
-      categoryKey,
-      title,
-      content,
-      forceMasked = false,
-      uiLanguage,
-    } = body;
+    const contentType = req.headers.get('content-type') ?? '';
+    const isMultipart = contentType.includes('multipart/form-data');
+
+    let tenantIdFromBody: string | null = null;
+    let authorId: string | null = null;
+    let categoryKey: string | null = null;
+    let title: string | null = null;
+    let content: string | null = null;
+    let forceMasked = false;
+    let uiLanguage: SupportedLang | undefined;
+    let attachmentFiles: File[] = [];
+    let displayNameMode: 'anonymous' | 'nickname' | null = null;
+
+    if (isMultipart) {
+      const formData = await req.formData();
+
+      const tenantIdValue = formData.get('tenantId');
+      const authorIdValue = formData.get('authorId');
+      const categoryKeyValue = formData.get('categoryKey');
+      const titleValue = formData.get('title');
+      const contentValue = formData.get('content');
+      const forceMaskedValue = formData.get('forceMasked');
+      const uiLanguageValue = formData.get('uiLanguage');
+      const displayNameModeValue = formData.get('displayNameMode');
+
+      tenantIdFromBody = typeof tenantIdValue === 'string' ? tenantIdValue : null;
+      authorId = typeof authorIdValue === 'string' ? authorIdValue : null;
+      categoryKey = typeof categoryKeyValue === 'string' ? categoryKeyValue : null;
+      title = typeof titleValue === 'string' ? titleValue : null;
+      content = typeof contentValue === 'string' ? contentValue : null;
+
+      if (typeof forceMaskedValue === 'string') {
+        forceMasked = forceMaskedValue === 'true';
+      }
+
+      if (typeof uiLanguageValue === 'string') {
+        if (uiLanguageValue === 'ja' || uiLanguageValue === 'en' || uiLanguageValue === 'zh') {
+          uiLanguage = uiLanguageValue;
+        }
+      }
+
+      if (typeof displayNameModeValue === 'string') {
+        if (displayNameModeValue === 'anonymous' || displayNameModeValue === 'nickname') {
+          displayNameMode = displayNameModeValue;
+        }
+      }
+
+      const rawAttachments = formData.getAll('attachments');
+      attachmentFiles = rawAttachments.filter((value): value is File => value instanceof File);
+    } else {
+      const body = (await req.json()) as UpsertBoardPostRequest;
+      tenantIdFromBody = body.tenantId;
+      authorId = body.authorId;
+      categoryKey = body.categoryKey;
+      title = body.title;
+      content = body.content;
+      forceMasked = body.forceMasked ?? false;
+      uiLanguage = body.uiLanguage;
+      if (body.displayNameMode === 'anonymous' || body.displayNameMode === 'nickname') {
+        displayNameMode = body.displayNameMode;
+      }
+      attachmentFiles = [];
+    }
 
     if (!tenantIdFromBody || !authorId || !categoryKey || !title || !content) {
       return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
@@ -233,6 +320,26 @@ export async function POST(req: Request) {
     }
 
     const tenantId = membership.tenant_id as string;
+
+    const attachmentSettings = getBoardAttachmentSettingsForTenant(tenantId);
+
+    if (attachmentFiles.length > 0) {
+      if (
+        attachmentSettings.maxCountPerPost !== null &&
+        attachmentFiles.length > attachmentSettings.maxCountPerPost
+      ) {
+        return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
+      }
+
+      for (const file of attachmentFiles) {
+        if (!attachmentSettings.allowedMimeTypes.includes(file.type)) {
+          return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
+        }
+        if (file.size > attachmentSettings.maxSizePerFileBytes) {
+          return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
+        }
+      }
+    }
 
     const { data: categories, error: categoryError } = await supabase
       .from('board_categories')
@@ -380,6 +487,11 @@ export async function POST(req: Request) {
     const effectiveTitle = decision === 'mask' && forceMasked ? maskedTitle ?? title : title;
     const effectiveContent = decision === 'mask' && forceMasked ? maskedContent ?? content : content;
 
+    let authorDisplayNameOverride: string | null = null;
+    if (displayNameMode === 'anonymous') {
+      authorDisplayNameOverride = '匿名';
+    }
+
     let postId: string;
 
     try {
@@ -391,7 +503,8 @@ export async function POST(req: Request) {
           title: effectiveTitle,
           content: effectiveContent,
           status: 'published',
-        },
+          author_display_name: authorDisplayNameOverride,
+        } as any,
         select: {
           id: true,
         },
@@ -404,6 +517,68 @@ export async function POST(req: Request) {
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       return NextResponse.json({ errorCode: 'insert_failed' }, { status: 500 });
+    }
+
+    if (attachmentFiles.length > 0) {
+      const serviceRoleSupabase = createSupabaseServiceRoleClient();
+      const storageBucket = serviceRoleSupabase.storage.from('board-attachments');
+
+      try {
+        for (const file of attachmentFiles) {
+          const originalName = file.name || 'attachment.pdf';
+          const ext = (originalName.split('.').pop() ?? 'pdf').toLowerCase() || 'pdf';
+          const objectPath = `tenant-${tenantId}/post-${postId}/${randomUUID()}.${ext}`;
+
+          const { error: uploadError } = await storageBucket.upload(objectPath, file, {
+            contentType: file.type,
+          });
+
+          if (uploadError) {
+            throw new Error(uploadError.message);
+          }
+
+          await prisma.board_attachments.create({
+            data: {
+              tenant_id: tenantId,
+              post_id: postId,
+              file_url: objectPath,
+              file_name: file.name,
+              file_type: file.type,
+              file_size: file.size,
+            },
+          });
+        }
+      } catch (error) {
+        logError('board.post.api.attachment_error', {
+          tenantId,
+          postId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+
+        try {
+          await prisma.board_attachments.deleteMany({
+            where: {
+              tenant_id: tenantId,
+              post_id: postId,
+            },
+          });
+
+          await prisma.board_posts.delete({
+            where: {
+              id: postId,
+            },
+          });
+        } catch (cleanupError) {
+          logError('board.post.api.attachment_cleanup_error', {
+            tenantId,
+            postId,
+            errorMessage:
+              cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+          });
+        }
+
+        return NextResponse.json({ errorCode: 'attachment_upload_failed' }, { status: 500 });
+      }
     }
 
     await saveModerationLog({
@@ -447,6 +622,19 @@ export async function POST(req: Request) {
       });
     } catch (error) {
       logError('board.post.api.translation_error', {
+        tenantId,
+        postId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    try {
+      await sendBoardNotificationEmailsForPost({
+        tenantId,
+        postId,
+      });
+    } catch (error) {
+      logError('board.post.api.notification_error', {
         tenantId,
         postId,
         errorMessage: error instanceof Error ? error.message : String(error),

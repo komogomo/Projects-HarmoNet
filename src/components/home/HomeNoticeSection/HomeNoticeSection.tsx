@@ -36,14 +36,14 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
           <button
             key={item.id}
             type="button"
-            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             aria-label={`${item.publishedAt} ${item.title}`}
             onClick={() => {
               router.push(`/board/${item.id}`);
             }}
           >
             <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+              <span className="inline-flex items-center rounded-lg bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
                 {t('home.noticeSection.badge')}
               </span>
               <span>{item.publishedAt}</span>

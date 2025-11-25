@@ -8,7 +8,7 @@ export type BoardCategoryKey =
   | "group"
   | "other";
 
-export type BoardTab = "all" | BoardCategoryKey;
+export type BoardTab = "all" | BoardCategoryKey | "favorite";
 
 export type BoardCategoryTag = {
   id: BoardCategoryKey;
@@ -25,4 +25,6 @@ export type BoardPostSummary = {
   authorDisplayType: "management" | "user";
   createdAt: string;
   hasAttachment: boolean;
+  isFavorite: boolean;
+  replyCount: number;
 };

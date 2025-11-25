@@ -20,7 +20,7 @@ export const HomeFeatureTile: React.FC<HomeFeatureTileProps> = ({
   };
 
   const baseClassName =
-    'flex flex-col items-start justify-start gap-1 rounded-2xl border px-3 py-3 text-left text-xs bg-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600';
+    'flex flex-col items-start justify-start gap-1 rounded-lg border-2 border-gray-200 px-3 py-3 text-left text-xs bg-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600';
   const enabledClassName = 'cursor-pointer border-blue-100 hover:border-blue-300 hover:bg-blue-50 transition-colors';
   const disabledClassName = 'cursor-default border-gray-100 text-gray-400';
   const iconColorClassName = featureKey === 'NOTICE' ? 'text-yellow-400' : 'text-blue-600';

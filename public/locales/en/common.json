@@ -95,7 +95,8 @@
       "tab": {
         "all": "All",
         "notice": "Announcements",
-        "rules": "Rules & regulations"
+        "rules": "Rules & regulations",
+        "favorite": "Favorites"
       },
       "scope": {
         "all": "All",
@@ -107,6 +108,9 @@
       },
       "attachment": {
         "tooltip": "Has attachment"
+      },
+      "reply": {
+        "tooltip": "Replies"
       },
       "empty": {
         "title": "No posts to display",
@@ -258,6 +262,9 @@
           "previewNote": "PDF files can be previewed on the screen; other files can be downloaded for viewing."
         }
       },
+      "reply": {
+        "notice": "You are writing a reply to this post. The category follows the original post."
+      },
       "button": {
         "cancel": "Cancel",
         "submit": "Post",
@@ -280,7 +287,8 @@
         },
         "attachment": {
           "invalidType": "Some selected files are not in a supported format. Only PDF, Office files, and JPG/PNG images are allowed.",
-          "tooLarge": "One or more files exceed the maximum size of 5MB per file."
+          "tooLarge": "One or more files exceed the maximum size of 5MB per file.",
+          "tooMany": "You have selected more attachments than allowed. You can attach up to 5 files per post."
         },
         "summary": {
           "validation": "There are problems with your input. Please check the error messages for each field.",

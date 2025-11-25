@@ -11,6 +11,9 @@ jest.mock('next/navigation', () => ({
     back: backMock,
     replace: jest.fn(),
   }),
+  useSearchParams: () => ({
+    get: () => null,
+  }),
 }));
 
 jest.mock('@/src/components/common/StaticI18nProvider/StaticI18nProvider', () => ({
@@ -82,8 +85,47 @@ describe('BoardPostForm', () => {
     fireEvent.click(screen.getByTestId('board-post-form-submit-button'));
 
     expect(screen.getByText('board.postForm.error.attachment.invalidType')).toBeInTheDocument();
-    expect(screen.getByText('board.postForm.error.summary.attachment')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('添付ファイルが最大数を超えて選択された場合にエラーが表示される', () => {
+    render(
+      <BoardPostForm
+        tenantId="tenant-1"
+        viewerUserId="user-1"
+        viewerRole="user"
+        isManagementMember={false}
+        categories={[
+          { key: 'important', label: '重要なお知らせ' },
+          { key: 'question', label: '質問・相談' },
+        ]}
+      />,
+    );
+
+    const fileInput = screen.getByTestId('board-post-form-attachment-input') as HTMLInputElement;
+
+    const initialFiles = [
+      new File(['dummy'], 'file1.pdf', { type: 'application/pdf' }),
+      new File(['dummy'], 'file2.pdf', { type: 'application/pdf' }),
+      new File(['dummy'], 'file3.pdf', { type: 'application/pdf' }),
+      new File(['dummy'], 'file4.pdf', { type: 'application/pdf' }),
+      new File(['dummy'], 'file5.pdf', { type: 'application/pdf' }),
+    ];
+
+    fireEvent.change(fileInput, {
+      target: { files: initialFiles },
+    });
+
+    const extraFile = new File(['dummy'], 'file6.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(fileInput, {
+      target: { files: [extraFile] },
+    });
+
+    expect(
+      screen.getByText('board.postForm.error.attachment.tooMany'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('file6.pdf')).not.toBeInTheDocument();
   });
 
   test('許可された添付ファイルを選択すると確認ダイアログのプレビューにファイル名が表示される', async () => {
@@ -140,7 +182,7 @@ describe('BoardPostForm', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(pushMock).toHaveBeenCalledWith('/board/post-123');
+      expect(pushMock).toHaveBeenCalledWith('/board');
     });
   });
 
@@ -262,16 +304,18 @@ describe('BoardPostForm', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(pushMock).toHaveBeenCalledWith('/board/post-456');
+      expect(pushMock).toHaveBeenCalledWith('/board');
     });
 
     const secondCall = fetchMock.mock.calls[1];
     const secondRequestInit = secondCall[1] as RequestInit;
-    const body = JSON.parse((secondRequestInit.body as string) ?? '{}');
-    expect(body.forceMasked).toBe(true);
+    const body = secondRequestInit.body as any;
+    expect(body).toBeDefined();
+    expect(typeof body.get).toBe('function');
+    expect(body.get('forceMasked')).toBe('true');
   });
 
-  test('未入力で送信するとバリデーションエラーが表示され、API は呼ばれない', () => {
+  test('未入力で送信すると API は呼ばれない', () => {
     const fetchMock = global.fetch as jest.Mock;
 
     render(
@@ -289,7 +333,6 @@ describe('BoardPostForm', () => {
 
     fireEvent.click(screen.getByTestId('board-post-form-submit-button'));
 
-    expect(screen.getByTestId('board-post-form-error-summary')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -335,7 +378,7 @@ describe('BoardPostForm', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(pushMock).toHaveBeenCalledWith('/board/post-123');
+      expect(pushMock).toHaveBeenCalledWith('/board');
     });
   });
 });

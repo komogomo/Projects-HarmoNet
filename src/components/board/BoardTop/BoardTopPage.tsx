@@ -39,6 +39,8 @@ type BoardPostSummaryDto = {
   createdAt: string;
   hasAttachment: boolean;
   translations: BoardPostTranslationDto[];
+  isFavorite?: boolean;
+   replyCount?: number;
 };
 
 interface BoardTopPageProps {
@@ -55,7 +57,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
     const qp = searchParams?.get("tab");
     if (!qp) return "all";
 
-    const validIds = new Set<string>(["all", ...CATEGORY_TAGS.map((tag) => tag.id)]);
+    const validIds = new Set<string>(["all", ...CATEGORY_TAGS.map((tag) => tag.id), "favorite"]);
     return validIds.has(qp) ? (qp as BoardTab) : "all";
   });
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
@@ -98,14 +100,32 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
         authorDisplayType: post.authorDisplayType,
         createdAt: post.createdAt,
         hasAttachment: post.hasAttachment,
+        isFavorite: !!post.isFavorite,
+        replyCount: typeof post.replyCount === "number" ? post.replyCount : 0,
       };
     });
   }, [rawPosts, currentLocale]);
 
   const filteredPosts = useMemo(() => {
     if (tab === "all") return posts;
+    if (tab === "favorite") {
+      return posts.filter((post) => post.isFavorite);
+    }
     return posts.filter((post) => post.categoryKey === (tab as BoardCategoryKey));
   }, [posts, tab]);
+
+  const handleChangeTab = (next: BoardTab) => {
+    setTab(next);
+
+    const url = new URL(window.location.href);
+    if (next === "all") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", next);
+    }
+
+    router.replace(`${url.pathname}${url.search}`);
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -277,7 +297,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
             </header>
 
             <div>
-              <BoardTabBar activeTab={tab} onChange={setTab} categoryTags={CATEGORY_TAGS} />
+              <BoardTabBar activeTab={tab} onChange={handleChangeTab} categoryTags={CATEGORY_TAGS} />
             </div>
 
             {isLoading ? null : isError ? (

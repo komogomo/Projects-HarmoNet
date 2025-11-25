@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logError } from '@/src/lib/logging/log.util';
 import type { TranslationService, SupportedLang } from './GoogleTranslationService';
@@ -69,6 +70,8 @@ export class BoardPostTranslationService {
         }
 
         try {
+          const now = new Date().toISOString();
+
           const bodyResult = await this.translationService.translateOnce({
             tenantId,
             sourceLang,
@@ -80,11 +83,14 @@ export class BoardPostTranslationService {
             .from('board_post_translations')
             .upsert(
               {
+                id: randomUUID(),
                 tenant_id: tenantId,
                 post_id: postId,
                 lang: targetLang,
                 title: translatedTitle,
                 content: bodyResult.text,
+                created_at: now,
+                updated_at: now,
               },
               { onConflict: 'post_id,lang' },
             );
@@ -146,6 +152,8 @@ export class BoardPostTranslationService {
       .filter((targetLang) => targetLang !== sourceLang)
       .map(async (targetLang) => {
         try {
+          const now = new Date().toISOString();
+
           const result = await this.translationService.translateOnce({
             tenantId,
             sourceLang,
@@ -157,10 +165,13 @@ export class BoardPostTranslationService {
             .from('board_comment_translations')
             .upsert(
               {
+                id: randomUUID(),
                 tenant_id: tenantId,
                 comment_id: commentId,
                 lang: targetLang,
                 content: result.text,
+                created_at: now,
+                updated_at: now,
               },
               { onConflict: 'comment_id,lang' },
             );
