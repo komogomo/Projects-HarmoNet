@@ -212,6 +212,9 @@
       "admin": "管理組合",
       "user": "一般利用者"
     },
+    "comment": {
+      "deleted": "この投稿は削除されました。"
+    },
     "postForm": {
       "field": {
         "category": {
@@ -274,7 +277,7 @@
         "cancel": "キャンセル",
         "submit": "投稿する",
         "submitting": "投稿しています...",
-        "attachFile": "ファイルを選択",
+        "attachFile": "ファイル選択",
         "submitMasked": "この伏字済み内容で投稿"
       },
       "error": {

@@ -10,6 +10,8 @@ import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantId
 interface CreateBoardCommentRequestBody {
   postId?: string;
   content?: string;
+  authorType?: "admin" | "user";
+  displayMode?: "anonymous" | "nickname";
 }
 
 const MIN_COMMENT_LENGTH = 1;
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
       error: appUserError,
     } = await supabase
       .from("users")
-      .select("id")
+      .select("id, display_name")
       .eq("email", email)
       .eq("status", "active")
       .maybeSingle();
@@ -105,6 +107,68 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
     }
 
+    let isTenantAdmin = false;
+
+    try {
+      const {
+        data: userRoles,
+        error: userRolesError,
+      } = await supabase
+        .from("user_roles")
+        .select("role_id")
+        .eq("user_id", appUser.id)
+        .eq("tenant_id", tenantId);
+
+      if (!userRolesError && userRoles && userRoles.length > 0) {
+        const roleIds = userRoles
+          .map((row: any) => row.role_id)
+          .filter((id: unknown): id is string => typeof id === "string");
+
+        if (roleIds.length > 0) {
+          const {
+            data: roles,
+            error: rolesError,
+          } = await supabase
+            .from("roles")
+            .select("id, role_key")
+            .in("id", roleIds as string[]);
+
+          if (!rolesError && roles && Array.isArray(roles)) {
+            isTenantAdmin = roles.some(
+              (role: any) =>
+                role.role_key === "tenant_admin" || role.role_key === "system_admin",
+            );
+          }
+        }
+      }
+    } catch {
+      isTenantAdmin = false;
+    }
+
+    const requestedAuthorType =
+      body && body.authorType === "admin" ? "admin" : "user";
+
+    const finalAuthorType: "admin" | "user" =
+      isTenantAdmin && requestedAuthorType === "admin" ? "admin" : "user";
+
+    const displayMode: "anonymous" | "nickname" =
+      body && body.displayMode === "anonymous" ? "anonymous" : "nickname";
+
+    const sessionDisplayName =
+      typeof (appUser as any).display_name === "string"
+        ? ((appUser as any).display_name as string)
+        : null;
+
+    let authorDisplayName: string;
+
+    if (finalAuthorType === "admin") {
+      authorDisplayName = "管理組合";
+    } else if (displayMode === "anonymous") {
+      authorDisplayName = "匿名";
+    } else {
+      authorDisplayName = sessionDisplayName ?? "匿名";
+    }
+
     let commentId: string;
 
     try {
@@ -115,6 +179,7 @@ export async function POST(req: Request) {
           author_id: appUser.id,
           content,
           status: "active" as any,
+          author_display_name: authorDisplayName,
         },
         select: {
           id: true,

@@ -207,6 +207,9 @@
       "admin": "Management association",
       "user": "Resident"
     },
+    "comment": {
+      "deleted": "This post has been deleted."
+    },
     "postForm": {
       "field": {
         "category": {

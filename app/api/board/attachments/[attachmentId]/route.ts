@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
-import { logError } from '@/src/lib/logging/log.util';
+import { logError, logInfo } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
 
 interface RouteParams {
@@ -132,6 +132,174 @@ export async function GET(req: Request, props: RouteParams) {
     });
   } catch (error) {
     logError('board.attachment.api.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, props: RouteParams) {
+  const { params } = props;
+  const { attachmentId } = await params;
+
+  if (!attachmentId) {
+    return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user || !user.email) {
+      logError('board.attachment.delete.auth_error', {
+        reason: authError?.message ?? 'no_session',
+      });
+      return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
+    }
+
+    const {
+      data: appUser,
+      error: appUserError,
+    } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (appUserError || !appUser) {
+      logError('board.attachment.delete.user_not_found', {
+        email: user.email,
+      });
+      return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
+    }
+
+    const attachment = await prisma.board_attachments.findFirst({
+      where: {
+        id: attachmentId,
+      },
+      select: {
+        tenant_id: true,
+        post_id: true,
+        file_url: true,
+      },
+    });
+
+    if (!attachment) {
+      return NextResponse.json({ errorCode: 'not_found' }, { status: 404 });
+    }
+
+    const tenantId = attachment.tenant_id as string;
+
+    const {
+      data: membership,
+      error: membershipError,
+    } = await supabase
+      .from('user_tenants')
+      .select('tenant_id')
+      .eq('user_id', appUser.id)
+      .eq('tenant_id', tenantId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (membershipError || !membership?.tenant_id) {
+      logError('board.attachment.delete.membership_error', {
+        userId: appUser.id,
+      });
+      return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
+    }
+
+    const post = await prisma.board_posts.findFirst({
+      where: {
+        id: attachment.post_id,
+        tenant_id: tenantId,
+      },
+      select: {
+        author_id: true,
+      },
+    });
+
+    if (!post) {
+      return NextResponse.json({ errorCode: 'post_not_found' }, { status: 404 });
+    }
+
+    const isAuthor = post.author_id === appUser.id;
+
+    let hasAdminRole = false;
+    try {
+      const {
+        data: userRoles,
+        error: userRolesError,
+      } = await supabase
+        .from('user_roles')
+        .select('role_id')
+        .eq('user_id', appUser.id)
+        .eq('tenant_id', tenantId);
+
+      if (!userRolesError && userRoles && Array.isArray(userRoles) && userRoles.length > 0) {
+        const roleIds = userRoles
+          .map((row: any) => row.role_id)
+          .filter((id: unknown): id is string => typeof id === 'string');
+
+        if (roleIds.length > 0) {
+          const {
+            data: roles,
+            error: rolesError,
+          } = await supabase
+            .from('roles')
+            .select('id, role_key')
+            .in('id', roleIds as string[]);
+
+          if (!rolesError && roles && Array.isArray(roles)) {
+            hasAdminRole = roles.some(
+              (role: any) =>
+                role.role_key === 'tenant_admin' || role.role_key === 'system_admin',
+            );
+          }
+        }
+      }
+    } catch {
+      hasAdminRole = false;
+    }
+
+    if (!isAuthor && !hasAdminRole) {
+      return NextResponse.json({ errorCode: 'forbidden' }, { status: 403 });
+    }
+
+    const serviceRoleSupabase = createSupabaseServiceRoleClient();
+    const storageBucket = serviceRoleSupabase.storage.from('board-attachments');
+
+    const { error: removeError } = await storageBucket.remove([attachment.file_url]);
+
+    if (removeError) {
+      logError('board.attachment.delete.remove_failed', {
+        tenantId,
+        attachmentId,
+        errorMessage: removeError.message ?? String(removeError),
+      });
+      return NextResponse.json({ errorCode: 'attachment_delete_failed' }, { status: 500 });
+    }
+
+    await prisma.board_attachments.delete({
+      where: {
+        id: attachmentId,
+      },
+    });
+
+    logInfo('board.attachment.delete.success', {
+      tenantId,
+      attachmentId,
+      userId: appUser.id,
+    });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (error) {
+    logError('board.attachment.delete.unexpected_error', {
+      attachmentId,
       errorMessage: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });

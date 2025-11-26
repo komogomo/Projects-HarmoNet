@@ -55,11 +55,10 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
 
   const [tab, setTab] = useState<BoardTab>(() => {
     const qp = searchParams?.get("tab");
-    if (!qp) return "all";
-
-    const validIds = new Set<string>(["all", ...CATEGORY_TAGS.map((tag) => tag.id), "favorite"]);
-    return validIds.has(qp) ? (qp as BoardTab) : "all";
+    if (qp === "favorite") return "favorite";
+    return "all";
   });
+  const [activeCategoryFilters, setActiveCategoryFilters] = useState<BoardCategoryKey[]>([]);
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
@@ -107,12 +106,22 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
   }, [rawPosts, currentLocale]);
 
   const filteredPosts = useMemo(() => {
-    if (tab === "all") return posts;
-    if (tab === "favorite") {
-      return posts.filter((post) => post.isFavorite);
+    const favoriteOn = tab === "favorite";
+    const hasCategoryFilter = activeCategoryFilters.length > 0;
+
+    // お気に入りOFFかつカテゴリフィルタなし → 全件
+    if (!favoriteOn && !hasCategoryFilter) {
+      return posts;
     }
-    return posts.filter((post) => post.categoryKey === (tab as BoardCategoryKey));
-  }, [posts, tab]);
+
+    const allowedCategories = new Set<BoardCategoryKey>(activeCategoryFilters);
+
+    return posts.filter((post) => {
+      const categoryMatch = hasCategoryFilter ? allowedCategories.has(post.categoryKey) : false;
+      const favoriteMatch = favoriteOn && post.isFavorite;
+      return categoryMatch || favoriteMatch;
+    });
+  }, [posts, tab, activeCategoryFilters]);
 
   const handleChangeTab = (next: BoardTab) => {
     setTab(next);
@@ -120,11 +129,29 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
     const url = new URL(window.location.href);
     if (next === "all") {
       url.searchParams.delete("tab");
-    } else {
+    } else if (next === "favorite") {
       url.searchParams.set("tab", next);
     }
 
     router.replace(`${url.pathname}${url.search}`);
+  };
+
+  const handleResetAllFilters = () => {
+    setTab("all");
+    setActiveCategoryFilters([]);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("tab");
+    router.replace(`${url.pathname}${url.search}`);
+  };
+
+  const handleToggleCategoryFilter = (categoryKey: BoardCategoryKey) => {
+    setActiveCategoryFilters((prev) => {
+      if (prev.includes(categoryKey)) {
+        return prev.filter((key) => key !== categoryKey);
+      }
+      return [...prev, categoryKey];
+    });
   };
 
   useEffect(() => {
@@ -297,7 +324,14 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
             </header>
 
             <div>
-              <BoardTabBar activeTab={tab} onChange={handleChangeTab} categoryTags={CATEGORY_TAGS} />
+              <BoardTabBar
+                activeTab={tab}
+                activeCategories={activeCategoryFilters}
+                onChangeTab={handleChangeTab}
+                onToggleCategory={handleToggleCategoryFilter}
+                onResetAll={handleResetAllFilters}
+                categoryTags={CATEGORY_TAGS}
+              />
             </div>
 
             {isLoading ? null : isError ? (

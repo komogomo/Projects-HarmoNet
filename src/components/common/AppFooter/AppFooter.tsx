@@ -16,7 +16,8 @@ export const AppFooter: React.FC<AppFooterProps> = ({
       className={`
         fixed bottom-0 left-0 right-0
         z-[900]
-        py-0.5
+        bg-white border-t border-gray-200
+        py-1
         text-[11px] text-gray-400 text-center
         ${className}
       `}

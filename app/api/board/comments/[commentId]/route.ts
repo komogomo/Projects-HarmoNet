@@ -91,19 +91,76 @@ export async function DELETE(req: Request, context: DeleteCommentRouteContext) {
 
     const tenantId = comment.tenant_id as string;
 
-    if (comment.author_id !== appUser.id) {
+    const isAuthor = comment.author_id === appUser.id;
+
+    let hasAdminRole = false;
+    try {
+      const {
+        data: userRoles,
+        error: userRolesError,
+      } = await supabase
+        .from("user_roles")
+        .select("role_id")
+        .eq("user_id", appUser.id)
+        .eq("tenant_id", tenantId);
+
+      if (!userRolesError && userRoles && Array.isArray(userRoles) && userRoles.length > 0) {
+        const roleIds = userRoles
+          .map((row: any) => row.role_id)
+          .filter((id: unknown): id is string => typeof id === "string");
+
+        if (roleIds.length > 0) {
+          const {
+            data: roles,
+            error: rolesError,
+          } = await supabase
+            .from("roles")
+            .select("id, role_key")
+            .in("id", roleIds as string[]);
+
+          if (!rolesError && roles && Array.isArray(roles)) {
+            hasAdminRole = roles.some(
+              (role: any) =>
+                role.role_key === "tenant_admin" || role.role_key === "system_admin",
+            );
+          }
+        }
+      }
+    } catch {
+      hasAdminRole = false;
+    }
+
+    if (!isAuthor && !hasAdminRole) {
       return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
     }
 
     try {
       // まず論理削除（status = 'deleted'）を試みる
-      await prisma.board_comments.update({
-        where: {
-          id: commentId,
-        },
-        data: {
-          status: "deleted" as any,
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.board_comment_translations.deleteMany({
+          where: {
+            tenant_id: tenantId,
+            comment_id: commentId,
+          },
+        });
+
+        await tx.moderation_logs.deleteMany({
+          where: {
+            tenant_id: tenantId,
+            content_type: "board_comment",
+            content_id: commentId,
+          },
+        });
+
+        await tx.board_comments.update({
+          where: {
+            id: commentId,
+          },
+          data: {
+            status: "deleted" as any,
+            content: "この投稿は削除されました。",
+          },
+        });
       });
     } catch (error) {
       // comment_status enum 未更新などで失敗した場合は物理削除にフォールバック
@@ -115,10 +172,27 @@ export async function DELETE(req: Request, context: DeleteCommentRouteContext) {
       });
 
       try {
-        await prisma.board_comments.delete({
-          where: {
-            id: commentId,
-          },
+        await prisma.$transaction(async (tx) => {
+          await tx.board_comment_translations.deleteMany({
+            where: {
+              tenant_id: tenantId,
+              comment_id: commentId,
+            },
+          });
+
+          await tx.moderation_logs.deleteMany({
+            where: {
+              tenant_id: tenantId,
+              content_type: "board_comment",
+              content_id: commentId,
+            },
+          });
+
+          await tx.board_comments.delete({
+            where: {
+              id: commentId,
+            },
+          });
         });
       } catch (hardError) {
         logError("board.comments.api.delete_failed", {
@@ -128,7 +202,10 @@ export async function DELETE(req: Request, context: DeleteCommentRouteContext) {
           errorMessage:
             hardError instanceof Error ? hardError.message : String(hardError),
         });
-        return NextResponse.json({ errorCode: "comment_delete_failed" }, { status: 500 });
+        return NextResponse.json(
+          { errorCode: "comment_delete_failed" },
+          { status: 500 },
+        );
       }
     }
 

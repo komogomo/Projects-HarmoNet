@@ -98,9 +98,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 
-    const postCreatedAt = post.created_at as Date;
+    const now = new Date();
 
-    let nextSeenAt: Date = postCreatedAt;
+    let nextSeenAt: Date = now;
 
     try {
       const current = (await prisma.user_tenants.findUnique({
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
       } as any)) as { board_last_seen_at: Date | null } | null;
 
       if (current?.board_last_seen_at instanceof Date) {
-        nextSeenAt = current.board_last_seen_at > postCreatedAt ? current.board_last_seen_at : postCreatedAt;
+        nextSeenAt = current.board_last_seen_at > now ? current.board_last_seen_at : now;
       }
     } catch (error) {
       // 読み取り失敗時はログだけ出して postCreatedAt をそのまま使用する

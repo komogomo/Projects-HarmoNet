@@ -20,6 +20,8 @@ export interface BoardPostFormProps {
   viewerRole: ViewerRole;
   isManagementMember: boolean;
   categories: BoardCategoryOption[];
+  mode?: "create" | "reply";
+  replyToPostId?: string;
 }
 
 type DisplayNameMode = "anonymous" | "nickname";
@@ -62,13 +64,22 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
   viewerRole,
   isManagementMember,
   categories,
+  mode,
+  replyToPostId,
 }) => {
   const router = useRouter();
   const { t, currentLocale } = useI18n();
-
   const searchParams = useSearchParams();
-  const replyTo = searchParams.get("replyTo");
-  const isReplyMode = !!replyTo;
+
+  const queryReplyTo = searchParams.get("replyTo");
+  const effectiveReplyToPostId = replyToPostId ?? (queryReplyTo || undefined);
+
+  const resolvedMode: "create" | "reply" =
+    effectiveReplyToPostId ? "reply" : mode ?? "create";
+
+  const isReplyMode = resolvedMode === "reply";
+  const replyTo = isReplyMode ? effectiveReplyToPostId ?? null : null;
+  const isTenantAdmin = viewerRole === "admin";
 
   const [categoryKey, setCategoryKey] = useState<string>("");
   const [displayNameMode, setDisplayNameMode] = useState<DisplayNameMode | null>(null);
@@ -78,12 +89,19 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
   const [title, setTitle] = useState<string>("");
   const [content, setContent] = useState<string>("");
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [confirmingAttachmentId, setConfirmingAttachmentId] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitErrorKey, setSubmitErrorKey] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
   const [isMaskedMode, setIsMaskedMode] = useState<boolean>(false);
   const [forceMaskedOnNextSubmit, setForceMaskedOnNextSubmit] = useState<boolean>(false);
+  const [replyAuthorType, setReplyAuthorType] = useState<"admin" | "user">(
+    isTenantAdmin ? "admin" : "user",
+  );
+  const [replyDisplayMode, setReplyDisplayMode] = useState<"anonymous" | "nickname">(
+    "nickname",
+  );
 
   const getCategoryLabel = (category: BoardCategoryOption): string => {
     const key = `board.postForm.category.${category.key}`;
@@ -138,7 +156,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
       nextErrors.displayNameMode = "board.postForm.error.displayName.required";
     }
 
-    if (!title.trim()) {
+    if (!isReplyMode && !title.trim()) {
       nextErrors.title = "board.postForm.error.title.required";
     }
 
@@ -146,7 +164,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
       nextErrors.content = "board.postForm.error.content.required";
     }
 
-    if (errors.attachments) {
+    if (!isReplyMode && errors.attachments) {
       const isTooManyError =
         errors.attachments === "board.postForm.error.attachment.tooMany";
 
@@ -229,6 +247,8 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
           body: JSON.stringify({
             postId: replyTo,
             content,
+            authorType: replyAuthorType,
+            displayMode: replyDisplayMode,
           }),
         });
 
@@ -444,6 +464,20 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
     });
   };
 
+  const handleRequestRemoveAttachment = (id: string) => {
+    setConfirmingAttachmentId(id);
+  };
+
+  const handleCancelRemoveAttachment = () => {
+    setConfirmingAttachmentId(null);
+  };
+
+  const handleConfirmRemoveAttachment = () => {
+    if (!confirmingAttachmentId) return;
+    handleRemoveAttachment(confirmingAttachmentId);
+    setConfirmingAttachmentId(null);
+  };
+
   const selectedCategory = categories.find((c) => c.key === categoryKey) ?? null;
   const selectedCategoryLabel = selectedCategory ? getCategoryLabel(selectedCategory) : "";
 
@@ -455,6 +489,38 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
           data-testid="board-post-form-error-summary"
         >
           {t(submitErrorKey)}
+        </div>
+      )}
+
+      {confirmingAttachmentId && (
+        <div
+          className="fixed inset-0 z-[950] flex items-center justify-center bg-transparent"
+          onClick={handleCancelRemoveAttachment}
+        >
+          <div
+            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="mb-3 whitespace-pre-line">
+              {t("board.detail.comment.deleteConfirmMessage")}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelRemoveAttachment}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                {t("board.detail.post.deleteConfirmNo")}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRemoveAttachment}
+                className="font-semibold text-red-500 hover:text-red-600"
+              >
+                {t("board.detail.post.deleteConfirmYes")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -557,26 +623,98 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         </div>
       )}
 
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-500">
-          <span className="inline-flex items-center gap-1">
-            {t("board.postForm.field.title.label")}
-            <span className="text-red-500" aria-hidden="true">
-              *
+      {!isReplyMode && (
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-500">
+            <span className="inline-flex items-center gap-1">
+              {t("board.postForm.field.title.label")}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </span>
-          </span>
-          <input
-            type="text"
-            className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            data-testid="board-post-form-title"
-            required
-            aria-required="true"
-          />
-        </label>
-        {errors.title && <p className="mt-1 text-xs text-red-600">{t(errors.title)}</p>}
-      </div>
+            <input
+              type="text"
+              className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              data-testid="board-post-form-title"
+              required
+              aria-required="true"
+            />
+          </label>
+          {errors.title && <p className="mt-1 text-xs text-red-600">{t(errors.title)}</p>}
+        </div>
+      )}
+
+      {isReplyMode && isTenantAdmin && (
+        <section className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">
+            {t("board.postForm.field.posterType.label")}
+          </div>
+          <div className="flex gap-4 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="replyAuthorType"
+                value="admin"
+                checked={replyAuthorType === "admin"}
+                onChange={() => setReplyAuthorType("admin")}
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{t("board.postForm.option.posterType.management")}</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="replyAuthorType"
+                value="user"
+                checked={replyAuthorType === "user"}
+                onChange={() => setReplyAuthorType("user")}
+                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{t("board.postForm.option.posterType.general")}</span>
+            </label>
+          </div>
+        </section>
+      )}
+
+      {isReplyMode && (
+        <section className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">
+            {t("board.postForm.field.displayName.label")}
+          </div>
+          {isTenantAdmin && replyAuthorType === "admin" ? (
+            <p className="text-sm text-gray-500">
+              {t("board.postForm.field.displayName.label")}：{t("board.authorType.admin")}
+            </p>
+          ) : (
+            <div className="flex gap-4 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="replyDisplayMode"
+                  value="anonymous"
+                  checked={replyDisplayMode === "anonymous"}
+                  onChange={() => setReplyDisplayMode("anonymous")}
+                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>{t("board.postForm.option.anonymous")}</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="replyDisplayMode"
+                  value="nickname"
+                  checked={replyDisplayMode === "nickname"}
+                  onChange={() => setReplyDisplayMode("nickname")}
+                  className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>{t("board.postForm.option.nickname")}</span>
+              </label>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-500">
@@ -598,64 +736,65 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         {errors.content && <p className="mt-1 text-xs text-red-600">{t(errors.content)}</p>}
       </div>
 
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-gray-500">
-          {t("board.postForm.section.attachment")}
-        </div>
-        <div className="space-y-1 text-xs text-gray-500">
-          <p>{t("board.postForm.note.attachment.description")}</p>
-          <p>{t("board.postForm.note.attachment.attachmentAllowed")}</p>
-          <p>{t("board.postForm.note.attachment.sizeLimit")}</p>
-          <p>{t("board.postForm.note.attachment.previewNote")}</p>
-        </div>
-        <div>
-          <label
-            htmlFor="board-post-form-attachment-input"
-            className="inline-flex cursor-pointer items-center rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-500 shadow-sm hover:bg-gray-50"
-          >
-            {t("board.postForm.button.attachFile")}
-          </label>
-          <input
-            id="board-post-form-attachment-input"
-            type="file"
-            multiple
-            accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
-            className="hidden"
-            onChange={handleSelectAttachmentFile}
-            data-testid="board-post-form-attachment-input"
-          />
-        </div>
-        {attachments.length > 0 && (
-          <ul className="space-y-1 text-xs text-gray-500">
-            {attachments.map((attachment) => (
-              <li
-                key={attachment.id}
-                className="flex items-center justify-between rounded border-2 border-gray-200 px-2 py-1"
+      {!isReplyMode && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-gray-500">
+            {t("board.postForm.section.attachment")}
+          </div>
+          <div className="space-y-1 text-xs text-gray-500">
+            <p>{t("board.postForm.note.attachment.description")}</p>
+            <p>{t("board.postForm.note.attachment.attachmentAllowed")}</p>
+            <p>{t("board.postForm.note.attachment.sizeLimit")}</p>
+            <p>{t("board.postForm.note.attachment.previewNote")}</p>
+          </div>
+          <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-700">
+            <div className="mb-2 flex justify-start">
+              <label
+                htmlFor="board-post-form-attachment-input"
+                className="inline-flex cursor-pointer items-center rounded-md border-2 border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{attachment.fileName}</span>
-                  <span className="text-[11px] text-gray-500">
-                    {(attachment.fileSize / 1024).toFixed(0)} KB
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveAttachment(attachment.id)}
-                  className="text-xs text-red-600 hover:underline"
-                  aria-label={t("common.cancel")}
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {errors.attachments && (
-          <p className="mt-1 text-xs text-red-600">{t(errors.attachments)}</p>
-        )}
-      </div>
+                {t("board.postForm.button.attachFile")}
+              </label>
+              <input
+                id="board-post-form-attachment-input"
+                type="file"
+                multiple
+                accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
+                className="hidden"
+                onChange={handleSelectAttachmentFile}
+                data-testid="board-post-form-attachment-input"
+              />
+            </div>
+            {attachments.length > 0 && (
+              <ul className="space-y-1">
+                {attachments.map((attachment) => (
+                  <li
+                    key={attachment.id}
+                    className="flex items-center justify-between rounded border border-gray-200 px-2 py-1"
+                  >
+                    <div className="min-w-0">
+                      <span className="block truncate font-medium">{attachment.fileName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRequestRemoveAttachment(attachment.id)}
+                      className="flex h-5 w-5 items-center justify-center text-[16px] font-extrabold text-red-500 hover:text-red-600"
+                      aria-label={t("common.cancel")}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {errors.attachments && (
+            <p className="mt-1 text-xs text-red-600">{t(errors.attachments)}</p>
+          )}
+        </div>
+      )}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-center gap-3">
         <button
           type="button"
           onClick={handleClickCancel}
@@ -733,7 +872,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                   </div>
                 )}
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={handleCancelConfirm}

@@ -5,8 +5,20 @@ import { logError, logInfo } from "@/src/lib/logging/log.util";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import BoardPostForm from "@/src/components/board/BoardPostForm/BoardPostForm";
 
-export default async function BoardNewPage() {
+type BoardNewPageProps = {
+  searchParams?: Promise<{
+    replyTo?: string;
+  }>;
+};
+
+export default async function BoardNewPage(props: BoardNewPageProps) {
   logInfo("board.post.form.enter");
+
+  const resolvedSearchParams = props.searchParams
+    ? await props.searchParams
+    : undefined;
+
+  const replyTo = resolvedSearchParams?.replyTo;
 
   const supabase = await createSupabaseServerClient();
 
@@ -186,7 +198,7 @@ export default async function BoardNewPage() {
 
   return (
     <>
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-white pb-24">
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
           <div className="flex-1 space-y-6">
             <BoardPostForm
@@ -195,6 +207,8 @@ export default async function BoardNewPage() {
               viewerRole={viewerRole}
               isManagementMember={isManagementMember}
               categories={categoryOptions}
+              mode={replyTo ? "reply" : "create"}
+              replyToPostId={replyTo}
             />
           </div>
         </div>

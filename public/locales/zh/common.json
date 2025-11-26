@@ -212,6 +212,9 @@
       "admin": "管理委员会",
       "user": "一般住户"
     },
+    "comment": {
+      "deleted": "该帖子已被删除。"
+    },
     "postForm": {
       "field": {
         "category": {

@@ -43,7 +43,7 @@ export async function GET(req: Request) {
       error: membershipError,
     } = await supabase
       .from('user_tenants')
-      .select('tenant_id, board_last_seen_at')
+      .select('tenant_id')
       .eq('user_id', appUser.id)
       .eq('status', 'active')
       .maybeSingle();
@@ -56,8 +56,31 @@ export async function GET(req: Request) {
     }
 
     const tenantId = membership.tenant_id as string;
-    const lastSeenRaw = (membership as any).board_last_seen_at as string | null | undefined;
-    const boardLastSeenAt = lastSeenRaw ? new Date(lastSeenRaw) : null;
+
+    let boardLastSeenAt: Date | null = null;
+    try {
+      const current = (await prisma.user_tenants.findUnique({
+        where: {
+          user_id_tenant_id: {
+            user_id: appUser.id,
+            tenant_id: tenantId,
+          },
+        },
+        select: {
+          board_last_seen_at: true,
+        },
+      } as any)) as { board_last_seen_at: Date | null } | null;
+
+      if (current?.board_last_seen_at instanceof Date) {
+        boardLastSeenAt = current.board_last_seen_at;
+      }
+    } catch (error) {
+      logError('board.notifications.api.has_unread_read_current_error', {
+        userId: appUser.id,
+        tenantId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     // latest_post_at: テナント内の「管理組合（tenant_admin）による」published 投稿の最大 created_at
     const latestPost = await prisma.board_posts.findFirst({

@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { LayoutGrid } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { HomeFeatureTilesProps } from './HomeFeatureTiles.types';
@@ -39,8 +40,15 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ tiles }) => 
 
   return (
     <section aria-labelledby="home-feature-tiles-title">
-      <h2 id="home-feature-tiles-title" className="mb-3 text-base font-semibold text-gray-900">
-        {t('home.features.title')}
+      <h2
+        id="home-feature-tiles-title"
+        className="mb-3 flex items-center gap-1 text-base font-semibold text-gray-900"
+      >
+        <LayoutGrid
+          aria-hidden="true"
+          className="h-5 w-5 text-blue-600"
+        />
+        <span>{t('home.features.title')}</span>
       </h2>
       <div className="grid grid-cols-3 gap-3">
         {effectiveTiles.map((tile) => (

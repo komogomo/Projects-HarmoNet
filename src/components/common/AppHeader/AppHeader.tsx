@@ -38,6 +38,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
     if (variant === 'authenticated') {
       fetchUnread();
+
+      if (typeof window !== 'undefined') {
+        const handleSeen = () => {
+          fetchUnread();
+        };
+
+        window.addEventListener('harmonet:board-notification-seen', handleSeen as EventListener);
+
+        return () => {
+          isCancelled = true;
+          window.removeEventListener('harmonet:board-notification-seen', handleSeen as EventListener);
+        };
+      }
     }
 
     return () => {
@@ -67,6 +80,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             alt="HarmoNet"
             width={128}
             height={32}
+            style={{ width: 'auto', height: 'auto' }}
             data-testid={`${testId}-logo`}
             priority
           />

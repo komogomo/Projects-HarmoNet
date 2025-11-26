@@ -26,8 +26,10 @@ export interface BoardCommentTranslationDto {
 export interface BoardCommentDto {
   id: string;
   content: string;
+  status: 'active' | 'deleted';
   authorDisplayName: string;
   createdAt: string;
+  updatedAt: string;
   isDeletable: boolean;
   translations: BoardCommentTranslationDto[];
 }
@@ -92,12 +94,15 @@ export async function getBoardPostById(
       comments: {
         // Prisma Client の型定義が comment_status をまだ認識していない可能性があるため、
         // where 句は any キャストで付与する。
-        where: { status: 'active' } as any,
+        where: {} as any,
         select: {
           id: true,
           content: true,
+          status: true,
           author_id: true,
           created_at: true,
+          updated_at: true,
+          author_display_name: true,
           boardCommentTranslations: {
             select: {
               lang: true,
@@ -152,36 +157,6 @@ export async function getBoardPostById(
     }),
   );
 
-  const comments: BoardCommentDto[] = post.comments.map(
-    (comment: {
-      id: string;
-      content: string;
-      author_id: string;
-      created_at: Date;
-      boardCommentTranslations?: { lang: string | null; content: string }[];
-      author: { display_name: string };
-    }): BoardCommentDto => {
-      const translations: BoardCommentTranslationDto[] =
-        (comment.boardCommentTranslations ?? [])
-          .filter((tr) =>
-            SUPPORTED_LANGS.includes((tr.lang ?? '') as SupportedBoardLang),
-          )
-          .map((tr) => ({
-            lang: tr.lang as SupportedBoardLang,
-            content: tr.content,
-          }));
-
-      return {
-        id: comment.id,
-        content: comment.content,
-        authorDisplayName: comment.author.display_name,
-        createdAt: comment.created_at.toISOString(),
-        isDeletable: comment.author_id === currentUserId,
-        translations,
-      };
-    },
-  );
-
   const authorDisplayName =
     (post as any).author_display_name && typeof (post as any).author_display_name === 'string'
       ? ((post as any).author_display_name as string)
@@ -204,6 +179,78 @@ export async function getBoardPostById(
     isFavorite = false;
   }
 
+  let hasAdminRole = false;
+  try {
+    const userRoles = await (prisma as any).user_roles.findMany({
+      where: {
+        user_id: currentUserId,
+        tenant_id: tenantId,
+      },
+      select: {
+        role: {
+          select: {
+            role_key: true,
+          },
+        },
+      },
+    });
+
+    if (Array.isArray(userRoles) && userRoles.length > 0) {
+      hasAdminRole = userRoles.some(
+        (row: any) =>
+          row.role?.role_key === 'tenant_admin' || row.role?.role_key === 'system_admin',
+      );
+    }
+  } catch {
+    hasAdminRole = false;
+  }
+
+  const isAuthor = (post as any).author_id === currentUserId;
+
+  const comments: BoardCommentDto[] = post.comments.map(
+    (comment: {
+      id: string;
+      content: string;
+      status: string;
+      author_id: string;
+      created_at: Date;
+      updated_at: Date;
+      boardCommentTranslations?: { lang: string | null; content: string }[];
+      author: { display_name: string };
+    }): BoardCommentDto => {
+      const translations: BoardCommentTranslationDto[] =
+        (comment.boardCommentTranslations ?? [])
+          .filter((tr) =>
+            SUPPORTED_LANGS.includes((tr.lang ?? '') as SupportedBoardLang),
+          )
+          .map((tr) => ({
+            lang: tr.lang as SupportedBoardLang,
+            content: tr.content,
+          }));
+
+      const normalizedStatus = comment.status === 'deleted' ? 'deleted' : 'active';
+
+      const authorDisplayName =
+        (comment as any).author_display_name &&
+        typeof (comment as any).author_display_name === 'string'
+          ? ((comment as any).author_display_name as string)
+          : comment.author.display_name || '匿名';
+
+      return {
+        id: comment.id,
+        content: comment.content,
+        status: normalizedStatus as 'active' | 'deleted',
+        authorDisplayName,
+        createdAt: comment.created_at.toISOString(),
+        updatedAt: comment.updated_at.toISOString(),
+        // コメントの削除権限は投稿者本人のみとする（管理組合による一括削除は別仕様）
+        isDeletable:
+          normalizedStatus === 'active' && (comment.author_id === currentUserId || hasAdminRole),
+        translations,
+      };
+    },
+  );
+
   return {
     id: post.id,
     categoryKey: post.category.category_key,
@@ -218,6 +265,6 @@ export async function getBoardPostById(
     attachments,
     comments,
     isFavorite,
-    isDeletable: (post as any).author_id === currentUserId,
+    isDeletable: isAuthor || hasAdminRole,
   };
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MessageCircle, Star, Trash2, Volume2 } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
+import { BOARD_ATTACHMENT_DEFAULTS } from "@/src/lib/boardAttachmentSettings";
 import type { BoardPostDetailDto } from "@/src/server/board/getBoardPostById";
 import type { BoardCategoryKey } from "@/src/components/board/BoardTop/types";
 
@@ -75,6 +76,14 @@ const isImageAttachment = (fileType: string, fileName: string): boolean => {
   );
 };
 
+const ATTACHMENT_SETTINGS = BOARD_ATTACHMENT_DEFAULTS;
+const MAX_ATTACHMENT_SIZE_BYTES = ATTACHMENT_SETTINGS.maxSizePerFileBytes;
+const MAX_ATTACHMENT_COUNT =
+  ATTACHMENT_SETTINGS.maxCountPerPost !== null
+    ? ATTACHMENT_SETTINGS.maxCountPerPost
+    : Number.MAX_SAFE_INTEGER;
+const ALLOWED_ATTACHMENT_MIME_TYPES = ATTACHMENT_SETTINGS.allowedMimeTypes;
+
 type AttachmentPreviewState = {
   url: string;
   fileName: string;
@@ -86,6 +95,12 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
   const { t, currentLocale } = useI18n();
   const router = useRouter();
   const [preview, setPreview] = useState<AttachmentPreviewState>(null);
+  const [attachments, setAttachments] = useState(data.attachments);
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [confirmingAttachmentId, setConfirmingAttachmentId] = useState<string | null>(null);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const [attachmentErrorKey, setAttachmentErrorKey] = useState<string | null>(null);
   const [isLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState<boolean>(data.isFavorite ?? false);
@@ -137,11 +152,32 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
     return !forbidden.includes(categoryKey);
   }, [categoryKey]);
 
+  const selectedPreviewableAttachment = useMemo(() => {
+    if (selectedAttachmentIds.length !== 1) {
+      return null;
+    }
+
+    const id = selectedAttachmentIds[0];
+    const file = attachments.find((attachment) => attachment.id === id);
+    if (!file) {
+      return null;
+    }
+
+    const isPdf = isPdfAttachment(file.fileType, file.fileName);
+    const isImage = isImageAttachment(file.fileType, file.fileName);
+
+    if (!isPdf && !isImage) {
+      return null;
+    }
+
+    return { file, isPdf, isImage };
+  }, [selectedAttachmentIds, attachments]);
+
   // 通知の既読更新: 詳細画面（特定の投稿）を開いた時点で mark-seen API を呼び出す
   useEffect(() => {
     const markSeen = async () => {
       try {
-        await fetch("/api/board/notifications/mark-seen", {
+        const res = await fetch("/api/board/notifications/mark-seen", {
           method: "POST",
           credentials: "include",
           headers: {
@@ -149,6 +185,13 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
           },
           body: JSON.stringify({ postId: data.id }),
         });
+        if (res.ok && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("harmonet:board-notification-seen", {
+              detail: { postId: data.id },
+            }),
+          );
+        }
       } catch {
         // noop: 既読更新失敗は致命的ではないため握りつぶす
       }
@@ -238,12 +281,199 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
         throw new Error("comment_delete_failed");
       }
 
-      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+      setComments((prev) =>
+        prev.map((comment) =>
+          comment.id === commentId
+            ? { ...comment, status: "deleted", isDeletable: false }
+            : comment,
+        ),
+      );
       setConfirmingCommentId(null);
     } catch {
       setDeleteErrorKey("board.detail.comment.deleteError");
     } finally {
       setDeletingCommentId(null);
+    }
+  };
+
+  const handleToggleSelectAllAttachments = () => {
+    if (selectedAttachmentIds.length === attachments.length) {
+      setSelectedAttachmentIds([]);
+    } else {
+      setSelectedAttachmentIds(attachments.map((attachment) => attachment.id));
+    }
+  };
+
+  const handleToggleAttachmentSelection = (id: string) => {
+    setSelectedAttachmentIds((prev) =>
+      prev.includes(id) ? prev.filter((existingId) => existingId !== id) : [...prev, id],
+    );
+  };
+
+  const handlePreviewSelectedAttachments = () => {
+    if (!selectedPreviewableAttachment) {
+      return;
+    }
+
+    const { file, isPdf, isImage } = selectedPreviewableAttachment;
+
+    setPreview({
+      url: file.fileUrl,
+      fileName: file.fileName,
+      isPdf,
+      isImage,
+    });
+  };
+
+  const handleDownloadSelectedAttachments = () => {
+    if (selectedAttachmentIds.length === 0) {
+      return;
+    }
+
+    selectedAttachmentIds.forEach((id) => {
+      const attachment = attachments.find((file) => file.id === id);
+      if (!attachment) {
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = attachment.fileUrl;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.click();
+    });
+  };
+
+  const handleRequestDeleteAttachment = (attachmentId: string) => {
+    if (!data.isDeletable) return;
+    if (deletingAttachmentId) return;
+
+    setConfirmingAttachmentId(attachmentId);
+    setAttachmentErrorKey(null);
+  };
+
+  const handleCancelDeleteAttachment = () => {
+    if (deletingAttachmentId) return;
+    setConfirmingAttachmentId(null);
+  };
+
+  const handleConfirmDeleteAttachment = async () => {
+    if (!confirmingAttachmentId || deletingAttachmentId) return;
+
+    const targetId = confirmingAttachmentId;
+    await handleDeleteAttachment(targetId);
+    setConfirmingAttachmentId(null);
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!data.isDeletable) return;
+    if (deletingAttachmentId === attachmentId) return;
+
+    setDeletingAttachmentId(attachmentId);
+    setAttachmentErrorKey(null);
+
+    try {
+      const response = await fetch(`/api/board/attachments/${attachmentId}`, {
+        method: "DELETE",
+      });
+
+      const json = (await response.json().catch(() => ({}))) as { errorCode?: string };
+
+      if (!response.ok) {
+        throw new Error(json.errorCode ?? "attachment_delete_failed");
+      }
+
+      setAttachments((prev) => prev.filter((attachment) => attachment.id !== attachmentId));
+      setSelectedAttachmentIds((prev) => prev.filter((id) => id !== attachmentId));
+    } catch {
+      setAttachmentErrorKey("board.postForm.error.submit.server");
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
+  const handleAddAttachmentFiles = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    if (!data.isDeletable) return;
+
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const existingCount = attachments.length;
+    const selectedFiles: File[] = [];
+    let errorKey: string | null = null;
+
+    for (const file of Array.from(files)) {
+      if (existingCount + selectedFiles.length >= MAX_ATTACHMENT_COUNT) {
+        errorKey = "board.postForm.error.attachment.tooMany";
+        break;
+      }
+
+      if (!ALLOWED_ATTACHMENT_MIME_TYPES.includes(file.type)) {
+        errorKey = "board.postForm.error.attachment.invalidType";
+        continue;
+      }
+
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        errorKey = "board.postForm.error.attachment.tooLarge";
+        continue;
+      }
+
+      selectedFiles.push(file);
+    }
+
+    // 同じファイルを再度選択できるように value をリセット
+    event.target.value = "";
+
+    if (errorKey) {
+      setAttachmentErrorKey(errorKey);
+    } else {
+      setAttachmentErrorKey(null);
+    }
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    setIsUploadingAttachments(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("postId", data.id);
+      selectedFiles.forEach((file) => {
+        formData.append("attachments", file);
+      });
+
+      const response = await fetch("/api/board/attachments", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = (await response.json().catch(() => ({}))) as {
+        attachments?: {
+          id: string;
+          fileName: string;
+          fileType: string;
+          fileSize: number;
+          fileUrl: string;
+        }[];
+        errorCode?: string;
+      };
+
+      const nextAttachments = json.attachments ?? [];
+
+      if (!response.ok || nextAttachments.length === 0) {
+        throw new Error(json.errorCode ?? "attachment_upload_failed");
+      }
+
+      setAttachments((prev) => [...prev, ...nextAttachments]);
+    } catch {
+      setAttachmentErrorKey("board.postForm.error.submit.server");
+    } finally {
+      setIsUploadingAttachments(false);
     }
   };
 
@@ -361,7 +591,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
   if (isLoading) {
     return (
       <>
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen bg-white pb-24">
           <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
             <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
               {t("common.loading")}
@@ -375,7 +605,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
 
   return (
     <>
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-white pb-24">
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
           <section
             aria-labelledby="board-detail-title"
@@ -486,61 +716,131 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
             </section>
 
             {/* 添付ファイルリスト */}
-            {data.attachments.length > 0 && (
+            {(attachments.length > 0 || data.isDeletable) && (
               <section
                 aria-label={t("board.detail.section.attachments")}
                 className="space-y-3"
               >
-                <h2 className="text-sm font-semibold text-gray-900">
-                  {t("board.detail.attachments.title")}
-                </h2>
-                <ul className="space-y-2">
-                  {data.attachments.map((file) => {
-                    const isPdf = isPdfAttachment(file.fileType, file.fileName);
-                    const isImage = isImageAttachment(file.fileType, file.fileName);
-                    return (
-                      <li
-                        key={file.id}
-                        className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-gray-700"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium break-words line-clamp-2">
-                            {file.fileName}
+                <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-700">
+                  {attachments.length > 0 && (
+                    <>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <label className="inline-flex items-center gap-2 text-[11px] text-gray-600">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            checked={
+                              attachments.length > 0 &&
+                              selectedAttachmentIds.length === attachments.length
+                            }
+                            onChange={handleToggleSelectAllAttachments}
+                          />
+                          <span>
+                            {currentLocale === "en"
+                              ? "Select all"
+                              : currentLocale === "zh"
+                              ? "全选"
+                              : "すべて選択"}
                           </span>
-                          <span className="text-[11px] text-gray-500">
-                            {(file.fileSize / 1024).toFixed(0)} KB
-                          </span>
-                        </div>
-                        <div className="mt-2 flex justify-end gap-2">
-                          {(isPdf || isImage) && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setPreview({
-                                  url: file.fileUrl,
-                                  fileName: file.fileName,
-                                  isPdf,
-                                  isImage,
-                                })
-                              }
-                              className="rounded-md border-2 border-blue-200 px-2 py-1 text-[11px] text-blue-600 hover:bg-blue-50"
-                            >
-                              {t("board.detail.attachments.preview")}
-                            </button>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          {data.isDeletable && (
+                            <>
+                              <label
+                                htmlFor="board-detail-attachment-input"
+                                className="inline-flex cursor-pointer items-center rounded-md border-2 border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed"
+                              >
+                                {isUploadingAttachments
+                                  ? t("board.postForm.button.submitting")
+                                  : t("board.postForm.button.attachFile")}
+                              </label>
+                              <input
+                                id="board-detail-attachment-input"
+                                type="file"
+                                multiple
+                                accept={ALLOWED_ATTACHMENT_MIME_TYPES.join(",")}
+                                className="hidden"
+                                onChange={handleAddAttachmentFiles}
+                                disabled={
+                                  isUploadingAttachments ||
+                                  attachments.length >= MAX_ATTACHMENT_COUNT
+                                }
+                              />
+                            </>
                           )}
-                          <a
-                            href={file.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-md border-2 border-gray-200 px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-50"
+                          <button
+                            type="button"
+                            onClick={handlePreviewSelectedAttachments}
+                            disabled={!selectedPreviewableAttachment}
+                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${
+                              !selectedPreviewableAttachment
+                                ? "border-gray-200 bg-gray-100 text-gray-400"
+                                : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            }`}
+                          >
+                            {t("board.detail.attachments.preview")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDownloadSelectedAttachments}
+                            disabled={selectedAttachmentIds.length === 0}
+                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${
+                              selectedAttachmentIds.length === 0
+                                ? "border-gray-200 bg-gray-100 text-gray-400"
+                                : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            }`}
                           >
                             {t("board.detail.attachments.download")}
-                          </a>
+                          </button>
                         </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                      </div>
+                      <ul className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                        {attachments.map((file) => {
+                          const isPdf = isPdfAttachment(file.fileType, file.fileName);
+                          const isImage = isImageAttachment(file.fileType, file.fileName);
+                          const isSelected = selectedAttachmentIds.includes(file.id);
+                          return (
+                            <li
+                              key={file.id}
+                              className="flex items-center justify-between rounded border border-gray-200 px-2 py-1"
+                            >
+                              <label className="flex flex-1 items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  checked={isSelected}
+                                  onChange={() => handleToggleAttachmentSelection(file.id)}
+                                />
+                                <div className="min-w-0">
+                                  <span className="block truncate font-medium">
+                                    {file.fileName}
+                                  </span>
+                                </div>
+                              </label>
+                              <div className="ml-2 flex items-center gap-2">
+                                {data.isDeletable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRequestDeleteAttachment(file.id)}
+                                    disabled={
+                                      deletingAttachmentId === file.id || isUploadingAttachments
+                                    }
+                                    className="flex h-5 w-5 items-center justify-center text-[16px] font-extrabold text-red-500 hover:text-red-600 disabled:opacity-40"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  )}
+                  {attachmentErrorKey && (
+                    <p className="mt-2 text-[11px] text-red-600">{t(attachmentErrorKey)}</p>
+                  )}
+                </div>
               </section>
             )}
 
@@ -564,36 +864,46 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
               ) : (
                 <ul className="space-y-2">
                   {comments.map((comment) => {
-                    const translated =
-                      comment.translations?.find((tr) => tr.lang === currentLocale)?.content ??
-                      null;
-                    const effectiveContent = translated ?? comment.content;
+                    const isDeleted = comment.status === "deleted";
+                    const baseTimestamp = isDeleted
+                      ? comment.updatedAt ?? comment.createdAt
+                      : comment.createdAt;
+                    const timeLabel = formatDateTime(baseTimestamp, currentLocale);
+
+                    const translated = !isDeleted
+                      ? comment.translations?.find((tr) => tr.lang === currentLocale)?.content ??
+                        null
+                      : null;
+
+                    const effectiveContent = isDeleted
+                      ? `${timeLabel} ${t("board.comment.deleted")}`
+                      : translated ?? comment.content;
 
                     return (
-                    <li
-                      key={comment.id}
-                      className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-gray-800"
-                    >
-                      <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
-                        <span>{comment.authorDisplayName}</span>
-                        <div className="flex items-center gap-2">
-                          <span>{formatDateTime(comment.createdAt, currentLocale)}</span>
-                          {comment.isDeletable && (
-                            <button
-                              type="button"
-                              onClick={() => handleRequestDeleteComment(comment.id)}
-                              disabled={deletingCommentId === comment.id}
-                              className="text-gray-400 hover:text-red-500 disabled:opacity-50"
-                              aria-label={t("board.detail.comment.delete")}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
-                          )}
+                      <li
+                        key={comment.id}
+                        className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-gray-800"
+                      >
+                        <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
+                          <span>{comment.authorDisplayName}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{timeLabel}</span>
+                            {comment.isDeletable && comment.status !== "deleted" && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestDeleteComment(comment.id)}
+                                disabled={deletingCommentId === comment.id}
+                                className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                aria-label={t("board.detail.comment.delete")}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <p className="whitespace-pre-wrap">{effectiveContent}</p>
-                    </li>
-                  );
+                        <p className="whitespace-pre-wrap">{effectiveContent}</p>
+                      </li>
+                    );
                   })}
                 </ul>
               )}
@@ -631,6 +941,41 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                 type="button"
                 onClick={handleConfirmDeletePost}
                 disabled={isPostDeleting}
+                className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
+              >
+                {t("board.detail.post.deleteConfirmYes")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 添付ファイル削除確認モーダル */}
+      {confirmingAttachmentId && (
+        <div
+          className="fixed inset-0 z-[1042] flex items-center justify-center bg-transparent"
+          onClick={handleCancelDeleteAttachment}
+        >
+          <div
+            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="mb-3 whitespace-pre-line">
+              {t("board.detail.comment.deleteConfirmMessage")}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelDeleteAttachment}
+                disabled={deletingAttachmentId === confirmingAttachmentId}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                {t("board.detail.post.deleteConfirmNo")}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteAttachment}
+                disabled={deletingAttachmentId === confirmingAttachmentId}
                 className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
               >
                 {t("board.detail.post.deleteConfirmYes")}

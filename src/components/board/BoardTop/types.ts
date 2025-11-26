@@ -8,7 +8,9 @@ export type BoardCategoryKey =
   | "group"
   | "other";
 
-export type BoardTab = "all" | BoardCategoryKey | "favorite";
+// 画面上の「ビュー種別」タブ（すべて / お気に入り）。
+// カテゴリの ON/OFF は BoardCategoryKey[] で別管理する。
+export type BoardTab = "all" | "favorite";
 
 export type BoardCategoryTag = {
   id: BoardCategoryKey;

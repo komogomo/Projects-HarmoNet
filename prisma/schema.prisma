@@ -1,8 +1,8 @@
-// HarmoNet Prisma Schema (v1.7)
+// HarmoNet Prisma Schema (v1.7-clean)
 // Source: 03_harmonet-er-entity-definition_v1.2.yaml
 // Status: Phase9 ENUM統一版 (重複削除・PostgreSQL最適化)
 // Integration: Technical Stack Definition v3.5 (Next.js + Prisma 6.16.0+)
-// Author: Tachikoma (HarmoNet PMO / Architect), Modified by Claude
+// Author: Tachikoma (HarmoNet PMO / Architect), Modified by Claude, Cleaned by Tachikoma
 
 generator client {
   provider = "prisma-client-js"
@@ -141,10 +141,6 @@ model tenants {
   facility_slots             facility_slots[]
   facility_reservations      facility_reservations[]
   facility_blocked_ranges    facility_blocked_ranges[]
-  translation_cache          translation_cache[]
-  tts_cache                  tts_cache[]
-  notifications              notifications[]
-  user_notification_settings user_notification_settings[]
   audit_logs                 audit_logs[]
   moderation_logs            moderation_logs[]
   board_post_translations    board_post_translations[]
@@ -192,22 +188,20 @@ model users {
   status       status   @default(active)
 
   // Relations
-  tenant                     tenants?                     @relation(fields: [tenant_id], references: [id])
-  user_tenants               user_tenants[]
-  user_roles                 user_roles[]
-  user_profiles              user_profiles[]
-  board_posts                board_posts[]
-  board_comments             board_comments[]
-  board_reactions            board_reactions[]
-  board_approval_logs        board_approval_logs[]
-  board_favorites            board_favorites[]
-  announcement_reads         announcement_reads[]
-  facility_reservations      facility_reservations[]
-  notifications              notifications[]
-  user_notification_settings user_notification_settings[]
-  audit_logs                 audit_logs[]
-  moderation_logs_reviewer   moderation_logs[] // 承認者としてのリレーション
-  tenant_residents           tenant_residents[]
+  tenant                   tenants?                @relation(fields: [tenant_id], references: [id])
+  user_tenants             user_tenants[]
+  user_roles               user_roles[]
+  user_profiles            user_profiles[]
+  board_posts              board_posts[]
+  board_comments           board_comments[]
+  board_reactions          board_reactions[]
+  board_approval_logs      board_approval_logs[]
+  board_favorites          board_favorites[]
+  announcement_reads       announcement_reads[]
+  facility_reservations    facility_reservations[]
+  audit_logs               audit_logs[]
+  moderation_logs_reviewer moderation_logs[] // 承認者としてのリレーション
+  tenant_residents         tenant_residents[]
 }
 
 /// 住民基本情報
@@ -230,11 +224,11 @@ model tenant_residents {
 
 /// ユーザーとテナントの所属関係
 model user_tenants {
-  user_id   String
-  tenant_id String
-  joined_at DateTime @default(now())
+  user_id            String
+  tenant_id          String
+  joined_at          DateTime  @default(now())
   board_last_seen_at DateTime?
-  status    status   @default(active)
+  status             status    @default(active)
 
   user   users   @relation(fields: [user_id], references: [id])
   tenant tenants @relation(fields: [tenant_id], references: [id])
@@ -352,7 +346,7 @@ model board_posts {
   author_id           String
   author_display_name String?
   title               String
-  content             String            @db.Text
+  content             String            @db.Text // テキスト正（翻訳/TTS/モデレーション/検索用）
   status              board_post_status @default(draft)
   created_at          DateTime          @default(now())
   updated_at          DateTime          @updatedAt
@@ -380,6 +374,7 @@ model board_comments {
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   status            comment_status @default(active)
+  author_display_name String?  @db.VarChar(100)
 
   // Relations
   tenant                   tenants                      @relation(fields: [tenant_id], references: [id])
@@ -581,77 +576,7 @@ model facility_blocked_ranges {
   facility facilities @relation(fields: [facility_id], references: [id])
 }
 
-// --- 7. Translation / Cache ---
-
-/// 翻訳キャッシュ（Redis失効後の永続履歴）
-model translation_cache {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  content_type    String
-  content_id      String
-  language        String
-  translated_text String   @db.Text
-  expires_at      DateTime
-
-  // Relations
-  tenant tenants @relation(fields: [tenant_id], references: [id])
-
-  @@unique([tenant_id, content_type, content_id, language])
-}
-
-/// 音声読み上げキャッシュ（TTS出力の再生成防止と高速再利用用）
-model tts_cache {
-  id           String   @id @default(uuid())
-  tenant_id    String
-  content_type String
-  content_id   String
-  language     String
-  voice_type   String   @default("default")
-  audio_url    String
-  duration_sec Decimal? @db.Decimal(6, 2)
-  expires_at   DateTime
-  created_at   DateTime @default(now())
-
-  // Relations
-  tenant tenants @relation(fields: [tenant_id], references: [id])
-
-  @@unique([tenant_id, content_type, content_id, language, voice_type])
-}
-
-// --- 8. Notifications ---
-
-/// 通知履歴
-model notifications {
-  id        String    @id @default(uuid())
-  tenant_id String
-  user_id   String
-  type      String
-  title     String
-  content   String    @db.Text
-  sent_at   DateTime  @default(now())
-  read_at   DateTime?
-
-  // Relations
-  tenant tenants @relation(fields: [tenant_id], references: [id])
-  user   users   @relation(fields: [user_id], references: [id])
-}
-
-/// ユーザー通知設定
-model user_notification_settings {
-  user_id           String
-  tenant_id         String
-  notification_type String
-  enabled           Boolean  @default(true)
-  updated_at        DateTime @updatedAt
-
-  // Relations
-  user   users   @relation(fields: [user_id], references: [id])
-  tenant tenants @relation(fields: [tenant_id], references: [id])
-
-  @@unique([user_id, tenant_id, notification_type])
-}
-
-// --- 9. Audit / Moderation ---
+// --- 7. Audit / Moderation ---
 
 /// 監査ログ
 model audit_logs {
@@ -688,7 +613,7 @@ model moderation_logs {
   reviewer users?  @relation(fields: [reviewed_by], references: [id])
 }
 
-// --- 10. UI Configuration ---
+// --- 8. UI Configuration ---
 
 /// テナント別フッターショートカットメニュー構成
 /// フッターショートカットバーの表示項目・順序・アイコンを定義

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
 import { prisma } from "@/src/server/db/prisma";
 import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantIdsForUser";
@@ -90,20 +91,99 @@ export async function DELETE(req: Request, context: DeletePostRouteContext) {
     }
 
     const tenantId = post.tenant_id as string;
+    const isAuthor = post.author_id === appUser.id;
 
-    if (post.author_id !== appUser.id) {
+    let hasAdminRole = false;
+    try {
+      const {
+        data: userRoles,
+        error: userRolesError,
+      } = await supabase
+        .from("user_roles")
+        .select("role_id")
+        .eq("user_id", appUser.id)
+        .eq("tenant_id", tenantId);
+
+      if (!userRolesError && userRoles && Array.isArray(userRoles) && userRoles.length > 0) {
+        const roleIds = userRoles
+          .map((row: any) => row.role_id)
+          .filter((id: unknown): id is string => typeof id === "string");
+
+        if (roleIds.length > 0) {
+          const {
+            data: roles,
+            error: rolesError,
+          } = await supabase
+            .from("roles")
+            .select("id, role_key")
+            .in("id", roleIds as string[]);
+
+          if (!rolesError && roles && Array.isArray(roles)) {
+            hasAdminRole = roles.some(
+              (role: any) =>
+                role.role_key === "tenant_admin" || role.role_key === "system_admin",
+            );
+          }
+        }
+      }
+    } catch {
+      hasAdminRole = false;
+    }
+
+    if (!isAuthor && !hasAdminRole) {
       return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
     }
 
     try {
       // Soft delete: archive the post so it no longer appears on the board
-      await prisma.board_posts.update({
+      const attachments = await prisma.board_attachments.findMany({
         where: {
-          id: postId,
+          tenant_id: tenantId,
+          post_id: postId,
         },
-        data: {
-          status: "archived" as any,
+        select: {
+          file_url: true,
         },
+      });
+
+      if (attachments.length > 0) {
+        const serviceRoleSupabase = createSupabaseServiceRoleClient();
+        const storageBucket = serviceRoleSupabase.storage.from("board-attachments");
+        const paths = attachments
+          .map((attachment) => attachment.file_url)
+          .filter((path): path is string => typeof path === "string" && path.length > 0);
+
+        if (paths.length > 0) {
+          const { error: removeError } = await storageBucket.remove(paths);
+          if (removeError) {
+            logError("board.post.delete.attachment_remove_failed", {
+              tenantId,
+              userId: appUser.id,
+              postId,
+              errorMessage: removeError.message ?? String(removeError),
+            });
+            return NextResponse.json(
+              { errorCode: "attachment_delete_failed" },
+              { status: 500 },
+            );
+          }
+        }
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.moderation_logs.deleteMany({
+          where: {
+            tenant_id: tenantId,
+            content_type: "board_post",
+            content_id: postId,
+          },
+        });
+
+        await tx.board_posts.delete({
+          where: {
+            id: postId,
+          },
+        });
       });
     } catch (error) {
       logError("board.post.delete.failed", {
