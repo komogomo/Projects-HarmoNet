@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { logError, logInfo } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient();
 
@@ -28,7 +30,6 @@ export async function POST(req: Request) {
       .from('users')
       .select('id')
       .eq('email', email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -45,7 +46,6 @@ export async function POST(req: Request) {
       .from('user_tenants')
       .select('tenant_id')
       .eq('user_id', appUser.id)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {
@@ -98,9 +98,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
 
-    const now = new Date();
-
-    let nextSeenAt: Date = now;
+    const postCreatedAt = post.created_at;
+    let nextSeenAt: Date = postCreatedAt;
 
     try {
       const current = (await prisma.user_tenants.findUnique({
@@ -116,7 +115,11 @@ export async function POST(req: Request) {
       } as any)) as { board_last_seen_at: Date | null } | null;
 
       if (current?.board_last_seen_at instanceof Date) {
-        nextSeenAt = current.board_last_seen_at > now ? current.board_last_seen_at : now;
+        // 既存の閲覧日時の方が新しい場合は更新しない（過去の投稿を見ても最新の未読を既読にしないため）
+        nextSeenAt =
+          current.board_last_seen_at > postCreatedAt
+            ? current.board_last_seen_at
+            : postCreatedAt;
       }
     } catch (error) {
       // 読み取り失敗時はログだけ出して postCreatedAt をそのまま使用する

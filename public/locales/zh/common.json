@@ -38,6 +38,7 @@
       },
       "magiclink_sent": "登录链接已发送到您的邮箱。",
       "error": {
+        "email_not_found": "电子邮件地址未注册。",
         "email_invalid": "电子邮件地址格式不正确。",
         "network": "发生网络错误。请稍后重试。",
         "auth": "认证失败。请检查输入内容后重试。",

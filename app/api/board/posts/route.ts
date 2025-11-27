@@ -18,7 +18,7 @@ interface UpsertBoardPostRequest {
   categoryKey: string;
   title: string;
   content: string;
-   forceMasked?: boolean;
+  forceMasked?: boolean;
   uiLanguage?: SupportedLang;
 }
 
@@ -71,9 +71,8 @@ export async function GET(req: Request) {
       error: appUserError,
     } = await supabase
       .from('users')
-      .select('id')
+      .select('id, group_code')
       .eq('email', user.email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -91,7 +90,6 @@ export async function GET(req: Request) {
       .select('tenant_id')
       .eq('user_id', appUser.id)
       .eq('tenant_id', tenantIdFromQuery)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {
@@ -103,11 +101,51 @@ export async function GET(req: Request) {
 
     const tenantId = membership.tenant_id as string;
 
+    // Check user roles for admin privileges
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('roles(role_key)')
+      .eq('user_id', appUser.id)
+      .eq('tenant_id', tenantId);
+
+    const isAdmin = userRoles?.some((r: any) =>
+      r.roles?.role_key === 'tenant_admin' || r.roles?.role_key === 'system_admin'
+    ) ?? false;
+
+    const whereCondition: any = {
+      tenant_id: tenantId,
+      status: 'published',
+    };
+
+    // Apply group filtering if not admin
+    if (!isAdmin) {
+      whereCondition.OR = [
+        {
+          category: {
+            category_key: {
+              not: 'group',
+            },
+          },
+        },
+        {
+          AND: [
+            {
+              category: {
+                category_key: 'group',
+              },
+            },
+            {
+              author: {
+                group_code: appUser.group_code,
+              },
+            },
+          ],
+        },
+      ];
+    }
+
     const posts = (await prisma.board_posts.findMany({
-      where: {
-        tenant_id: tenantId,
-        status: 'published',
-      },
+      where: whereCondition,
       orderBy: {
         created_at: 'desc',
       },
@@ -134,6 +172,7 @@ export async function GET(req: Request) {
         author: {
           select: {
             display_name: true,
+            group_code: true,
           },
         },
         _count: {
@@ -291,7 +330,6 @@ export async function POST(req: Request) {
       .select('id')
       .eq('id', authorId)
       .eq('email', user.email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -309,7 +347,6 @@ export async function POST(req: Request) {
       .select('tenant_id')
       .eq('user_id', appUser.id)
       .eq('tenant_id', tenantIdFromBody)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {

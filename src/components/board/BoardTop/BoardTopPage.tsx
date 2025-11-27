@@ -40,7 +40,7 @@ type BoardPostSummaryDto = {
   hasAttachment: boolean;
   translations: BoardPostTranslationDto[];
   isFavorite?: boolean;
-   replyCount?: number;
+  replyCount?: number;
 };
 
 interface BoardTopPageProps {
@@ -316,7 +316,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
                 id="board-top-title"
                 className="text-xl font-semibold text-gray-900"
               >
-                {t("board.top.title")}            
+                {t("board.top.title")}
               </h1>
               <p className="mt-1 text-xs text-gray-600">
                 {t("board.top.subtitle")}

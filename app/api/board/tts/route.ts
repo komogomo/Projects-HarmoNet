@@ -62,7 +62,6 @@ export async function POST(req: Request) {
       .from("users")
       .select("id")
       .eq("email", email)
-      .eq("status", "active")
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -79,7 +78,6 @@ export async function POST(req: Request) {
       .from("user_tenants")
       .select("tenant_id")
       .eq("user_id", appUser.id)
-      .eq("status", "active")
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {

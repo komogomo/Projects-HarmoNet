@@ -37,7 +37,6 @@ export default async function HomePage() {
     .from('users')
     .select('id')
     .eq('email', email)
-    .eq('status', 'active')
     .maybeSingle();
 
   logInfo('home.debug.app_user_query', {
@@ -70,7 +69,6 @@ export default async function HomePage() {
     .from('user_tenants')
     .select('tenant_id')
     .eq('user_id', appUser.id)
-    .eq('status', 'active')
     .maybeSingle();
 
   if (membershipError) {
@@ -96,6 +94,16 @@ export default async function HomePage() {
     userId: appUser.id,
     tenantId,
   });
+
+  // Check if user is tenant_admin
+  const { data: userRole } = await supabase
+    .from('user_roles')
+    .select('roles(role_key)')
+    .eq('user_id', appUser.id)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  const isTenantAdmin = (userRole?.roles as any)?.role_key === 'tenant_admin';
 
   // テナント設定から Home のお知らせ表示件数を取得（将来的に管理画面から変更可能にする想定）。
   const { data: tenantSettingsRows } = await supabase
@@ -145,7 +153,7 @@ export default async function HomePage() {
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
           <div className="flex-1 space-y-6">
             <HomeBoardNoticeContainer tenantId={tenantId} maxItems={noticeMaxCount} />
-            <HomeFeatureTiles tiles={[]} />
+            <HomeFeatureTiles isTenantAdmin={isTenantAdmin} />
           </div>
         </div>
       </main>

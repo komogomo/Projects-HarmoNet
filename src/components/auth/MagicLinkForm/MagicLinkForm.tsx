@@ -75,6 +75,39 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         email,
       });
 
+      // メールアドレスの存在チェック
+      const checkRes = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!checkRes.ok) {
+        throw new Error('check_email_failed');
+      }
+
+      const { exists } = await checkRes.json();
+
+      if (!exists) {
+        const error: MagicLinkError = {
+          code: 'EMAIL_NOT_FOUND',
+          message: t('auth.login.error.email_not_found') || 'メールアドレスが登録されていません',
+          type: 'error_input',
+        };
+
+        setState('error_input');
+        setBanner({ kind: 'error', messageKey: 'auth.login.error.email_not_found' });
+
+        logInfo('auth.login.fail.not_found', {
+          screen: 'LoginPage',
+          method: 'magiclink',
+          email,
+        });
+
+        onError?.(error);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -152,9 +185,8 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
     [handleLogin],
   );
 
-  const cardClassName = `${cardBaseClassName} ${
-    state === 'sending' ? 'opacity-60 pointer-events-none' : ''
-  } ${className ?? ''}`;
+  const cardClassName = `${cardBaseClassName} ${state === 'sending' ? 'opacity-60 pointer-events-none' : ''
+    } ${className ?? ''}`;
 
   return (
     <div className={cardClassName}>

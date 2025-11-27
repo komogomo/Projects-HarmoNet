@@ -38,6 +38,7 @@
       },
       "magiclink_sent": "ログイン用リンクを送信しました。",
       "error": {
+        "email_not_found": "メールアドレスが登録されていません。",
         "email_invalid": "メールアドレスの形式が正しくありません。",
         "network": "通信エラーが発生しました。時間をおいて再度お試しください。",
         "auth": "認証に失敗しました。入力内容をご確認のうえ、再度お試しください。",
@@ -78,13 +79,13 @@
         "label": "運用ルール",
         "description": "管理規約・運用ルールを確認"
       },
-      "notification": {
-        "label": "通知設定",
-        "description": "通知の受信方法を設定"
+      "survey": {
+        "label": "アンケート",
+        "description": "アンケートに回答"
       },
-      "dummy": {
-        "label": "準備中",
-        "description": "今後追加予定の機能です"
+      "tenantAdmin": {
+        "label": "テナント管理",
+        "description": "テナントユーザ管理"
       }
     }
   },
@@ -326,6 +327,29 @@
           "content": "本文",
           "attachment": "添付ファイル"
         }
+      }
+    }
+  },
+  "tadmin": {
+    "users": {
+      "create": {
+        "success": "ユーザを登録しました。"
+      },
+      "delete": {
+        "success": "ユーザを削除しました。",
+        "confirm": "このユーザを削除してもよろしいですか？"
+      },
+      "error": {
+        "validation": "入力内容を確認してください。",
+        "email": {
+          "required": "メールアドレスを入力してください。",
+          "format": "メールアドレスの形式が正しくありません。"
+        },
+        "name": {
+          "required": "氏名と表示名を入力してください。"
+        },
+        "unauthorized": "再度ログインし直してください。",
+        "internal": "サーバーエラーが発生しました。"
       }
     }
   }

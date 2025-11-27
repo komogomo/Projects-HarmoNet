@@ -43,7 +43,6 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     .from("users")
     .select("id")
     .eq("email", email)
-    .eq("status", "active")
     .maybeSingle();
 
   if (appUserError) {
@@ -70,7 +69,6 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     .from("user_tenants")
     .select("tenant_id")
     .eq("user_id", appUser.id)
-    .eq("status", "active")
     .maybeSingle();
 
   if (membershipError) {

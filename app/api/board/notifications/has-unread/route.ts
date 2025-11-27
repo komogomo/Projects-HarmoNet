@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { logError } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   const supabase = await createSupabaseServerClient();
 
@@ -28,7 +30,6 @@ export async function GET(req: Request) {
       .from('users')
       .select('id')
       .eq('email', email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -45,7 +46,6 @@ export async function GET(req: Request) {
       .from('user_tenants')
       .select('tenant_id')
       .eq('user_id', appUser.id)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {

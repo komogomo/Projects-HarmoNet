@@ -55,7 +55,6 @@ export async function DELETE(req: Request, context: DeletePostRouteContext) {
       .from("users")
       .select("id")
       .eq("email", email)
-      .eq("status", "active")
       .maybeSingle();
 
     if (appUserError || !appUser) {

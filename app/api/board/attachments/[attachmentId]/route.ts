@@ -40,7 +40,6 @@ export async function GET(req: Request, props: RouteParams) {
       .from('users')
       .select('id')
       .eq('email', user.email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -57,7 +56,6 @@ export async function GET(req: Request, props: RouteParams) {
       .from('user_tenants')
       .select('tenant_id')
       .eq('user_id', appUser.id)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {
@@ -168,7 +166,6 @@ export async function DELETE(req: Request, props: RouteParams) {
       .from('users')
       .select('id')
       .eq('email', user.email)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (appUserError || !appUser) {
@@ -203,7 +200,6 @@ export async function DELETE(req: Request, props: RouteParams) {
       .select('tenant_id')
       .eq('user_id', appUser.id)
       .eq('tenant_id', tenantId)
-      .eq('status', 'active')
       .maybeSingle();
 
     if (membershipError || !membership?.tenant_id) {

@@ -38,6 +38,7 @@
       },
       "magiclink_sent": "We sent a login link to your email.",
       "error": {
+        "email_not_found": "Email address not registered.",
         "email_invalid": "The email address format is invalid.",
         "network": "A network error occurred. Please try again later.",
         "auth": "Authentication failed. Please check your input and try again.",

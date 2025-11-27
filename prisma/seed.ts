@@ -18,7 +18,6 @@ async function main() {
       tenant_code: 'SEC001',
       tenant_name: 'HarmoNet Demo',
       timezone: 'Asia/Tokyo',
-      is_active: true,
     },
   })
   console.log('✅ tenant: SEC001 作成完了')

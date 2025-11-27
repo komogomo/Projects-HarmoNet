@@ -42,7 +42,6 @@ export async function POST(req: Request) {
       .from("users")
       .select("id, display_name")
       .eq("email", email)
-      .eq("status", "active")
       .maybeSingle();
 
     if (appUserError || !appUser) {

@@ -1,8 +1,8 @@
-import { Bell, MessageSquare, Calendar, FileText, Settings, MoreHorizontal } from 'lucide-react';
+import { Bell, MessageSquare, Calendar, FileText, ClipboardList, Settings, MoreHorizontal } from 'lucide-react';
 import type { HomeFeatureTileDefinition } from './HomeFeatureTile.types';
 
 export type HomeFeatureTilesProps = {
-  tiles: HomeFeatureTileDefinition[];
+  isTenantAdmin?: boolean;
 };
 
 export const HOME_FEATURE_TILES: HomeFeatureTileDefinition[] = [
@@ -35,17 +35,17 @@ export const HOME_FEATURE_TILES: HomeFeatureTileDefinition[] = [
     isEnabled: false,
   },
   {
-    featureKey: 'NOTIFICATION',
-    labelKey: 'home.tiles.notification.label',
-    descriptionKey: 'home.tiles.notification.description',
-    icon: Settings,
+    featureKey: 'SURVEY',
+    labelKey: 'home.tiles.survey.label',
+    descriptionKey: 'home.tiles.survey.description',
+    icon: ClipboardList,
     isEnabled: false,
   },
   {
-    featureKey: 'DUMMY',
-    labelKey: 'home.tiles.dummy.label',
-    descriptionKey: 'home.tiles.dummy.description',
-    icon: MoreHorizontal,
+    featureKey: 'TENANT_ADMIN',
+    labelKey: 'home.tiles.tenantAdmin.label',
+    descriptionKey: 'home.tiles.tenantAdmin.description',
+    icon: Settings,
     isEnabled: false,
   },
 ];

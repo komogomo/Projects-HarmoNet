@@ -1,7 +1,7 @@
 import type React from 'react';
 
 export type HomeFeatureTileDefinition = {
-  featureKey: 'NOTICE' | 'BOARD' | 'FACILITY' | 'RULES' | 'NOTIFICATION' | 'DUMMY';
+  featureKey: 'NOTICE' | 'BOARD' | 'FACILITY' | 'RULES' | 'SURVEY' | 'TENANT_ADMIN' | 'DUMMY';
   labelKey: string;
   descriptionKey: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;

@@ -115,7 +115,6 @@ model tenants {
   tenant_code String   @unique
   tenant_name String
   timezone    String
-  is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   status      status   @default(active)
@@ -127,7 +126,6 @@ model tenants {
   users                      users[] // for nullable tenant_id
   user_tenants               user_tenants[]
   user_roles                 user_roles[]
-  user_profiles              user_profiles[]
   board_categories           board_categories[]
   board_posts                board_posts[]
   board_comments             board_comments[]
@@ -178,30 +176,36 @@ model tenant_features {
 
 /// ユーザー認証情報（Supabase auth.users と1:1）
 model users {
-  id           String   @id @default(uuid())
-  tenant_id    String? // 最後に所属したテナントIDなど (nullable)
-  email        String   @unique
-  display_name String
-  language     String   @default("ja")
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  status       status   @default(active)
+  id             String   @id @default(uuid())
+  tenant_id      String // NOT NULL に変更: 1ユーザ=1テナント
+  email          String   @unique
+  display_name   String // ニックネーム
+  full_name      String // 正式氏名
+  full_name_kana String? // 氏名ヨミ（任意）
+  group_code     String // 街区/棟など (例: "N-A")
+  residence_code String // 住戸番号 (例: "101", "1205A")
+  phone_number   String? // E.164形式推奨 (任意)
+  language       String   @default("JA") // UI表示言語コード ("JA" | "EN" | "ZH")
+  note           String? // 備考（最大200文字相当を想定）
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   // Relations
-  tenant                   tenants?                @relation(fields: [tenant_id], references: [id])
+  tenant                   tenants                 @relation(fields: [tenant_id], references: [id])
   user_tenants             user_tenants[]
   user_roles               user_roles[]
-  user_profiles            user_profiles[]
   board_posts              board_posts[]
   board_comments           board_comments[]
   board_reactions          board_reactions[]
-  board_approval_logs      board_approval_logs[]
   board_favorites          board_favorites[]
   announcement_reads       announcement_reads[]
   facility_reservations    facility_reservations[]
   audit_logs               audit_logs[]
-  moderation_logs_reviewer moderation_logs[] // 承認者としてのリレーション
+  moderation_logs_reviewer moderation_logs[]
   tenant_residents         tenant_residents[]
+  boardApprovalLogs        board_approval_logs[]
+
+  @@index([tenant_id])
 }
 
 /// 住民基本情報
@@ -226,9 +230,7 @@ model tenant_residents {
 model user_tenants {
   user_id            String
   tenant_id          String
-  joined_at          DateTime  @default(now())
   board_last_seen_at DateTime?
-  status             status    @default(active)
 
   user   users   @relation(fields: [user_id], references: [id])
   tenant tenants @relation(fields: [tenant_id], references: [id])
@@ -248,19 +250,6 @@ model user_roles {
   role   roles   @relation(fields: [role_id], references: [id])
 
   @@unique([user_id, tenant_id, role_id])
-}
-
-/// ユーザープロファイル設定
-model user_profiles {
-  user_id     String
-  tenant_id   String
-  preferences Json
-  updated_at  DateTime @updatedAt
-
-  user   users   @relation(fields: [user_id], references: [id])
-  tenant tenants @relation(fields: [tenant_id], references: [id])
-
-  @@id([user_id, tenant_id]) // ユーザーはテナントごとにプロファイルを持つ
 }
 
 // --- 3. Roles / Permissions ---
@@ -365,16 +354,16 @@ model board_posts {
 
 /// 投稿コメント
 model board_comments {
-  id                String         @id @default(uuid())
-  tenant_id         String
-  post_id           String
-  author_id         String
-  content           String         @db.Text
-  parent_comment_id String?
-  created_at        DateTime       @default(now())
-  updated_at        DateTime       @updatedAt
-  status            comment_status @default(active)
-  author_display_name String?  @db.VarChar(100)
+  id                  String         @id @default(uuid())
+  tenant_id           String
+  post_id             String
+  author_id           String
+  content             String         @db.Text
+  parent_comment_id   String?
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+  status              comment_status @default(active)
+  author_display_name String?        @db.VarChar(100)
 
   // Relations
   tenant                   tenants                      @relation(fields: [tenant_id], references: [id])

@@ -26,7 +26,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="ja">
+    <html lang="ja" suppressHydrationWarning>
       <body className="bg-white text-gray-900 font-sans antialiased">
         <StaticI18nProvider>
           <AppHeader variant={variant} />
