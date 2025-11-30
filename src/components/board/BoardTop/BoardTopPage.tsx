@@ -41,13 +41,16 @@ type BoardPostSummaryDto = {
   translations: BoardPostTranslationDto[];
   isFavorite?: boolean;
   replyCount?: number;
+   isManagementNotice?: boolean;
+   isUnreadNotice?: boolean;
 };
 
 interface BoardTopPageProps {
   tenantId: string;
+  tenantName?: string;
 }
 
-const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
+const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => {
   const { t, currentLocale } = useI18n();
   const router = useRouter();
 
@@ -58,7 +61,13 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
     if (qp === "favorite") return "favorite";
     return "all";
   });
-  const [activeCategoryFilters, setActiveCategoryFilters] = useState<BoardCategoryKey[]>([]);
+  const [activeCategoryFilters, setActiveCategoryFilters] = useState<BoardCategoryKey[]>(() => {
+    const qp = searchParams?.get("tab");
+    if (qp && CATEGORY_TAGS.some((tag) => tag.id === qp)) {
+      return [qp as BoardCategoryKey];
+    }
+    return [];
+  });
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
@@ -89,6 +98,9 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
 
       const effectiveContent = translation?.content ?? post.originalContent;
 
+      const isManagementNotice = !!post.isManagementNotice;
+      const isUnreadNotice = !!post.isUnreadNotice;
+
       return {
         id: post.id,
         categoryKey: mappedCategoryKey,
@@ -101,6 +113,8 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
         hasAttachment: post.hasAttachment,
         isFavorite: !!post.isFavorite,
         replyCount: typeof post.replyCount === "number" ? post.replyCount : 0,
+        isManagementNotice,
+        isUnreadNotice,
       };
     });
   }, [rawPosts, currentLocale]);
@@ -305,22 +319,26 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId }) => {
   return (
     <>
       <main className="min-h-screen bg-white">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-24">
+        <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
           <section
             aria-labelledby="board-top-title"
             data-testid="board-top-page"
             className="flex-1 space-y-4"
           >
             <header>
+              {tenantName && (
+                <div className="mb-1 flex justify-center">
+                  <p className="max-w-full truncate text-base font-medium text-gray-600">
+                    {tenantName}
+                  </p>
+                </div>
+              )}
               <h1
                 id="board-top-title"
-                className="text-xl font-semibold text-gray-900"
+                className="sr-only"
               >
                 {t("board.top.title")}
               </h1>
-              <p className="mt-1 text-xs text-gray-600">
-                {t("board.top.subtitle")}
-              </p>
             </header>
 
             <div>

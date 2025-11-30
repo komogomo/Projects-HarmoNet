@@ -82,21 +82,12 @@ export async function GET(req: Request) {
       });
     }
 
-    // latest_post_at: テナント内の「管理組合（tenant_admin）による」published 投稿の最大 created_at
+    // latest_post_at: テナント内の「管理組合として投稿された」published 投稿の最大 created_at
     const latestPost = await prisma.board_posts.findFirst({
       where: {
         tenant_id: tenantId,
         status: 'published',
-        author: {
-          user_roles: {
-            some: {
-              tenant_id: tenantId,
-              role: {
-                role_key: 'tenant_admin',
-              },
-            },
-          },
-        },
+        author_role: 'management',
       },
       select: {
         created_at: true,

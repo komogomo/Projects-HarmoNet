@@ -1,6 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
 import BoardTopPage from "@/src/components/board/BoardTop/BoardTopPage";
 
@@ -83,5 +84,21 @@ export default async function BoardPage() {
     tenantId,
   });
 
-  return <BoardTopPage tenantId={tenantId} />;
+  let tenantName = "";
+  try {
+    const supabaseAdmin = createSupabaseServiceRoleClient();
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("tenant_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (tenant?.tenant_name) {
+      tenantName = tenant.tenant_name as string;
+    }
+  } catch {
+    // テナント名取得に失敗しても画面表示は続行する
+  }
+
+  return <BoardTopPage tenantId={tenantId} tenantName={tenantName} />;
 }

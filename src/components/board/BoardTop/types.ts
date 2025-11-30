@@ -29,4 +29,6 @@ export type BoardPostSummary = {
   hasAttachment: boolean;
   isFavorite: boolean;
   replyCount: number;
+  isManagementNotice: boolean;
+  isUnreadNotice: boolean;
 };

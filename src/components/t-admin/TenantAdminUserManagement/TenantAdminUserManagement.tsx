@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { ChevronsUpDown } from 'lucide-react';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { TenantAdminUserManagementProps, UserListItem, UserFormData } from './TenantAdminUserManagement.types';
 
@@ -44,9 +45,11 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         loadUsers();
     }, []);
 
+    const [initialFormData, setInitialFormData] = useState<UserFormData | null>(null);
+
     const handleEdit = (user: UserListItem) => {
         setEditingId(user.userId);
-        setFormData({
+        const newFormData: UserFormData = {
             email: user.email,
             fullName: user.fullName,
             fullNameKana: user.fullNameKana,
@@ -55,7 +58,9 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             residenceCode: user.residenceCode || '',
             roleKey: user.roleKey,
             language: user.language,
-        });
+        };
+        setFormData(newFormData);
+        setInitialFormData(newFormData);
         setMessage(null);
         // Scroll to top to show form
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -63,6 +68,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const handleCancelEdit = () => {
         setEditingId(null);
+        setInitialFormData(null);
         setFormData({
             email: '',
             fullName: '',
@@ -76,9 +82,79 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         setMessage(null);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const isDirty = () => {
+        if (!initialFormData) return true; // Not editing or just started
+        return (
+            formData.email !== initialFormData.email ||
+            formData.displayName !== initialFormData.displayName ||
+            formData.fullName !== initialFormData.fullName ||
+            formData.fullNameKana !== initialFormData.fullNameKana ||
+            formData.groupCode !== initialFormData.groupCode ||
+            formData.residenceCode !== initialFormData.residenceCode ||
+            formData.roleKey !== initialFormData.roleKey ||
+            formData.language !== initialFormData.language
+        );
+    };
+
+    const [emailExists, setEmailExists] = useState(true);
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+
+    useEffect(() => {
+        const checkEmail = async () => {
+            if (!formData.email) {
+                setEmailExists(true); // Or false, but required validation handles empty
+                return;
+            }
+
+            // Skip check if email hasn't changed from initial (when editing)
+            if (editingId && initialFormData && formData.email === initialFormData.email) {
+                setEmailExists(true);
+                return;
+            }
+
+            setIsCheckingEmail(true);
+            try {
+                const res = await fetch('/api/t-admin/users/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: formData.email }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setEmailExists(data.exists);
+                } else {
+                    // On error, maybe assume true to avoid blocking? Or false?
+                    // Let's assume false to be safe if user requested strict check
+                    setEmailExists(false);
+                }
+            } catch (error) {
+                setEmailExists(false);
+            } finally {
+                setIsCheckingEmail(false);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            checkEmail();
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [formData.email, editingId, initialFormData]);
+
+    const handleSubmit = async (e: React.FormEvent | React.MouseEvent, mode: 'create' | 'update' = 'create') => {
         e.preventDefault();
         setMessage(null);
+
+        // Prevent update if no changes
+        if (mode === 'update' && !isDirty()) {
+            return;
+        }
+
+        // Prevent update if email doesn't exist (User Request)
+        if (mode === 'update' && !emailExists) {
+            setMessage({ type: 'error', text: '入力されたメールアドレスは登録されていません。' });
+            return;
+        }
 
         // Validation
         if (!formData.email || !formData.fullName || !formData.fullNameKana || !formData.displayName || !formData.roleKey) {
@@ -88,8 +164,11 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
         try {
             const url = '/api/t-admin/users';
-            const method = editingId ? 'PUT' : 'POST';
-            const body = editingId ? { ...formData, userId: editingId } : formData;
+            // Determine method based on mode. If mode is 'create', use POST. If 'update', use PUT.
+            // Note: When 'create' is forced (Save as New), we use POST even if editingId exists.
+            const isUpdate = mode === 'update';
+            const method = isUpdate ? 'PUT' : 'POST';
+            const body = isUpdate ? { ...formData, userId: editingId } : formData;
 
             const res = await fetch(url, {
                 method: method,
@@ -100,7 +179,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             const result = await res.json();
 
             if (res.ok && result.ok) {
-                setMessage({ type: 'success', text: editingId ? t('tadmin.users.update.success') : t('tadmin.users.create.success') });
+                setMessage({ type: 'success', text: isUpdate ? t('tadmin.users.update.success') : t('tadmin.users.create.success') });
                 handleCancelEdit(); // Reset form and mode
                 loadUsers();
             } else {
@@ -111,10 +190,18 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         }
     };
 
-    const handleDelete = async (userId: string) => {
-        if (!confirm(t('tadmin.users.delete.confirm'))) {
-            return;
-        }
+    const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+    const handleDeleteClick = (userId: string) => {
+        setDeletingUserId(userId);
+    };
+
+    const handleCancelDelete = () => {
+        setDeletingUserId(null);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletingUserId) return;
 
         setMessage(null);
 
@@ -122,11 +209,10 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             const res = await fetch('/api/t-admin/users', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
+                body: JSON.stringify({ userId: deletingUserId }),
             });
 
             const result = await res.json();
-
             if (res.ok && result.ok) {
                 setMessage({ type: 'success', text: t('tadmin.users.delete.success') });
                 loadUsers();
@@ -135,16 +221,110 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             }
         } catch (error) {
             setMessage({ type: 'error', text: t('tadmin.users.error.internal') });
+        } finally {
+            setDeletingUserId(null);
         }
     };
+
+    // --- Sorting State & Logic ---
+    const [sortColumn, setSortColumn] = useState<keyof UserListItem | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (column: keyof UserListItem) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
+    // --- Search & Pagination State & Logic ---
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeSearchQuery, setActiveSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
+
+    const handleSearch = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setActiveSearchQuery(searchQuery);
+        setCurrentPage(1);
+    };
+
+    // Filter
+    const filteredUsers = users.filter(user => {
+        if (!activeSearchQuery) return true;
+        const q = activeSearchQuery.toLowerCase();
+
+        const roleLabel = user.roleKey === 'tenant_admin' ? 'テナント管理者' : '一般ユーザ';
+
+        return (
+            user.email.toLowerCase().includes(q) ||
+            user.displayName.toLowerCase().includes(q) ||
+            user.fullName.toLowerCase().includes(q) ||
+            (user.fullNameKana && user.fullNameKana.toLowerCase().includes(q)) ||
+            (user.groupCode && user.groupCode.toLowerCase().includes(q)) ||
+            (user.residenceCode && user.residenceCode.toLowerCase().includes(q)) ||
+            roleLabel.includes(q)
+        );
+    });
+
+    // Sort
+    const sortedUsers = [...filteredUsers].sort((a, b) => {
+        if (!sortColumn) return 0;
+        const aVal = a[sortColumn] || '';
+        const bVal = b[sortColumn] || '';
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    // Paginate
+    const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+    const paginatedUsers = sortedUsers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const renderSortIcon = (column: keyof UserListItem) => {
+        const baseClass = 'ml-1 h-4 w-4';
+        const colorClass = 'text-blue-600';
+
+        return (
+            <ChevronsUpDown
+                aria-hidden="true"
+                className={`${baseClass} ${colorClass}`}
+                strokeWidth={2.4}
+            />
+        );
+    };
+
+    const SortableHeader = ({ column, label }: { column: keyof UserListItem; label: string }) => (
+        <button
+            type="button"
+            className="w-full px-3 py-2 text-left text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 select-none whitespace-nowrap"
+            onClick={() => handleSort(column)}
+        >
+            <div className="flex items-center">
+                {label}
+                {renderSortIcon(column)}
+            </div>
+        </button>
+    );
 
     return (
         <div className="w-full max-w-5xl mx-auto px-4 py-6">
             <div className="space-y-4">
-                {/* SEC-01: ヘッダ */}
-                <section>
-                    <p className="text-sm font-bold text-gray-700">テナント名: {tenantName}</p>
-                </section>
+                {tenantName && (
+                    <div className="mb-1 flex justify-center">
+                        <p className="max-w-full truncate text-base font-medium text-gray-600">
+                            {tenantName}
+                        </p>
+                    </div>
+                )}
+
+                {/* SEC-01: ヘッダ (削除済み) */}
 
                 {/* メッセージ表示 */}
                 {message && (
@@ -161,7 +341,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 {/* SEC-02: ユーザ登録フォーム */}
                 <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
 
-                    <form onSubmit={handleSubmit} className="space-y-3">
+                    <form onSubmit={(e) => handleSubmit(e, editingId ? 'update' : 'create')} className="space-y-3">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <label htmlFor="email" className="block text-xs font-medium text-gray-700">
@@ -271,96 +451,262 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                     onChange={(e) => setFormData({ ...formData, language: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 >
-                                    <option value="ja">日本語</option>
-                                    <option value="en">English</option>
-                                    <option value="zh">中文</option>
+                                    <option value="ja">JA</option>
+                                    <option value="en">EN</option>
+                                    <option value="zh">ZH</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div className="flex justify-end space-x-3 pt-2">
-                            {editingId && (
+                        <div className="flex justify-between pt-2">
+                            <div>
+                                {editingId && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => handleSubmit(e, 'create')}
+                                        disabled={emailExists || isCheckingEmail}
+                                        className={`rounded-lg border-2 px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${emailExists || isCheckingEmail
+                                            ? 'border-gray-300 text-gray-400 cursor-not-allowed bg-white'
+                                            : 'border-blue-400 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-300'
+                                            }`}
+                                    >
+                                        新規登録
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex space-x-3">
+                                {editingId && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="rounded-lg border-2 border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2"
+                                    >
+                                        キャンセル
+                                    </button>
+                                )}
                                 <button
-                                    type="button"
-                                    onClick={handleCancelEdit}
-                                    className="rounded-lg border-2 border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2"
+                                    type="submit"
+                                    onClick={(e) => handleSubmit(e, editingId ? 'update' : 'create')}
+                                    disabled={editingId ? (!emailExists || isCheckingEmail || !isDirty()) : false}
+                                    className={`rounded-lg border-2 px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${editingId
+                                        ? (emailExists && !isCheckingEmail && isDirty())
+                                            ? 'border-green-500 text-green-600 hover:bg-green-50 focus:ring-green-400'
+                                            : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                                        : 'border-blue-400 text-blue-600 hover:bg-blue-50 focus:ring-blue-300'
+                                        }`}
                                 >
-                                    キャンセル
+                                    {editingId ? '更新' : 'ユーザ登録'}
                                 </button>
-                            )}
-                            <button
-                                type="submit"
-                                className={`rounded-lg border-2 px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${editingId
-                                    ? 'border-green-500 text-green-600 hover:bg-green-50 focus:ring-green-400'
-                                    : 'border-blue-400 text-blue-600 hover:bg-blue-50 focus:ring-blue-300'
-                                    }`}
-                            >
-                                {editingId ? '更新' : 'ユーザ登録'}
-                            </button>
+                            </div>
                         </div>
                     </form>
                 </section>
 
                 {/* SEC-03: ユーザ一覧テーブル */}
                 <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                    <h2 className="mb-3 text-sm font-bold text-gray-900">ユーザ一覧</h2>
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
+                        <h2 className="text-sm font-bold text-gray-900">ユーザ一覧</h2>
+
+                        {/* 検索フォーム */}
+                        <form onSubmit={handleSearch} className="flex w-full md:w-auto space-x-2">
+                            <input
+                                type="text"
+                                placeholder="検索キーワード..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="flex-1 md:w-96 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            <button
+                                type="submit"
+                                className="rounded-md border-2 border-blue-400 bg-white px-4 py-1.5 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+                            >
+                                検索
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setActiveSearchQuery('');
+                                    setCurrentPage(1);
+                                }}
+                                disabled={!searchQuery && !activeSearchQuery}
+                                className={`rounded-md border-2 px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${!searchQuery && !activeSearchQuery
+                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 focus:ring-gray-500'
+                                    }`}
+                            >
+                                クリア
+                            </button>
+                        </form>
+                    </div>
+
                     {loading ? (
                         <p className="text-sm text-gray-500">読み込み中...</p>
-                    ) : users.length === 0 ? (
-                        <p className="text-sm text-gray-500">ユーザが登録されていません。</p>
+                    ) : sortedUsers.length === 0 ? (
+                        <p className="text-sm text-gray-500">
+                            {activeSearchQuery ? '検索条件に一致するユーザは見つかりませんでした。' : 'ユーザが登録されていません。'}
+                        </p>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr className="border-b border-gray-200 bg-gray-50">
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">メールアドレス</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">ニックネーム</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">氏名</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">ふりがな</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">グループID</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">住居番号</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">ロール</th>
-                                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {users.map((user) => (
-                                        <tr key={user.userId} className="border-b border-gray-100 hover:bg-gray-50">
-                                            <td className="px-3 py-2 text-xs text-gray-900">{user.email}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-900">{user.displayName}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-900">{user.fullName}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-600">{user.fullNameKana}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-600">{user.groupCode || '-'}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-600">{user.residenceCode || '-'}</td>
-                                            <td className="px-3 py-2 text-xs text-gray-600">
-                                                {user.roleKey === 'tenant_admin' ? 'テナント管理者' : '一般ユーザ'}
-                                            </td>
-                                            <td className="px-3 py-2 text-xs">
-                                                <div className="flex space-x-2">
-                                                    <button
-                                                        onClick={() => handleEdit(user)}
-                                                        className="rounded-lg border-2 border-blue-400 bg-white px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
-                                                    >
-                                                        編集
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(user.userId)}
-                                                        className="rounded-lg border-2 border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
-                                                    >
-                                                        削除
-                                                    </button>
-                                                </div>
-                                            </td>
+                        <>
+                            <div className="overflow-x-auto">
+                                <table className="w-full border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 bg-gray-50">
+                                            <th className="w-44">
+                                                <SortableHeader column="email" label="メールアドレス" />
+                                            </th>
+                                            <th className="w-28">
+                                                <SortableHeader column="displayName" label="ニックネーム" />
+                                            </th>
+                                            <th className="w-32">
+                                                <SortableHeader column="fullName" label="氏名" />
+                                            </th>
+                                            <th className="w-40">
+                                                <SortableHeader column="fullNameKana" label="ふりがな" />
+                                            </th>
+                                            <th className="w-24 text-center">
+                                                <SortableHeader column="groupCode" label="グループID" />
+                                            </th>
+                                            <th className="w-20 text-center">
+                                                <SortableHeader column="residenceCode" label="住居番号" />
+                                            </th>
+                                            <th className="w-16 text-center">
+                                                <SortableHeader column="language" label="言語" />
+                                            </th>
+                                            <th className="w-28 text-center">
+                                                <SortableHeader column="roleKey" label="ロール" />
+                                            </th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">操作</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {paginatedUsers.map((user) => {
+                                            const languageLabel =
+                                                user.language === 'en' ? 'EN' : user.language === 'zh' ? 'ZH' : 'JA';
+
+                                            return (
+                                                <tr key={user.userId} className="border-b border-gray-100 hover:bg-gray-50">
+                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[11rem] truncate" title={user.email}>{user.email}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={user.displayName}>{user.displayName}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={user.fullName}>{user.fullName}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 max-w-[10rem] truncate" title={user.fullNameKana}>{user.fullNameKana}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.groupCode || '-'}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.residenceCode || '-'}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{languageLabel}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">
+                                                        {user.roleKey === 'tenant_admin' ? 'テナント管理者' : '一般ユーザ'}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                                                        <div className="flex space-x-2 justify-center">
+                                                            <button
+                                                                onClick={() => handleEdit(user)}
+                                                                className="rounded-lg border-2 border-blue-400 bg-white px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
+                                                            >
+                                                                編集
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteClick(user.userId)}
+                                                                className="rounded-lg border-2 border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                                                            >
+                                                                削除
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* ページネーション */}
+                            <div className="mt-4 flex flex-col md:flex-row justify-between items-center space-y-3 md:space-y-0">
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                    <span>表示件数:</span>
+                                    <select
+                                        value={itemsPerPage}
+                                        onChange={(e) => {
+                                            setItemsPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
+                                        className="rounded border border-gray-300 py-1 px-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    >
+                                        <option value={25}>25</option>
+                                        <option value={50}>50</option>
+                                        <option value={100}>100</option>
+                                    </select>
+                                    <span>
+                                        {sortedUsers.length} 件中 {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedUsers.length)} 件を表示
+                                    </span>
+                                </div>
+
+                                <div className="flex space-x-1">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className={`px-3 py-1 rounded-md border-2 text-sm transition-colors ${currentPage === 1
+                                            ? 'border-gray-200 bg-white text-gray-300 cursor-not-allowed'
+                                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-600 hover:text-blue-600'
+                                            }`}
+                                    >
+                                        前へ
+                                    </button>
+                                    {/* 簡易的なページ番号表示 (必要に応じて拡張) */}
+                                    <span className="px-3 py-1 text-sm text-gray-700">
+                                        {currentPage} / {totalPages || 1}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                        className={`px-3 py-1 rounded-md border-2 text-sm transition-colors ${currentPage === totalPages || totalPages === 0
+                                            ? 'border-gray-200 bg-white text-gray-300 cursor-not-allowed'
+                                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-600 hover:text-blue-600'
+                                            }`}
+                                    >
+                                        次へ
+                                    </button>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </section>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {deletingUserId && (
+                <div
+                    className="fixed inset-0 z-[1045] flex items-center justify-center bg-transparent"
+                    onClick={handleCancelDelete}
+                >
+                    <div
+                        className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <p className="mb-3 whitespace-pre-line">
+                            {t('tadmin.users.delete.confirm')}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={handleCancelDelete}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDelete}
+                                className="font-semibold text-red-500 hover:text-red-600"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 TenantAdminUserManagement.displayName = 'TenantAdminUserManagement';
+

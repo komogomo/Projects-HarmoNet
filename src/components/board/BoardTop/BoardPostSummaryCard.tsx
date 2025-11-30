@@ -60,7 +60,17 @@ export const BoardPostSummaryCard: React.FC<BoardPostSummaryCardProps> = ({ post
     >
       <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
         <CategoryBadge categoryKey={post.categoryKey} />
-        <span>{createdAtLabel}</span>
+        <div className="flex items-center gap-1">
+          {post.isUnreadNotice && (
+            <span
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[10px] font-bold text-white"
+              aria-hidden="true"
+            >
+              !
+            </span>
+          )}
+          <span>{createdAtLabel}</span>
+        </div>
       </div>
       <p className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900">{post.title}</p>
       <p className="line-clamp-3 text-xs text-gray-600">{post.contentPreview}</p>

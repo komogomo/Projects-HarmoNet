@@ -91,6 +91,7 @@ export async function POST(req: Request) {
             category_key: true,
           },
         },
+        author_role: true,
       },
     });
 
@@ -100,12 +101,12 @@ export async function POST(req: Request) {
 
     const tenantId = post.tenant_id as string;
 
-    const categoryKey = (post as any).category?.category_key as string | undefined;
-    const managementCategoryKeys = ["important", "circular", "event", "rules"];
-    if (categoryKey && managementCategoryKeys.includes(categoryKey)) {
-      return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
-    }
+    // Check role-based restrictions
+    // 管理組合投稿 (management) には、一般ユーザーは返信不可
+    // テナント管理者 (isTenantAdmin) のみが返信可能
+    const authorRole = (post as any).author_role;
 
+    // 権限チェックのために先にユーザーロールを取得する
     let isTenantAdmin = false;
 
     try {
@@ -143,6 +144,18 @@ export async function POST(req: Request) {
     } catch {
       isTenantAdmin = false;
     }
+
+    if (authorRole === 'management' && !isTenantAdmin) {
+      return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
+    }
+
+    const categoryKey = (post as any).category?.category_key as string | undefined;
+    const managementCategoryKeys = ["important", "circular", "event", "rules"];
+    if (categoryKey && managementCategoryKeys.includes(categoryKey)) {
+      return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
+    }
+
+    // let isTenantAdmin = false; // Moved up
 
     const requestedAuthorType =
       body && body.authorType === "admin" ? "admin" : "user";

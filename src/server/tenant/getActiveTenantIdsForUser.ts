@@ -5,8 +5,7 @@ export async function getActiveTenantIdsForUser(
   const { data, error } = await supabase
     .from('user_tenants')
     .select('tenant_id')
-    .eq('user_id', userId)
-    .eq('status', 'active');
+    .eq('user_id', userId);
 
   if (error || !data) {
     return [];

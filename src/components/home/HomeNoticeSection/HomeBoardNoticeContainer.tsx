@@ -29,6 +29,7 @@ interface BoardPostSummaryDto {
 
 interface HomeBoardNoticeContainerProps {
   tenantId: string;
+  tenantName?: string;
   maxItems?: number;
 }
 
@@ -38,7 +39,7 @@ const MANAGEMENT_CATEGORY_KEYS: BoardCategoryKey[] = ["important", "circular", "
 // HOME に表示するお知らせの対象期間（日数）
 const MAX_NOTICE_DAYS = 60;
 
-export const HomeBoardNoticeContainer: React.FC<HomeBoardNoticeContainerProps> = ({ tenantId, maxItems }) => {
+export const HomeBoardNoticeContainer: React.FC<HomeBoardNoticeContainerProps> = ({ tenantId, tenantName, maxItems }) => {
   const { currentLocale } = useI18n();
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -153,7 +154,7 @@ export const HomeBoardNoticeContainer: React.FC<HomeBoardNoticeContainerProps> =
   }, [rawPosts, currentLocale]);
 
   // isLoading / isError は現状特別扱いせず、items が空のときは空表示を HomeNoticeSection に任せる
-  return <HomeNoticeSection items={items} maxItems={maxItems} />;
+  return <HomeNoticeSection items={items} maxItems={maxItems} tenantName={tenantName} />;
 };
 
 HomeBoardNoticeContainer.displayName = "HomeBoardNoticeContainer";

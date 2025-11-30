@@ -98,7 +98,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
         ${className}
       `}
     >
-      <div className="flex w-full justify-around items-center px-3">
+      <div className="flex w-full max-w-5xl mx-auto justify-around items-center px-4">
         {SHORTCUT_ITEMS.map((item) => {
           const active = isActive(item.href);
           const { Icon } = item;

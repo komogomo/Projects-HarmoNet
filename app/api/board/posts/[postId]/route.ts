@@ -6,9 +6,13 @@ import { prisma } from "@/src/server/db/prisma";
 import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantIdsForUser";
 
 interface DeletePostRouteContext {
-  params?: {
-    postId?: string;
-  };
+  params?:
+    | {
+        postId?: string;
+      }
+    | Promise<{
+        postId?: string;
+      }>;
 }
 
 export async function DELETE(req: Request, context: DeletePostRouteContext) {
@@ -30,7 +34,13 @@ export async function DELETE(req: Request, context: DeletePostRouteContext) {
     const email = user.email;
 
     // Resolve postId from route params or URL fallback
-    let postId = context.params?.postId;
+    let postId: string | undefined;
+
+    if (context.params) {
+      const params = await context.params;
+      postId = params?.postId;
+    }
+
     if (!postId) {
       try {
         const url = new URL(req.url);

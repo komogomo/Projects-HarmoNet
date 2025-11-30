@@ -14,7 +14,9 @@ interface BoardTtsRequestBody {
 }
 
 const MIN_TEXT_LENGTH = 5;
-const MAX_TEXT_LENGTH = 5000;
+// リクエスト全体としての最大バイト数（UTF-8）。Google TTS の 5000 bytes 制限は
+// BoardPostTtsService 側でチャンク分割して回避するため、ここでは安全側に大きめに取る。
+const MAX_TOTAL_TEXT_BYTES = 20000;
 
 const mapLanguageToSupportedLang = (language?: string): SupportedLang => {
   if (!language) return "ja";
@@ -49,7 +51,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: "validation_error" }, { status: 400 });
     }
 
-    if (text.length > MAX_TEXT_LENGTH) {
+    const totalBytes = Buffer.byteLength(text, "utf8");
+    if (totalBytes > MAX_TOTAL_TEXT_BYTES) {
       return NextResponse.json({ errorCode: "validation_error" }, { status: 400 });
     }
 

@@ -71,7 +71,9 @@ export class GoogleTtsService implements TtsService {
       };
 
       const [response] = await this.client.synthesizeSpeech(request as any, {
-        timeout: 3000,
+        // 長文ポスト（利用規約など）でも安定して完了するよう、
+        // タイムアウトを 3 秒 → 10 秒 に延長する。
+        timeout: 10000,
       } as any);
 
       const audioContent = response.audioContent;

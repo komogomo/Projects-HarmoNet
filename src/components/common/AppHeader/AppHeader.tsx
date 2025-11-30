@@ -71,7 +71,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       role="banner"
     >
       {/* ★ ここをフレーム化 */}
-      <div className="w-full max-w-[500px] mx-auto px-5 h-full flex items-center justify-between">
+      <div className={`w-full ${variant === 'login' ? 'max-w-[500px]' : 'max-w-5xl'} mx-auto px-4 h-full flex items-center justify-between`}>
 
         {/* ロゴ */}
         <div className="flex items-center">

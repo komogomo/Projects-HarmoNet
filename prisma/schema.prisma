@@ -51,6 +51,11 @@ enum approval_action {
   reconsider
 }
 
+enum board_author_role {
+  management // 管理組合として投稿
+  general // 一般利用者として投稿
+}
+
 /// お知らせ配信対象モード
 enum announcement_target_mode {
   all
@@ -179,12 +184,12 @@ model users {
   id             String   @id @default(uuid())
   tenant_id      String // NOT NULL に変更: 1ユーザ=1テナント
   email          String   @unique
-  display_name   String // ニックネーム
+  display_name   String   @unique
   full_name      String // 正式氏名
   full_name_kana String? // 氏名ヨミ（任意）
   group_code     String // 街区/棟など (例: "N-A")
   residence_code String // 住戸番号 (例: "101", "1205A")
-  phone_number   String? // E.164形式推奨 (任意)
+  phone_number   String? // (任意)
   language       String   @default("JA") // UI表示言語コード ("JA" | "EN" | "ZH")
   note           String? // 備考（最大200文字相当を想定）
   created_at     DateTime @default(now())
@@ -334,6 +339,7 @@ model board_posts {
   category_id         String
   author_id           String
   author_display_name String?
+  author_role         board_author_role @default(general)
   title               String
   content             String            @db.Text // テキスト正（翻訳/TTS/モデレーション/検索用）
   status              board_post_status @default(draft)

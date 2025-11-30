@@ -73,16 +73,7 @@ export async function POST(req: Request) {
         id: postId,
         tenant_id: tenantId,
         status: 'published',
-        author: {
-          user_roles: {
-            some: {
-              tenant_id: tenantId,
-              role: {
-                role_key: 'tenant_admin',
-              },
-            },
-          },
-        },
+        author_role: 'management',
       },
       select: {
         created_at: true,

@@ -41,6 +41,8 @@ interface BoardPostSummaryDto {
   translations: BoardPostTranslationDto[];
   isFavorite: boolean;
   replyCount: number;
+  isManagementNotice: boolean;
+  isUnreadNotice: boolean;
 }
 
 export async function GET(req: Request) {
@@ -144,6 +146,32 @@ export async function GET(req: Request) {
       ];
     }
 
+    // board_last_seen_at: 最後に「管理組合として投稿されたお知らせ」の詳細を閲覧した日時
+    let boardLastSeenAt: Date | null = null;
+    try {
+      const current = (await prisma.user_tenants.findUnique({
+        where: {
+          user_id_tenant_id: {
+            user_id: appUser.id,
+            tenant_id: tenantId,
+          },
+        },
+        select: {
+          board_last_seen_at: true,
+        },
+      } as any)) as { board_last_seen_at: Date | null } | null;
+
+      if (current?.board_last_seen_at instanceof Date) {
+        boardLastSeenAt = current.board_last_seen_at;
+      }
+    } catch (error) {
+      logError('board.posts.api.read_board_last_seen_error', {
+        userId: appUser.id,
+        tenantId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const posts = (await prisma.board_posts.findMany({
       where: whereCondition,
       orderBy: {
@@ -204,6 +232,13 @@ export async function GET(req: Request) {
       const rawReplyCount = (post as any)._count?.comments;
       const replyCount = typeof rawReplyCount === 'number' ? rawReplyCount : 0;
 
+      const createdAtDate = post.created_at as Date;
+      const authorRoleRaw = (post as any).author_role as string | null | undefined;
+      const isManagementNotice = authorRoleRaw === 'management';
+      const isUnreadNotice =
+        isManagementNotice &&
+        (!boardLastSeenAt || createdAtDate.getTime() > boardLastSeenAt.getTime());
+
       return {
         id: post.id,
         categoryKey: post.category.category_key,
@@ -221,6 +256,8 @@ export async function GET(req: Request) {
         })),
         isFavorite,
         replyCount,
+        isManagementNotice,
+        isUnreadNotice,
       };
     });
 
@@ -266,6 +303,7 @@ export async function POST(req: Request) {
     let uiLanguage: SupportedLang | undefined;
     let attachmentFiles: File[] = [];
     let displayNameMode: 'anonymous' | 'nickname' | null = null;
+    let authorRole: 'admin' | 'user' = 'user';
 
     if (isMultipart) {
       const formData = await req.formData();
@@ -278,6 +316,7 @@ export async function POST(req: Request) {
       const forceMaskedValue = formData.get('forceMasked');
       const uiLanguageValue = formData.get('uiLanguage');
       const displayNameModeValue = formData.get('displayNameMode');
+      const authorRoleValue = formData.get('authorRole');
 
       tenantIdFromBody = typeof tenantIdValue === 'string' ? tenantIdValue : null;
       authorId = typeof authorIdValue === 'string' ? authorIdValue : null;
@@ -301,6 +340,12 @@ export async function POST(req: Request) {
         }
       }
 
+      if (typeof authorRoleValue === 'string') {
+        if (authorRoleValue === 'admin' || authorRoleValue === 'user') {
+          authorRole = authorRoleValue;
+        }
+      }
+
       const rawAttachments = formData.getAll('attachments');
       attachmentFiles = rawAttachments.filter((value): value is File => value instanceof File);
     } else {
@@ -314,6 +359,9 @@ export async function POST(req: Request) {
       uiLanguage = body.uiLanguage;
       if (body.displayNameMode === 'anonymous' || body.displayNameMode === 'nickname') {
         displayNameMode = body.displayNameMode;
+      }
+      if (body.authorRole === 'admin' || body.authorRole === 'user') {
+        authorRole = body.authorRole;
       }
       attachmentFiles = [];
     }
@@ -525,7 +573,11 @@ export async function POST(req: Request) {
     const effectiveContent = decision === 'mask' && forceMasked ? maskedContent ?? content : content;
 
     let authorDisplayNameOverride: string | null = null;
-    if (displayNameMode === 'anonymous') {
+    // 管理組合として投稿する場合は常に「管理組合」を表示名として扱う。
+    if (authorRole === 'admin') {
+      authorDisplayNameOverride = '管理組合';
+    } else if (displayNameMode === 'anonymous') {
+      // 一般利用者で「匿名」を選択した場合のみ、固定文言を上書きする。
       authorDisplayNameOverride = '匿名';
     }
 
@@ -541,6 +593,7 @@ export async function POST(req: Request) {
           content: effectiveContent,
           status: 'published',
           author_display_name: authorDisplayNameOverride,
+          author_role: authorRole === 'admin' ? 'management' : 'general',
         } as any,
         select: {
           id: true,

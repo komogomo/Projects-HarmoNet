@@ -86,6 +86,16 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
       };
     }
 
+    if (tile.featureKey === 'RULES') {
+      return {
+        ...tile,
+        isEnabled: true,
+        onClick: () => {
+          router.push('/board?tab=rules');
+        },
+      };
+    }
+
     if (tile.featureKey === 'TENANT_ADMIN') {
       return {
         ...tile,

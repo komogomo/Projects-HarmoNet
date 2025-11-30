@@ -12,6 +12,7 @@ import type { BoardCategoryKey } from "@/src/components/board/BoardTop/types";
 
 interface BoardDetailPageProps {
   data: BoardPostDetailDto;
+  tenantName?: string;
 }
 
 const CATEGORY_LABEL_MAP: Record<BoardCategoryKey, string> = {
@@ -91,7 +92,7 @@ type AttachmentPreviewState = {
   isImage: boolean;
 } | null;
 
-const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
+const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) => {
   const { t, currentLocale } = useI18n();
   const router = useRouter();
   const [preview, setPreview] = useState<AttachmentPreviewState>(null);
@@ -592,7 +593,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
     return (
       <>
         <main className="min-h-screen bg-white pb-24">
-          <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
               {t("common.loading")}
             </div>
@@ -606,12 +607,19 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
   return (
     <>
       <main className="min-h-screen bg-white pb-24">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+        <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
           <section
             aria-labelledby="board-detail-title"
             data-testid="board-detail-page"
             className="flex-1 space-y-6"
           >
+            {tenantName && (
+              <div className="mb-1 flex justify-center">
+                <p className="max-w-full truncate text-base font-medium text-gray-600">
+                  {tenantName}
+                </p>
+              </div>
+            )}
             {errorMessage && (
               <div className="rounded-md bg-red-50 p-3 text-xs text-red-700">
                 {errorMessage}
@@ -638,11 +646,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                   type="button"
                   onClick={handleToggleFavorite}
                   disabled={isUpdatingFavorite}
-                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-2 bg-white text-xs disabled:opacity-60 ${
-                    isFavorite
-                      ? "border-yellow-400 text-yellow-400"
-                      : "border-gray-200 text-gray-400 hover:border-yellow-300 hover:text-yellow-400"
-                  }`}
+                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full border-2 bg-white text-xs disabled:opacity-60 ${isFavorite
+                    ? "border-yellow-400 text-yellow-400"
+                    : "border-gray-200 text-gray-400 hover:border-yellow-300 hover:text-yellow-400"
+                    }`}
                   aria-label={t(
                     isFavorite ? "board.detail.favorite.remove" : "board.detail.favorite.add",
                   )}
@@ -694,11 +701,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                   <button
                     type="button"
                     onClick={handleTtsClick}
-                    className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${
-                      ttsState === "playing"
-                        ? "border-blue-600 text-blue-600 bg-blue-50"
-                        : "border-blue-200 text-blue-600 hover:bg-blue-50"
-                    }`}
+                    className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${ttsState === "playing"
+                      ? "border-blue-600 text-blue-600 bg-blue-50"
+                      : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                      }`}
                     disabled={ttsState === "loading"}
                   >
                     <Volume2 className="h-4 w-4" aria-hidden="true" />
@@ -739,8 +745,8 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                             {currentLocale === "en"
                               ? "Select all"
                               : currentLocale === "zh"
-                              ? "全选"
-                              : "すべて選択"}
+                                ? "全选"
+                                : "すべて選択"}
                           </span>
                         </label>
                         <div className="flex items-center gap-2">
@@ -772,11 +778,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                             type="button"
                             onClick={handlePreviewSelectedAttachments}
                             disabled={!selectedPreviewableAttachment}
-                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${
-                              !selectedPreviewableAttachment
-                                ? "border-gray-200 bg-gray-100 text-gray-400"
-                                : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            }`}
+                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${!selectedPreviewableAttachment
+                              ? "border-gray-200 bg-gray-100 text-gray-400"
+                              : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                              }`}
                           >
                             {t("board.detail.attachments.preview")}
                           </button>
@@ -784,11 +789,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
                             type="button"
                             onClick={handleDownloadSelectedAttachments}
                             disabled={selectedAttachmentIds.length === 0}
-                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${
-                              selectedAttachmentIds.length === 0
-                                ? "border-gray-200 bg-gray-100 text-gray-400"
-                                : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            }`}
+                            className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:cursor-not-allowed ${selectedAttachmentIds.length === 0
+                              ? "border-gray-200 bg-gray-100 text-gray-400"
+                              : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                              }`}
                           >
                             {t("board.detail.attachments.download")}
                           </button>
@@ -872,7 +876,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data }) => {
 
                     const translated = !isDeleted
                       ? comment.translations?.find((tr) => tr.lang === currentLocale)?.content ??
-                        null
+                      null
                       : null;
 
                     const effectiveContent = isDeleted

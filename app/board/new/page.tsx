@@ -1,6 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import BoardPostForm from "@/src/components/board/BoardPostForm/BoardPostForm";
@@ -95,6 +96,23 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
     userId: appUser.id,
     tenantId,
   });
+
+  // テナント名の取得（ServiceRole 経由）
+  let tenantName = "";
+  try {
+    const supabaseAdmin = createSupabaseServiceRoleClient();
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("tenant_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (tenant?.tenant_name) {
+      tenantName = tenant.tenant_name as string;
+    }
+  } catch {
+    // テナント名取得に失敗しても画面表示は続行する
+  }
 
   const {
     data: userRoles,
@@ -197,8 +215,15 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
   return (
     <>
       <main className="min-h-screen bg-white pb-24">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pt-28 pb-28">
+        <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
           <div className="flex-1 space-y-6">
+            {tenantName && (
+              <div className="mb-1 flex justify-center">
+                <p className="max-w-full truncate text-base font-medium text-gray-600">
+                  {tenantName}
+                </p>
+              </div>
+            )}
             <BoardPostForm
               tenantId={tenantId}
               viewerUserId={appUser.id}

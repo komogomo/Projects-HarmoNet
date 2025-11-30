@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
-import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 
-// Admin client for auth management
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+// Admin client for auth management (service_role). Centralized initialization.
+const supabaseAdmin = createSupabaseServiceRoleClient();
 
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -74,8 +65,8 @@ export async function GET(request: NextRequest) {
 
   const userIds = usersData.map(u => u.id);
 
-  // Get user_roles data
-  const { data: rolesData, error: rolesError } = await supabase
+  // Get user_roles data (use service_role client to ensure admin can see all tenant roles)
+  const { data: rolesData, error: rolesError } = await supabaseAdmin
     .from('user_roles')
     .select('user_id, roles(role_key)')
     .eq('tenant_id', tenantId)
@@ -148,6 +139,28 @@ export async function POST(request: NextRequest) {
 
   let targetUserId: string;
 
+  // Check for email duplication (Public DB)
+  const { data: existingUserWithEmail } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingUserWithEmail) {
+    return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このメールアドレスは既に使用されています。' }, { status: 409 });
+  }
+
+  // Check for display name duplication (Public DB)
+  const { data: existingUserWithDisplayName } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('display_name', displayName)
+    .maybeSingle();
+
+  if (existingUserWithDisplayName) {
+    return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このニックネームは既に使用されています。' }, { status: 409 });
+  }
+
   const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email: email,
     email_confirm: true,
@@ -164,10 +177,24 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (findError || !existingPublicUser) {
-      console.error("Create user error and not found in public users:", createError);
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ユーザーの作成または検索に失敗しました。' }, { status: 500 });
+      // If not found in public.users, check if it exists in auth.users (orphaned auth user)
+      // Since we cannot query auth.users directly by email easily, we list users.
+      // Note: This is not efficient for large user bases but necessary for recovery here.
+      const { data: authUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        perPage: 1000 // Fetch a batch to find the user
+      });
+
+      const foundAuthUser = authUsers?.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+      if (listError || !foundAuthUser) {
+        console.error("Create user error and not found in public/auth users:", createError);
+        return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ユーザーの作成または検索に失敗しました。' }, { status: 500 });
+      }
+
+      targetUserId = foundAuthUser.id;
+    } else {
+      targetUserId = existingPublicUser.id;
     }
-    targetUserId = existingPublicUser.id;
   } else {
     targetUserId = newUser.user.id;
   }
@@ -206,23 +233,30 @@ export async function POST(request: NextRequest) {
 
   const { error: userRolesError } = await supabaseAdmin
     .from('user_roles')
-    .upsert({
+    .insert({
       user_id: targetUserId,
       tenant_id: tenantId,
       role_id: roleData.id
-    }, { onConflict: 'user_id, tenant_id' });
+    });
 
   if (userRolesError) {
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール設定に失敗しました。' }, { status: 500 });
+    const isDuplicateKeyError =
+      typeof (userRolesError as any).code === 'string' &&
+      (userRolesError as any).code === '23505';
+
+    if (!isDuplicateKeyError) {
+      console.error("User roles insert error:", userRolesError);
+      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール設定に失敗しました。' }, { status: 500 });
+    }
   }
 
   // 4. Upsert user_tenants
   const { error: userTenantsError } = await supabaseAdmin
     .from('user_tenants')
-    .upsert({
+    .insert({
       user_id: targetUserId,
       tenant_id: tenantId
-    }, { onConflict: 'user_id, tenant_id' });
+    });
 
   if (userTenantsError) {
     return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'テナント所属設定に失敗しました。' }, { status: 500 });
@@ -257,6 +291,66 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' }, { status: 400 });
   }
 
+  // Check for email duplication (Public DB)
+  const { data: existingUserWithEmail } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .neq('id', userId) // Exclude self
+    .maybeSingle();
+
+  if (existingUserWithEmail) {
+    return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このメールアドレスは既に使用されています。' }, { status: 409 });
+  }
+
+  // Check for display name duplication (Public DB)
+  const { data: existingUserWithDisplayName } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('display_name', displayName)
+    .neq('id', userId) // Exclude self
+    .maybeSingle();
+
+  if (existingUserWithDisplayName) {
+    return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このニックネームは既に使用されています。' }, { status: 409 });
+  }
+
+  // Verify target user belongs to this tenant
+  const { data: targetUserTenant, error: targetCheckError } = await supabaseAdmin
+    .from('user_tenants')
+    .select('user_id')
+    .eq('user_id', userId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (targetCheckError || !targetUserTenant) {
+    return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
+  }
+
+  // Fetch current user data for optimization
+  const { data: currentUser } = await supabaseAdmin
+    .from('users')
+    .select('email, display_name')
+    .eq('id', userId)
+    .single();
+
+  // 0. Update auth.users (email, metadata)
+  // Only if email or display_name changed
+  if (currentUser && (currentUser.email !== email || currentUser.display_name !== displayName)) {
+    const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      email: email,
+      email_confirm: true, // Auto-confirm email change by admin
+      user_metadata: {
+        display_name: displayName
+      }
+    });
+
+    if (authUpdateError) {
+      console.error("Auth update error:", authUpdateError);
+      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '認証情報の更新に失敗しました。' + authUpdateError.message }, { status: 500 });
+    }
+  }
+
   // 1. Update public.users
   const { error: usersError } = await supabaseAdmin
     .from('users')
@@ -289,24 +383,29 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' }, { status: 500 });
   }
 
-  // Delete existing role and insert new one (simplest way to update role in many-to-many if unique constraint exists)
-  // Or upsert if unique constraint is [user_id, tenant_id, role_id] but we want only one role per tenant usually?
-  // Schema says: @@unique([user_id, tenant_id, role_id])
-  // But logic implies one main role. Let's stick to the pattern used in POST: upsert or delete/insert.
-  // Since we want to REPLACE the role for this tenant, we should probably delete old roles for this tenant and insert new one.
-
-  await supabaseAdmin.from('user_roles').delete().eq('user_id', userId).eq('tenant_id', tenantId);
-
-  const { error: userRolesError } = await supabaseAdmin
+  // Check current role
+  const { data: currentRole } = await supabaseAdmin
     .from('user_roles')
-    .insert({
-      user_id: userId,
-      tenant_id: tenantId,
-      role_id: roleData.id
-    });
+    .select('role_id')
+    .eq('user_id', userId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
 
-  if (userRolesError) {
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール更新に失敗しました。' }, { status: 500 });
+  // Only update if role changed
+  if (!currentRole || currentRole.role_id !== roleData.id) {
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId).eq('tenant_id', tenantId);
+
+    const { error: userRolesError } = await supabaseAdmin
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        role_id: roleData.id
+      });
+
+    if (userRolesError) {
+      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール更新に失敗しました。' }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true, message: 'ユーザ情報を更新しました。' });
@@ -334,6 +433,18 @@ export async function DELETE(request: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ ok: false, message: 'User ID required' }, { status: 400 });
+  }
+
+  // Verify target user belongs to this tenant
+  const { data: targetUser, error: targetCheckError } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (targetCheckError || !targetUser) {
+    return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
   }
 
   // First, delete tenant-specific data

@@ -1,6 +1,7 @@
 import React from "react";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
 import { getBoardPostById } from "@/src/server/board/getBoardPostById";
 import BoardDetailPage from "@/src/components/board/BoardDetail/BoardDetailPage";
@@ -96,6 +97,23 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     postId,
   });
 
+  // テナント名の取得（ServiceRole 経由）
+  let tenantName = "";
+  try {
+    const supabaseAdmin = createSupabaseServiceRoleClient();
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("tenant_name")
+      .eq("id", tenantId)
+      .single();
+
+    if (tenant?.tenant_name) {
+      tenantName = tenant.tenant_name as string;
+    }
+  } catch {
+    // テナント名取得に失敗しても画面表示は続行する
+  }
+
   const post = await getBoardPostById({
     tenantId,
     postId,
@@ -106,5 +124,5 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     notFound();
   }
 
-  return <BoardDetailPage data={post} />;
+  return <BoardDetailPage data={post} tenantName={tenantName} />;
 }

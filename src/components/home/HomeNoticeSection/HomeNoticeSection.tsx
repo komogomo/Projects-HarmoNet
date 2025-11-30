@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { Newspaper } from 'lucide-react';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { HomeNoticeSectionProps } from './HomeNoticeSection.types';
 import { clampNoticeCount, DEFAULT_HOME_NOTICE_COUNT } from './HomeNoticeSection.types';
 
-export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, maxItems }) => {
+export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, maxItems, tenantName }) => {
   const { t } = useI18n();
   const router = useRouter();
 
@@ -15,8 +16,16 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
   if (!hasItems) {
     return (
       <section aria-labelledby="home-notice-title">
-        <h2 id="home-notice-title" className="mb-2 text-base font-semibold text-gray-900">
-          {t('home.noticeSection.title')}
+        {tenantName && (
+          <div className="mb-1 flex justify-center">
+            <p className="max-w-full truncate text-base font-medium text-gray-600">
+              {tenantName}
+            </p>
+          </div>
+        )}
+        <h2 id="home-notice-title" className="mb-2 text-base font-semibold text-gray-900 flex items-center gap-2">
+          <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
+          <span>{t('home.noticeSection.title')}</span>
         </h2>
         <p className="text-sm text-gray-500">{t('home.noticeSection.emptyMessage')}</p>
       </section>
@@ -28,8 +37,16 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
 
   return (
     <section aria-labelledby="home-notice-title">
-      <h2 id="home-notice-title" className="mb-3 text-base font-semibold text-gray-900">
-        {t('home.noticeSection.title')}
+      {tenantName && (
+        <div className="mb-1 flex justify-center">
+          <p className="max-w-full truncate text-base font-medium text-gray-600">
+            {tenantName}
+          </p>
+        </div>
+      )}
+      <h2 id="home-notice-title" className="mb-3 text-base font-semibold text-gray-900 flex items-center gap-2">
+        <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
+        <span>{t('home.noticeSection.title')}</span>
       </h2>
       <div className="space-y-3">
         {visibleItems.map((item) => (

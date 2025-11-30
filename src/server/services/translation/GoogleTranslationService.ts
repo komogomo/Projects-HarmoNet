@@ -47,12 +47,20 @@ export class GoogleTranslationService implements TranslationService {
     const startedAt = Date.now();
 
     try {
+      const normalizeLangCode = (lang: SupportedLang): string => {
+        if (lang === 'zh') {
+          // 簡体字中国語として扱う
+          return 'zh-CN';
+        }
+        return lang;
+      };
+
       const request = {
         parent: `projects/${this.projectId}/locations/${this.location}`,
         contents: [text],
         mimeType: 'text/plain',
-        sourceLanguageCode: sourceLang,
-        targetLanguageCode: targetLang,
+        sourceLanguageCode: normalizeLangCode(sourceLang),
+        targetLanguageCode: normalizeLangCode(targetLang),
       };
 
       const [response] = await this.client.translateText(request as any, {
@@ -96,7 +104,13 @@ export class GoogleTranslationService implements TranslationService {
         timeout: 3000,
       } as any);
 
-      const code = response.languages?.[0]?.languageCode?.toLowerCase();
+      const rawCode = response.languages?.[0]?.languageCode?.toLowerCase();
+
+      // zh, zh-cn, zh-hans などは内部的に 'zh' として扱う
+      const code =
+        rawCode === 'zh' || rawCode === 'zh-cn' || rawCode === 'zh-hans'
+          ? 'zh'
+          : rawCode;
 
       const durationMs = Date.now() - startedAt;
 

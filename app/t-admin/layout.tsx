@@ -9,10 +9,10 @@ export default function TenantAdminLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex min-h-screen bg-gray-50 pt-16">
+        <div className="flex min-h-screen bg-gray-50 pt-28">
             {/* Left Sidebar */}
-            <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white overflow-y-auto hidden md:block">
-                <nav className="p-4 space-y-2">
+            <aside className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 border-r border-gray-200 bg-white overflow-y-auto hidden md:block z-30">
+                <nav className="p-4 pt-14 space-y-2">
                     <div className="mb-4 px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                         テナント管理
                     </div>
@@ -28,7 +28,7 @@ export default function TenantAdminLayout({
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 md:ml-64 pb-24">
+            <div className="flex-1 pb-24">
                 {children}
             </div>
             <HomeFooterShortcuts />

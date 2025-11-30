@@ -298,6 +298,11 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
       formData.append("tenantId", tenantId);
       formData.append("authorId", viewerUserId);
       formData.append("posterType", posterType);
+
+      // 投稿者区分を API に伝えるための authorRole（管理組合: 'admin' / 一般利用者: 'user'）
+      const authorRole: "admin" | "user" =
+        viewerRole === "admin" && posterType === "management" ? "admin" : "user";
+      formData.append("authorRole", authorRole);
       if (displayNameMode) {
         formData.append("displayNameMode", displayNameMode);
       }
