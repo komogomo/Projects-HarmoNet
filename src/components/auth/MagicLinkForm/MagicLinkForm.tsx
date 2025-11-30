@@ -39,7 +39,7 @@ const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
   );
 };
 
-export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError }) => {
+export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError, redirectTo }) => {
   const { t } = useStaticI18n();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
@@ -74,6 +74,8 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         method: 'magiclink',
         email,
       });
+
+      const targetRedirectTo = redirectTo ?? '/auth/callback';
 
       // メールアドレスの存在チェック
       const checkRes = await fetch('/api/auth/check-email', {
@@ -112,7 +114,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}${targetRedirectTo}`,
         },
       });
 

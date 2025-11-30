@@ -113,15 +113,19 @@ export default async function HomePage() {
     // テナント名取得に失敗しても画面表示は続行する
   }
 
-  // Check if user is tenant_admin
-  const { data: userRole } = await supabase
+  // Check if user is tenant_admin (allow multiple roles per tenant)
+  const { data: userRoles, error: roleError } = await supabase
     .from('user_roles')
     .select('roles(role_key)')
     .eq('user_id', appUser.id)
-    .eq('tenant_id', tenantId)
-    .single();
+    .eq('tenant_id', tenantId);
 
-  const isTenantAdmin = (userRole?.roles as any)?.role_key === 'tenant_admin';
+  const isTenantAdmin =
+    !roleError
+    && Array.isArray(userRoles)
+    && userRoles.some(
+      (row: any) => (row.roles as any)?.role_key === 'tenant_admin',
+    );
 
   // テナント設定から Home のお知らせ表示件数を取得（将来的に管理画面から変更可能にする想定）。
   const { data: tenantSettingsRows } = await supabase

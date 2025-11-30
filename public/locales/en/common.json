@@ -309,20 +309,195 @@
           "network": "A network error occurred. Please check your connection and try again."
         }
       },
-      "confirm": {
-        "submit": {
-          "title": "Post this message to the board?",
-          "notice": "Please review the content and click \"Post\" to submit.",
-          "cancel": "Go back and edit",
-          "ok": "Post"
-        },
-        "preview": {
-          "title": "Title",
-          "category": "Category",
-          "content": "Content",
-          "attachment": "Attachments"
-        }
-      }
+  }
+},
+"detail": {
+  "error": {
+    "notFound": "This post could not be found.",
+    "forbidden": "You do not have permission to view this post.",
+    "generic": "Failed to load the post. Please try again later."
+  },
+  "section": {
+    "content": "Content",
+    "attachments": "Attachments",
+    "comments": "Comments"
+  },
+  "attachments": {
+    "title": "Attachments",
+    "preview": "Preview",
+    "download": "Download",
+    "closePreview": "Close preview"
+  },
+  "comments": {
+    "title": "Comments",
+    "readonly": "Read-only",
+    "empty": "There are no comments to display."
+  },
+  "actions": {
+    "backToList": "Back to board list"
+  },
+  "comment": {
+    "input": {
+      "placeholder": "Enter a comment"
+    },
+    "submit": "Post comment",
+    "submitResult": {
+      "success": "Your comment has been posted.",
+      "error": "Failed to post the comment.",
+      "moderationBlocked": "Your comment may contain inappropriate content. Please revise it and try again."
+    },
+    "disabled": "You cannot comment on this post.",
+    "delete": "Delete comment",
+    "deleteConfirmTitle": "Delete this comment?",
+    "deleteConfirmMessage": "This action cannot be undone. Do you really want to delete it?",
+    "deleteSuccess": "The comment has been deleted.",
+    "deleteError": "Failed to delete the comment."
+  },
+  "post": {
+    "reply": "Reply",
+    "edit": "Edit",
+    "delete": "Delete post",
+    "deleteConfirmTitle": "Delete this post?",
+    "deleteConfirmMessage": "This post will no longer be shown in the board. Do you really want to delete it?",
+    "deleteConfirmYes": "Delete",
+    "deleteConfirmNo": "Cancel",
+    "deleteSuccess": "The post has been deleted.",
+    "deleteError": "Failed to delete the post."
+  },
+  "i18n": {
+    "translateButton": "Show translated text",
+    "viewOriginal": "View original",
+    "viewTranslated": "View translation",
+    "error": "Translation failed."
+  },
+  "tts": {
+    "play": "Read aloud",
+    "stop": "Stop",
+    "error": "Failed to start text-to-speech."
+  },
+  "pdf": {
+    "close": "Close",
+    "tapToClose": "Tap to close"
+  }
+},
+"authorType": {
+  "admin": "Management association",
+  "user": "Resident"
+},
+"comment": {
+  "deleted": "This post has been deleted."
+},
+"postForm": {
+  "field": {
+    "category": {
+      "label": "Category",
+      "placeholder": "Select a category"
+    },
+    "displayName": {
+      "label": "Display name"
+    },
+    "authorRole": {
+      "label": "Post as"
+    },
+    "posterType": {
+      "label": "Post as"
+    },
+    "title": {
+      "label": "Title"
+    },
+    "content": {
+      "label": "Content"
+    }
+  },
+  "category": {
+    "important": "Important notices",
+    "circular": "Circular board",
+    "event": "Events",
+    "rules": "Rules & regulations",
+    "question": "Question",
+    "request": "Request",
+    "group": "Group",
+    "other": "Other"
+  },
+  "option": {
+    "anonymous": "Post anonymously",
+    "nickname": "Show nickname",
+    "authorRole": {
+      "admin": "Post as management association",
+      "user": "Post as resident"
+    },
+    "posterType": {
+      "management": "Post as management association",
+      "general": "Post as resident"
+    }
+  },
+  "section": {
+    "attachment": "Attachments"
+  },
+  "note": {
+    "attachment": {
+      "description": "You can attach related files to your board post.",
+      "attachmentAllowed": "You can attach PDF, Office files (Word / Excel / PowerPoint), and images (JPG / PNG).",
+      "sizeLimit": "Each file can be up to 5MB.",
+      "previewNote": "PDF files can be previewed on the screen; other files can be downloaded for viewing."
+    }
+  },
+  "reply": {
+    "notice": "You are writing a reply to this post. The category follows the original post."
+  },
+  "button": {
+    "cancel": "Cancel",
+    "submit": "Post",
+    "submitting": "Posting...",
+    "attachFile": "Choose files",
+    "submitMasked": "Post with masked content"
+  },
+  "error": {
+    "category": {
+      "required": "Please select a category."
+    },
+    "displayName": {
+      "required": "Please select how your name will be displayed."
+    },
+    "title": {
+      "required": "Please enter a title."
+    },
+    "content": {
+      "required": "Please enter the post content."
+    },
+    "attachment": {
+      "invalidType": "Some selected files are not in a supported format. Only PDF, Office files, and JPG/PNG images are allowed.",
+      "tooLarge": "One or more files exceed the maximum size of 5MB per file.",
+      "tooMany": "You have selected more attachments than allowed. You can attach up to 5 files per post."
+    },
+    "summary": {
+      "validation": "There are problems with your input. Please check the error messages for each field.",
+      "attachment": "There are errors related to attachments. Please review them."
+    },
+    "submit": {
+      "server": "Failed to submit the post. Please try again later.",
+      "auth": "An authentication error occurred. Please sign in again and retry.",
+      "validation": "There are validation errors. Please fix them and try again.",
+      "moderation": {
+        "blocked": "Your post may contain inappropriate content. Please revise it and try again.",
+        "masked": "Your post may contain inappropriate content. Some parts have been masked. Please review the masked content and revise it if needed before posting."
+      },
+      "network": "A network error occurred. Please check your connection and try again."
+    }
+  },
+  "confirm": {
+    "submit": {
+      "title": "Post this message to the board?",
+      "notice": "Please review the content and click \"Post\" to submit.",
+      "cancel": "Go back and edit",
+      "ok": "Post"
+    },
+    "preview": {
+      "title": "Title",
+      "category": "Category",
+      "content": "Content",
+      "attachment": "Attachments"
     }
   }
+}
 }

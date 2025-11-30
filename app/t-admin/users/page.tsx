@@ -34,15 +34,21 @@ export default async function TenantAdminUsersPage() {
 
     const tenantId = userTenant.tenant_id;
 
-    // Check if user is tenant_admin
-    const { data: userRole, error: roleError } = await supabase
+    // Check if user is tenant_admin (allow multiple roles per tenant)
+    const { data: userRoles, error: roleError } = await supabase
         .from('user_roles')
         .select('roles(role_key)')
         .eq('user_id', user.id)
-        .eq('tenant_id', tenantId)
-        .single();
+        .eq('tenant_id', tenantId);
 
-    if (roleError || !userRole || (userRole.roles as any)?.role_key !== 'tenant_admin') {
+    const isTenantAdmin =
+        !roleError
+        && Array.isArray(userRoles)
+        && userRoles.some(
+            (row: any) => (row.roles as any)?.role_key === 'tenant_admin',
+        );
+
+    if (!isTenantAdmin) {
         logError('t-admin.users.forbidden', { userId: user.id, tenantId });
         redirect('/home');
     }

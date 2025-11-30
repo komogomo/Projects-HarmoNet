@@ -327,6 +327,108 @@
           "attachment": "附件"
         }
       }
+    },
+    "authorRole": {
+      "label": "发帖身份"
+    },
+    "posterType": {
+      "label": "发帖身份"
+    },
+    "title": {
+      "label": "标题"
+    },
+    "content": {
+      "label": "正文"
+    }
+  },
+  "category": {
+    "important": "重要通知",
+    "circular": "回览板",
+    "event": "活动",
+    "rules": "规则・规约",
+    "question": "问题",
+    "request": "需求",
+    "group": "群组",
+    "other": "其他"
+  },
+  "option": {
+    "anonymous": "以匿名方式发帖",
+    "nickname": "显示昵称",
+    "authorRole": {
+      "admin": "以管理委员会身份发帖",
+      "user": "以一般住户身份发帖"
+    },
+    "posterType": {
+      "management": "以管理委员会身份发帖",
+      "general": "以一般住户身份发帖"
+    }
+  },
+  "section": {
+    "attachment": "附件"
+  },
+  "note": {
+    "attachment": {
+      "description": "可以为公告帖子附加相关资料文件。",
+      "attachmentAllowed": "可以附加 PDF / Office 文件（Word / Excel / PowerPoint）以及图片（JPG / PNG）。",
+      "sizeLimit": "每个文件最大 5MB。",
+      "previewNote": "PDF 文件可以在画面上预览，其他文件需要下载后查看。"
+    }
+  },
+  "reply": {
+    "notice": "您正在回复此帖子。回复的类别将与原始帖子一致。"
+  },
+  "button": {
+    "cancel": "取消",
+    "submit": "发布",
+    "submitting": "正在发布...",
+    "attachFile": "选择文件",
+    "submitMasked": "以当前打码内容发布"
+  },
+  "error": {
+    "category": {
+      "required": "请选择类别。"
+    },
+    "displayName": {
+      "required": "请选择显示名称的方式。"
+    },
+    "title": {
+      "required": "请输入标题。"
+    },
+    "content": {
+      "required": "请输入正文内容。"
+    },
+    "attachment": {
+      "invalidType": "部分所选文件格式不受支持。仅允许附加 PDF、Office 文件和 JPG/PNG 图片。",
+      "tooLarge": "部分文件大小超过 5MB 上限。"
+    },
+    "summary": {
+      "validation": "输入内容存在问题。请检查各项目下方的错误信息。",
+      "attachment": "附件相关设置存在错误，请检查后重试。"
+    },
+    "submit": {
+      "server": "发布失败。请稍后重试。",
+      "auth": "认证错误。请重新登录后再试。",
+      "validation": "输入内容存在不符合要求的地方，请修正后再试。",
+      "moderation": {
+        "blocked": "内容可能包含不适当表达。请修改内容后再试。",
+        "masked": "内容可能包含不适当表达，部分文字已被打码。请确认并根据需要修改后再尝试发布。"
+      },
+      "network": "发生网络错误。请检查网络连接后再试。"
+    }
+  },
+  "confirm": {
+    "submit": {
+      "title": "要以此内容发布到公告栏吗？",
+      "notice": "请确认内容后点击“发布”按钮。",
+      "cancel": "返回修改",
+      "ok": "发布"
+    },
+    "preview": {
+      "title": "标题",
+      "category": "类别",
+      "content": "正文",
+      "attachment": "附件"
     }
   }
+}
 }

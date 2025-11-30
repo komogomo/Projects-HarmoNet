@@ -19,6 +19,8 @@ export interface MagicLinkFormProps {
 
   /** 重要なエラー発生時の通知コールバック（任意） */
   onError?: (error: MagicLinkError) => void;
+
+  redirectTo?: string;
 }
 
 export type MagicLinkFormState =
