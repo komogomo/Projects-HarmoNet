@@ -1,4 +1,5 @@
 import { prisma } from '@/src/server/db/prisma';
+import { GoogleTranslationService } from '@/src/server/services/translation/GoogleTranslationService';
 
 const SUPPORTED_LANGS = ['ja', 'en', 'zh'] as const;
 
@@ -38,6 +39,7 @@ export interface BoardPostDetailDto {
   id: string;
   categoryKey: string;
   categoryName: string | null;
+  sourceLang: SupportedBoardLang | null;
   originalTitle: string;
   originalContent: string;
   authorDisplayName: string;
@@ -232,7 +234,7 @@ export async function getBoardPostById(
 
       const authorDisplayName =
         (comment as any).author_display_name &&
-        typeof (comment as any).author_display_name === 'string'
+          typeof (comment as any).author_display_name === 'string'
           ? ((comment as any).author_display_name as string)
           : comment.author.display_name || '匿名';
 
@@ -251,10 +253,26 @@ export async function getBoardPostById(
     },
   );
 
+  // Detect source language
+  let sourceLang: SupportedBoardLang | null = null;
+  try {
+    const translationService = new GoogleTranslationService();
+    // タイトルは英語（例: "Meeting Minutes"）だが本文は日本語、というケースで誤判定を防ぐため、
+    // 本文のみを使って言語検出を行う。
+    const textForDetect = post.content;
+    const detected = await translationService.detectLanguageOnce(textForDetect);
+    if (detected && SUPPORTED_LANGS.includes(detected as SupportedBoardLang)) {
+      sourceLang = detected as SupportedBoardLang;
+    }
+  } catch {
+    // Ignore detection errors
+  }
+
   return {
     id: post.id,
     categoryKey: post.category.category_key,
     categoryName: post.category.category_name,
+    sourceLang,
     originalTitle: post.title,
     originalContent: post.content,
     authorDisplayName,

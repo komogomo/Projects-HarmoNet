@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Star, Trash2, Volume2 } from "lucide-react";
+import { Languages, MessageCircle, Star, Trash2, Volume2 } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import { BOARD_ATTACHMENT_DEFAULTS } from "@/src/lib/boardAttachmentSettings";
@@ -96,6 +96,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
   const { t, currentLocale } = useI18n();
   const router = useRouter();
   const [preview, setPreview] = useState<AttachmentPreviewState>(null);
+  const [postData, setPostData] = useState(data);
   const [attachments, setAttachments] = useState(data.attachments);
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([]);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
@@ -117,6 +118,8 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
   const [ttsErrorKey, setTtsErrorKey] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationErrorKey, setTranslationErrorKey] = useState<string | null>(null);
 
   const {
     categoryKey,
@@ -125,19 +128,19 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
     content,
     createdAtLabel,
   } = useMemo(() => {
-    const translation = data.translations.find((tr) => tr.lang === currentLocale);
+    const translation = postData.translations.find((tr) => tr.lang === currentLocale);
 
     const effectiveTitle =
       translation && translation.title && translation.title.trim().length > 0
         ? translation.title
-        : data.originalTitle;
+        : postData.originalTitle;
 
-    const effectiveContent = translation?.content ?? data.originalContent;
+    const effectiveContent = translation?.content ?? postData.originalContent;
 
-    const mappedCategoryKey = resolveCategoryKey(data.categoryKey);
+    const mappedCategoryKey = resolveCategoryKey(postData.categoryKey);
     const labelKey = CATEGORY_LABEL_MAP[mappedCategoryKey] ?? CATEGORY_LABEL_MAP.other;
 
-    const createdAt = formatDateTime(data.createdAt, currentLocale);
+    const createdAt = formatDateTime(postData.createdAt, currentLocale);
 
     return {
       categoryKey: mappedCategoryKey,
@@ -146,7 +149,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
       content: effectiveContent,
       createdAtLabel: createdAt,
     };
-  }, [data, currentLocale]);
+  }, [postData, currentLocale]);
 
   const canReply = useMemo(() => {
     const forbidden: BoardCategoryKey[] = ["important", "circular", "event", "rules"];
@@ -509,6 +512,56 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
     }
   };
 
+  const handleTranslate = async () => {
+    if (isTranslating) return;
+
+    setIsTranslating(true);
+    setTranslationErrorKey(null);
+
+    const targetLang = currentLocale === "en" ? "en" : currentLocale === "zh" ? "zh" : "ja";
+
+    try {
+      const res = await fetch("/api/board/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: postData.id,
+          targetLang,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("translation_failed");
+      }
+
+      const json = await res.json();
+
+      setPostData((prev) => ({
+        ...prev,
+        translations: [
+          ...prev.translations.filter((t) => t.lang !== targetLang),
+          {
+            lang: targetLang,
+            title: json.title,
+            content: json.content,
+          },
+        ],
+      }));
+    } catch {
+      setTranslationErrorKey("board.detail.i18n.error");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const hasTranslation = useMemo(() => {
+    return postData.translations.some((t) => t.lang === currentLocale);
+  }, [postData.translations, currentLocale]);
+
+  const isSourceLang = useMemo(() => {
+    return postData.sourceLang === currentLocale;
+  }, [postData.sourceLang, currentLocale]);
+
   const handleTtsClick = async () => {
     if (!content || content.trim().length === 0) {
       return;
@@ -697,26 +750,51 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
                     </button>
                   )}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <button
-                    type="button"
-                    onClick={handleTtsClick}
-                    className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${ttsState === "playing"
-                      ? "border-blue-600 text-blue-600 bg-blue-50"
-                      : "border-blue-200 text-blue-600 hover:bg-blue-50"
-                      }`}
-                    disabled={ttsState === "loading"}
-                  >
-                    <Volume2 className="h-4 w-4" aria-hidden="true" />
-                    <span>
-                      {ttsState === "playing"
-                        ? t("board.detail.tts.stop")
-                        : t("board.detail.tts.play")}
-                    </span>
-                  </button>
-                  {ttsErrorKey && (
-                    <p className="text-[11px] text-red-600">{t(ttsErrorKey)}</p>
+                <div className="flex items-start gap-2">
+                  {!isSourceLang && (
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        type="button"
+                        onClick={handleTranslate}
+                        disabled={hasTranslation || isTranslating}
+                        className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${hasTranslation || isTranslating
+                          ? "border-gray-200 bg-gray-100 text-gray-400"
+                          : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                          }`}
+                      >
+                        <Languages className="h-4 w-4" aria-hidden="true" />
+                        <span>
+                          {isTranslating
+                            ? t("board.detail.i18n.translating")
+                            : t("board.detail.i18n.translate")}
+                        </span>
+                      </button>
+                      {translationErrorKey && (
+                        <p className="text-[11px] text-red-600">{t(translationErrorKey)}</p>
+                      )}
+                    </div>
                   )}
+                  <div className="flex flex-col items-end gap-1">
+                    <button
+                      type="button"
+                      onClick={handleTtsClick}
+                      className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${ttsState === "playing"
+                        ? "border-blue-600 text-blue-600 bg-blue-50"
+                        : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                        }`}
+                      disabled={ttsState === "loading"}
+                    >
+                      <Volume2 className="h-4 w-4" aria-hidden="true" />
+                      <span>
+                        {ttsState === "playing"
+                          ? t("board.detail.tts.stop")
+                          : t("board.detail.tts.play")}
+                      </span>
+                    </button>
+                    {ttsErrorKey && (
+                      <p className="text-[11px] text-red-600">{t(ttsErrorKey)}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -915,155 +993,166 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName }) =
 
           </section>
         </div>
-      </main>
+      </main >
 
       <HomeFooterShortcuts />
 
       {/* 投稿削除確認モーダル */}
-      {isPostDeleteConfirmOpen && (
-        <div
-          className="fixed inset-0 z-[1045] flex items-center justify-center bg-transparent"
-          onClick={handleCancelDeletePost}
-        >
+      {
+        isPostDeleteConfirmOpen && (
           <div
-            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[1045] flex items-center justify-center bg-transparent"
+            onClick={handleCancelDeletePost}
           >
-            <p className="mb-3 whitespace-pre-line">
-              {t("board.detail.post.deleteConfirmMessage")}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleCancelDeletePost}
-                disabled={isPostDeleting}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmNo")}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeletePost}
-                disabled={isPostDeleting}
-                className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmYes")}
-              </button>
+            <div
+              className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="mb-3 whitespace-pre-line">
+                {t("board.detail.post.deleteConfirmMessage")}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelDeletePost}
+                  disabled={isPostDeleting}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmNo")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeletePost}
+                  disabled={isPostDeleting}
+                  className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmYes")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* 添付ファイル削除確認モーダル */}
-      {confirmingAttachmentId && (
-        <div
-          className="fixed inset-0 z-[1042] flex items-center justify-center bg-transparent"
-          onClick={handleCancelDeleteAttachment}
-        >
+      {
+        confirmingAttachmentId && (
           <div
-            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[1042] flex items-center justify-center bg-transparent"
+            onClick={handleCancelDeleteAttachment}
           >
-            <p className="mb-3 whitespace-pre-line">
-              {t("board.detail.comment.deleteConfirmMessage")}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleCancelDeleteAttachment}
-                disabled={deletingAttachmentId === confirmingAttachmentId}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmNo")}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteAttachment}
-                disabled={deletingAttachmentId === confirmingAttachmentId}
-                className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmYes")}
-              </button>
+            <div
+              className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="mb-3 whitespace-pre-line">
+                {t("board.detail.comment.deleteConfirmMessage")}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelDeleteAttachment}
+                  disabled={deletingAttachmentId === confirmingAttachmentId}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmNo")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteAttachment}
+                  disabled={deletingAttachmentId === confirmingAttachmentId}
+                  className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmYes")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* コメント削除確認モーダル */}
-      {confirmingCommentId && (
-        <div
-          className="fixed inset-0 z-[1050] flex items-center justify-center bg-transparent"
-          onClick={handleCancelDeleteComment}
-        >
+      {
+        confirmingCommentId && (
           <div
-            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[1050] flex items-center justify-center bg-transparent"
+            onClick={handleCancelDeleteComment}
           >
-            <p className="mb-3 whitespace-pre-line">
-              {t("board.detail.comment.deleteConfirmMessage")}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleCancelDeleteComment}
-                disabled={deletingCommentId === confirmingCommentId}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmNo")}
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteComment}
-                disabled={deletingCommentId === confirmingCommentId}
-                className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
-              >
-                {t("board.detail.post.deleteConfirmYes")}
-              </button>
+            <div
+              className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="mb-3 whitespace-pre-line">
+                {t("board.detail.comment.deleteConfirmMessage")}
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelDeleteComment}
+                  disabled={deletingCommentId === confirmingCommentId}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmNo")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteComment}
+                  disabled={deletingCommentId === confirmingCommentId}
+                  className="font-semibold text-red-500 hover:text-red-600 disabled:opacity-50"
+                >
+                  {t("board.detail.post.deleteConfirmYes")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {preview && (
-        <div
-          className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50"
-          onClick={() => setPreview(null)}
-        >
+      {
+        preview && (
           <div
-            className="relative h-[70vh] w-full max-w-md rounded-lg bg-white shadow-lg"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50"
+            onClick={() => setPreview(null)}
           >
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
-              <h2 className="max-w-[220px] truncate text-sm font-medium text-gray-900">
-                {preview.fileName}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setPreview(null)}
-                className="text-gray-500 hover:text-gray-700"
-                aria-label={t("board.detail.attachments.closePreview")}
-              >
-                ×
-              </button>
-            </div>
-            <div className="h-full">
-              {preview.isPdf ? (
-                <iframe
-                  src={preview.url}
-                  title={preview.fileName}
-                  className="h-full w-full border-0"
-                />
-              ) : preview.isImage ? (
-                <img
-                  src={preview.url}
-                  alt={preview.fileName}
-                  className="h-full w-full object-contain"
-                />
-              ) : null}
+            <div
+              className="relative h-[70vh] w-full max-w-md rounded-lg bg-white shadow-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
+                <h2 className="max-w-[220px] truncate text-sm font-medium text-gray-900">
+                  {preview.fileName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label={t("board.detail.attachments.closePreview")}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="h-full">
+                {preview.isPdf ? (
+                  <iframe
+                    src={preview.url}
+                    title={preview.fileName}
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gray-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={preview.url}
+                      alt={preview.fileName}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 };

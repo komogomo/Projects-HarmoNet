@@ -53,7 +53,9 @@ export async function sendBoardNotificationEmailsForPost(
     const memberships: any[] = await prisma.user_tenants.findMany({
       where: {
         tenant_id: tenantId,
-        status: 'active',
+        tenant: {
+          status: 'active',
+        },
       },
       select: {
         user: {

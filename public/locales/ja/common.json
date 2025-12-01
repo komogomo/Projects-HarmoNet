@@ -189,6 +189,7 @@
         "deleteError": "投稿の削除に失敗しました。"
       },
       "i18n": {
+        "translate": "翻訳",
         "translateButton": "翻訳を表示",
         "viewOriginal": "原文で表示",
         "viewTranslated": "翻訳で表示",
