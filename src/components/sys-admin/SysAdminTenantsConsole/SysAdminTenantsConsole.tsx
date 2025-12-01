@@ -39,28 +39,16 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   const { t } = useI18n();
 
   const safeInitial = initialTenants ?? [];
-  const firstTenant = safeInitial.length > 0 ? safeInitial[0] : null;
+  // const firstTenant = safeInitial.length > 0 ? safeInitial[0] : null; // Default selection removed
 
   const [tenants, setTenants] = useState<TenantListItem[]>(safeInitial);
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(
-    firstTenant ? firstTenant.id : null,
-  );
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
-  const [tenantFormMode, setTenantFormMode] = useState<"create" | "edit">(
-    firstTenant ? "edit" : "create",
-  );
-  const [tenantCode, setTenantCode] = useState<string>(
-    firstTenant ? firstTenant.tenant_code : "",
-  );
-  const [tenantName, setTenantName] = useState<string>(
-    firstTenant ? firstTenant.tenant_name : "",
-  );
-  const [timezone, setTimezone] = useState<string>(
-    firstTenant ? firstTenant.timezone || "Asia/Tokyo" : "Asia/Tokyo",
-  );
-  const [tenantStatus, setTenantStatus] = useState<TenantStatus>(
-    firstTenant && firstTenant.status === "inactive" ? "inactive" : "active",
-  );
+  const [tenantFormMode, setTenantFormMode] = useState<"create" | "edit">("create");
+  const [tenantCode, setTenantCode] = useState<string>("");
+  const [tenantName, setTenantName] = useState<string>("");
+  const [timezone, setTimezone] = useState<string>("Asia/Tokyo");
+  const [tenantStatus, setTenantStatus] = useState<TenantStatus>("active");
   const [tenantMessage, setTenantMessage] = useState<MessageState>(null);
   const [tenantSaving, setTenantSaving] = useState(false);
   const [tenantConfirm, setTenantConfirm] = useState<
@@ -86,9 +74,9 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   );
 
   useEffect(() => {
-    if (firstTenant) {
-      loadAdmins(firstTenant.id);
-    }
+    // if (firstTenant) {
+    //   loadAdmins(firstTenant.id);
+    // }
     // 初回のみ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -132,6 +120,31 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     tenantCode.trim().length > 0 &&
     tenantName.trim().length > 0 &&
     timezone.trim().length > 0;
+
+  // Check if data is changed (dirty)
+  const isTenantDirty = React.useMemo(() => {
+    if (tenantFormMode === "create") {
+      // In create mode, it's dirty if any field has content (though usually we just check validity)
+      // But user requirement is "only active when no duplication" -> "only active when changed/valid"
+      // For create, if valid, it's effectively "changed" from empty.
+      return true;
+    }
+    if (tenantFormMode === "edit" && selectedTenantId) {
+      const original = tenants.find((t) => t.id === selectedTenantId);
+      if (!original) return false;
+      return (
+        original.tenant_code !== tenantCode ||
+        original.tenant_name !== tenantName ||
+        (original.timezone || "Asia/Tokyo") !== timezone
+        // status is handled separately via buttons usually, but here it's part of the form state?
+        // Actually status is not in the main form inputs shown in the image, but let's check.
+        // The image shows Code, Name, Timezone. Status seems to be internal or separate.
+        // But `performTenantUpdate` uses `tenantStatus`.
+        // Let's assume status change also counts if it were editable, but the form inputs shown are Code, Name, Timezone.
+      );
+    }
+    return false;
+  }, [tenantFormMode, selectedTenantId, tenants, tenantCode, tenantName, timezone]);
 
   const isAdminFormValid =
     adminEmail.trim().length > 0 &&
@@ -263,7 +276,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
         const message =
           result.message || "sysadmin.tenants.error.internal";
         setTenantMessage({ type: "error", text: message });
-      return;
+        return;
       }
 
       setTenantStatus(targetStatus);
@@ -271,11 +284,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
         current.map((t) =>
           t.id === selectedTenantId
             ? {
-                ...t,
-                tenant_name: tenantName,
-                timezone,
-                status: targetStatus,
-              }
+              ...t,
+              tenant_name: tenantName,
+              timezone,
+              status: targetStatus,
+            }
             : t,
         ),
       );
@@ -506,11 +519,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
 
           {tenantMessage && (
             <div
-              className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${
-                tenantMessage.type === "success"
-                  ? "border-green-200 bg-green-50 text-green-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-              }`}
+              className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${tenantMessage.type === "success"
+                ? "border-green-200 bg-green-50 text-green-800"
+                : "border-red-200 bg-red-50 text-red-800"
+                }`}
             >
               {tenantMessage.text.startsWith("sysadmin.")
                 ? t(tenantMessage.text)
@@ -529,7 +541,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 onChange={(event) => setTenantCode(event.target.value)}
                 disabled={tenantFormMode === "edit"}
                 maxLength={32}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
             <div>
@@ -551,7 +563,8 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
               <select
                 value={timezone}
                 onChange={(event) => setTimezone(event.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={tenantFormMode === "edit"}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               >
                 {TENANT_TIMEZONE_OPTIONS.map((tz) => (
                   <option key={tz} value={tz}>
@@ -565,19 +578,25 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           <div className="mt-4 flex items-center justify-between">
             <div className="text-[11px] text-gray-500">
               {selectedTenantId
-                ? `選択中のテナント: ${
-                    tenants.find((t) => t.id === selectedTenantId)?.tenant_name ?? "-"
-                  }`
+                ? `選択中のテナント: ${tenants.find((t) => t.id === selectedTenantId)?.tenant_name ?? "-"
+                }`
                 : "新規テナントを作成します。"}
             </div>
             <div className="flex space-x-2">
               <button
                 type="button"
-                disabled={!isTenantFormValid || tenantSaving}
+                onClick={handleNewTenantClick}
+                className="rounded border-2 border-gray-300 bg-white px-4 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                クリア
+              </button>
+              <button
+                type="button"
+                disabled={!isTenantFormValid || tenantSaving || !isTenantDirty}
                 onClick={handleTenantSave}
                 className="rounded border-2 border-blue-500 bg-white px-4 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300 disabled:bg-gray-50"
               >
-                保存
+                登録
               </button>
             </div>
           </div>
@@ -598,11 +617,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
 
           {adminMessage && (
             <div
-              className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${
-                adminMessage.type === "success"
-                  ? "border-green-200 bg-green-50 text-green-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-              }`}
+              className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${adminMessage.type === "success"
+                ? "border-green-200 bg-green-50 text-green-800"
+                : "border-red-200 bg-red-50 text-red-800"
+                }`}
             >
               {adminMessage.text.startsWith("sysadmin.")
                 ? t(adminMessage.text)
@@ -741,13 +759,6 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
       <section className="order-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">テナント一覧</h2>
-          <button
-            type="button"
-            onClick={handleNewTenantClick}
-            className="rounded-md border-2 border-blue-600 bg-white px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
-          >
-            新規テナント作成
-          </button>
         </div>
         {tenants.length === 0 ? (
           <p className="text-xs text-gray-600">

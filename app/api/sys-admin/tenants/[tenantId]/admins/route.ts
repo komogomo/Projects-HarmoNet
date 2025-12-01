@@ -236,11 +236,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
       });
 
     if (createError || !newUser?.user) {
+      console.error("Error creating user in Supabase Auth:", createError);
       return NextResponse.json(
         {
           ok: false,
-          message:
-            "管理者ユーザの登録に失敗しました。時間をおいて再度お試しください。",
+          message: `管理者ユーザの作成に失敗しました(Auth): ${createError?.message ?? "Unknown error"}`,
         },
         { status: 500 },
       );
@@ -265,11 +265,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
       });
 
     if (usersError) {
+      console.error("Error upserting user in public.users:", usersError);
       return NextResponse.json(
         {
           ok: false,
-          message:
-            "管理者ユーザの登録に失敗しました。時間をおいて再度お試しください。",
+          message: `管理者ユーザの作成に失敗しました(DB): ${usersError.message}`,
         },
         { status: 500 },
       );
@@ -280,8 +280,29 @@ export async function POST(request: NextRequest, context: RouteParams) {
     return NextResponse.json(
       {
         ok: false,
-        message:
-          "管理者ユーザの登録に失敗しました。時間をおいて再度お試しください。",
+        message: "管理者ユーザのID取得に失敗しました。",
+      },
+      { status: 500 },
+    );
+  }
+
+  // 3.5. user_tenants に登録 (ログイン時の所属確認に必要)
+  const { error: userTenantsError } = await adminClient
+    .from("user_tenants")
+    .upsert(
+      {
+        user_id: targetUserId,
+        tenant_id: tenantId,
+      },
+      { onConflict: "user_id, tenant_id" }
+    );
+
+  if (userTenantsError) {
+    console.error("Error upserting user_tenants:", userTenantsError);
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `所属情報の作成に失敗しました: ${userTenantsError.message}`,
       },
       { status: 500 },
     );
@@ -295,35 +316,56 @@ export async function POST(request: NextRequest, context: RouteParams) {
     .maybeSingle();
 
   if (roleError || !tenantAdminRole) {
+    console.error("Error fetching tenant_admin role:", roleError);
     return NextResponse.json(
-      { ok: false, message: "ロールが見つかりません。" },
+      { ok: false, message: "ロール(tenant_admin)が見つかりません。" },
       { status: 500 },
     );
   }
 
-  const { error: userRolesError } = await adminClient
-    .from("user_roles")
-    .insert({
+  // 4.1. general_user ロールも取得 (テナント管理者は一般ユーザ機能も利用するため)
+  const { data: generalUserRole, error: generalRoleError } = await adminClient
+    .from("roles")
+    .select("id")
+    .eq("role_key", "general_user")
+    .maybeSingle();
+
+  if (generalRoleError || !generalUserRole) {
+    console.error("Error fetching general_user role:", generalRoleError);
+    return NextResponse.json(
+      { ok: false, message: "ロール(general_user)が見つかりません。" },
+      { status: 500 },
+    );
+  }
+
+  // ロール付与 (tenant_admin と general_user)
+  const rolesToInsert = [
+    {
       user_id: targetUserId,
       tenant_id: tenantId,
       role_id: tenantAdminRole.id,
-    });
+    },
+    {
+      user_id: targetUserId,
+      tenant_id: tenantId,
+      role_id: generalUserRole.id,
+    },
+  ];
+
+  // Use upsert instead of insert to handle duplicates gracefully
+  const { error: userRolesError } = await adminClient
+    .from("user_roles")
+    .upsert(rolesToInsert, { onConflict: "user_id, tenant_id, role_id" });
 
   if (userRolesError) {
-    const isDuplicateKeyError =
-      typeof (userRolesError as any).code === "string" &&
-      (userRolesError as any).code === "23505";
-
-    if (!isDuplicateKeyError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message:
-            "管理者ユーザの登録に失敗しました。時間をおいて再度お試しください。",
-        },
-        { status: 500 },
-      );
-    }
+    console.error("Error upserting user_roles:", userRolesError);
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `ロールの付与に失敗しました: ${userRolesError.message}`,
+      },
+      { status: 500 },
+    );
   }
 
   const message = createdNewUser

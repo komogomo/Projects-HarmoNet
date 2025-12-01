@@ -27,6 +27,28 @@ export async function GET(request: Request) {
                     .maybeSingle();
 
                 if (dbUser) {
+                    // 2.5. Check if redirecting to system admin pages
+                    if (next.startsWith("/sys-admin")) {
+                        // Check system admin role
+                        const { data: roles } = await adminClient
+                            .from("user_roles")
+                            .select("roles(scope, role_key)")
+                            .eq("user_id", dbUser.id);
+
+                        const isSystemAdmin =
+                            Array.isArray(roles) &&
+                            roles.some(
+                                (row: any) =>
+                                    row.roles?.scope === "system_admin" &&
+                                    row.roles?.role_key === "system_admin"
+                            );
+
+                        if (isSystemAdmin) {
+                            return NextResponse.redirect(`${requestUrl.origin}${next}`);
+                        }
+                        // If not system admin, fall through to normal tenant check or fail
+                    }
+
                     // 3. Get tenant memberships from user_tenants
                     // Assuming single tenant for now as per instruction
                     const { data: membership } = await adminClient
