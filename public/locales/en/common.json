@@ -89,6 +89,21 @@
       }
     }
   },
+  "facility": {
+    "top": {
+      "selectFacility": "Select facility",
+      "usageTimeLabel": "Hours",
+      "calendarTitle": "Select booking date",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "legend": {
+        "today": "Today",
+        "available": "Available",
+        "past": "Past days",
+        "weekend": "Weekends"
+      }
+    }
+  },
   "board": {
     "top": {
       "title": "Bulletin board",

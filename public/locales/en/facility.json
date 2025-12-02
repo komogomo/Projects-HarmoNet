@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "fee": "Fee: {{price}} JPY/time",
+    "payment": "Payment: Please deposit the fee into the collection box at the meeting room before use.",
+    "hours": "Hours: Generally from {{start}} to {{end}}",
+    "max_limit": "Limit: {{count}} times/month",
+    "alcohol": "Rules: Alcohol and smoking are prohibited in the meeting room. Exceptions for alcohol may be granted by the chairperson. Refer to the management bylaws for details.",
+    "reservation_method": "Reservation: Reservations via this website are required only for private use."
+  },
+  "labels": {
+    "purpose": "Purpose of Use",
+    "participant_count": "Number of Participants",
+    "equipment": "Equipment Use",
+    "notes": "Notes"
+  },
+  "top": {
+    "selectFacility": "Select facility",
+    "usageTimeLabel": "Hours",
+    "calendarTitle": "Select booking date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "legend": {
+      "today": "Today",
+      "available": "Available",
+      "past": "Past days",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "weekdays": {
+      "sun": "Sun.",
+      "mon": "Mon.",
+      "tue": "Tue.",
+      "wed": "Wed.",
+      "thu": "Thu.",
+      "fri": "Fri.",
+      "sat": "Sat."
+    },
+    "facilityName": {
+      "room": "Community room",
+      "parking": "Guest parking"
+    }
+  }
+}

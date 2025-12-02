@@ -558,6 +558,7 @@ model facility_settings {
   available_from_time     String   @default("09:00")
   available_to_time       String   @default("19:00")
   monthly_limit           Int?
+  cancel_restriction_days Int      @default(1) // キャンセル可能期限（X日前まで）
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 

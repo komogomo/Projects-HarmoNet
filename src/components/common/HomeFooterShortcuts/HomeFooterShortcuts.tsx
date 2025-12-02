@@ -37,7 +37,7 @@ const SHORTCUT_ITEMS: ShortcutItem[] = [
   {
     key: "facility",
     labelKey: "nav.facility",
-    href: "",
+    href: "/facilities",
     Icon: Calendar,
   },
   {

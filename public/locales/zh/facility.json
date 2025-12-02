@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "fee": "使用费: {{price}}日元/次",
+    "payment": "支付方式: 请在使用前将费用投入集会所的收款箱。",
+    "hours": "使用时间: 原则上从 {{start}} 到 {{end}}",
+    "max_limit": "最大使用次数: {{count}}次/月",
+    "alcohol": "遵守事项: 集会所内原则上禁止饮酒和吸烟。饮酒需经理事长批准。详情请参阅管理规约细则。",
+    "reservation_method": "预约方法: 仅限包场使用时，需通过本网站进行预约。"
+  },
+  "labels": {
+    "purpose": "使用目的",
+    "participant_count": "参加人数",
+    "equipment": "设备使用",
+    "notes": "备注"
+  },
+  "top": {
+    "selectFacility": "选择设施",
+    "usageTimeLabel": "使用时间",
+    "calendarTitle": "选择预约日期",
+    "prevMonth": "上个月",
+    "nextMonth": "下个月",
+    "legend": {
+      "today": "今天",
+      "available": "可预约",
+      "past": "过去日期",
+      "saturday": "周六",
+      "sunday": "周日"
+    },
+    "weekdays": {
+      "sun": "周日",
+      "mon": "周一",
+      "tue": "周二",
+      "wed": "周三",
+      "thu": "周四",
+      "fri": "周五",
+      "sat": "周六"
+    },
+    "facilityName": {
+      "room": "会议室",
+      "parking": "访客停车位"
+    }
+  }
+}

@@ -86,6 +86,16 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
       };
     }
 
+    if (tile.featureKey === 'FACILITY') {
+      return {
+        ...tile,
+        isEnabled: true,
+        onClick: () => {
+          router.push('/facilities');
+        },
+      };
+    }
+
     if (tile.featureKey === 'RULES') {
       return {
         ...tile,

@@ -89,6 +89,21 @@
       }
     }
   },
+  "facility": {
+    "top": {
+      "selectFacility": "选择设施",
+      "usageTimeLabel": "使用时间",
+      "calendarTitle": "选择预约日期",
+      "prevMonth": "上个月",
+      "nextMonth": "下个月",
+      "legend": {
+        "today": "今天",
+        "available": "可预约",
+        "past": "过去日期",
+        "weekend": "周末"
+      }
+    }
+  },
   "board": {
     "top": {
       "title": "公告栏",

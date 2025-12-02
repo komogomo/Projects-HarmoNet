@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "fee": "使用料: {{price}}円/回",
+    "payment": "支払方法: 使用前に集会所備え付けの集金ボックスに入金",
+    "hours": "使用時間: 原則 {{start}} より {{end}} まで",
+    "max_limit": "最大使用回数: {{count}}回/月",
+    "alcohol": "遵守事項: 集会所では原則飲酒、喫煙をしないこと。ただし、飲酒については理事長が認めた場合はその限りではない。その他規定は管理規約使用細則を参照。",
+    "reservation_method": "予約方法: 貸切での利用に限り、居住者用ホームページ（本サイト）上での予約が必要。"
+  },
+  "labels": {
+    "purpose": "使用目的",
+    "participant_count": "参加人数",
+    "equipment": "備品利用",
+    "notes": "特記事項",
+    "vehicle_number": "車両ナンバー",
+    "vehicle_model": "車種"
+  },
+  "top": {
+    "selectFacility": "施設を選択",
+    "usageTimeLabel": "利用時間",
+    "calendarTitle": "予約日を選択",
+    "prevMonth": "先月",
+    "nextMonth": "次月",
+    "legend": {
+      "today": "本日",
+      "available": "予約可能",
+      "past": "過去日",
+      "saturday": "土曜",
+      "sunday": "日曜"
+    },
+    "weekdays": {
+      "sun": "日",
+      "mon": "月",
+      "tue": "火",
+      "wed": "水",
+      "thu": "木",
+      "fri": "金",
+      "sat": "土"
+    },
+    "facilityName": {
+      "room": "集会室",
+      "parking": "ゲスト用駐車場"
+    }
+  }
+}

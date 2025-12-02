@@ -84,6 +84,44 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     // --- 0. Delete Application Data (Board, Announcements, Facilities, Logs, etc.) ---
 
+    // Storage Data (board-attachments)
+    const storageBucket = adminClient.storage.from("board-attachments");
+    const tenantFolder = `tenant-${tenantId}`;
+
+    try {
+      let hasMore = true;
+      while (hasMore) {
+        const { data: files, error: listError } = await storageBucket.list(tenantFolder, {
+          limit: 100,
+        });
+
+        if (listError) {
+          console.error("Error listing storage files:", listError);
+          break;
+        }
+
+        if (!files || files.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        const pathsToDelete = files.map((file) => `${tenantFolder}/${file.name}`);
+        const { error: removeError } = await storageBucket.remove(pathsToDelete);
+
+        if (removeError) {
+          console.error("Error removing storage files:", removeError);
+          break;
+        }
+
+        if (files.length < 100) {
+          hasMore = false;
+        }
+      }
+    } catch (storageError) {
+      console.error("Unexpected error during storage cleanup:", storageError);
+      // Continue with DB deletion even if storage cleanup fails
+    }
+
     // Board Data
     // board_posts deletion will cascade to comments, reactions, attachments, logs, favorites, translations
     const { error: postsError } = await adminClient
@@ -138,12 +176,6 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     // --- 1. Delete User Relations ---
 
-    // --- 1. Delete User Relations ---
-
-    // 0. Delete user_profiles
-    // user_profiles は users と tenants 両方に依存しているため、users削除前に削除します
-    await adminClient.from("user_profiles").delete().eq("tenant_id", tenantId);
-
     // 1. Delete user_roles associated with the tenant
     const { error: rolesError } = await adminClient
       .from("user_roles")
@@ -182,6 +214,13 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     if (usersToDelete && usersToDelete.length > 0) {
       const deleteAuthPromises = usersToDelete.map(async (user) => {
+        // Skip if user.id is not a valid UUID (e.g. legacy data or test data)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(user.id)) {
+          console.warn(`Skipping auth deletion for non-UUID user id: ${user.id}`);
+          return;
+        }
+
         const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
           user.id
         );

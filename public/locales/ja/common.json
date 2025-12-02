@@ -89,6 +89,21 @@
       }
     }
   },
+  "facility": {
+    "top": {
+      "selectFacility": "施設を選択",
+      "usageTimeLabel": "利用時間",
+      "calendarTitle": "予約日を選択",
+      "prevMonth": "前の月",
+      "nextMonth": "次の月",
+      "legend": {
+        "today": "本日",
+        "available": "予約可能日",
+        "past": "過去日",
+        "weekend": "土日"
+      }
+    }
+  },
   "board": {
     "top": {
       "title": "掲示板",

@@ -73,6 +73,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create Tenant Settings
+    const { error: settingsError } = await adminClient
+      .from("tenant_settings")
+      .insert({
+        id: randomUUID(),
+        tenant_id: data.id,
+        config_json: {
+          board: {
+            moderation: {
+              enabled: true,
+              level: 1,
+            },
+          },
+          facility: {
+            usageNotes: {},
+          },
+        },
+        default_language: "ja",
+        status: "active",
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
+
+    if (settingsError) {
+      console.error("Failed to create tenant settings:", settingsError);
+      // Rollback tenant
+      await adminClient.from("tenants").delete().eq("id", data.id);
+      return NextResponse.json(
+        { ok: false, message: "テナントの初期設定（設定情報作成）に失敗しました。" },
+        { status: 500 },
+      );
+    }
+
     const defaultCategories = [
       { id: randomUUID(), tenant_id: data.id, category_key: 'important', category_name: '重要なお知らせ', display_order: 1, status: 'active', updated_at: nowIso },
       { id: randomUUID(), tenant_id: data.id, category_key: 'circular', category_name: '回覧板', display_order: 2, status: 'active', updated_at: nowIso },
@@ -92,6 +125,28 @@ export async function POST(request: NextRequest) {
       await adminClient.from("tenants").delete().eq("id", data.id);
       return NextResponse.json(
         { ok: false, message: "テナントの初期設定（カテゴリ作成）に失敗しました。" },
+        { status: 500 },
+      );
+    }
+
+    // Create Default Shortcut Menu
+    const defaultShortcuts = [
+      { id: randomUUID(), tenant_id: data.id, feature_key: 'home', label_key: 'nav.home', icon: 'Home', display_order: 1, enabled: true, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, feature_key: 'board', label_key: 'nav.board', icon: 'MessageSquare', display_order: 2, enabled: true, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, feature_key: 'facility', label_key: 'nav.facility', icon: 'Calendar', display_order: 3, enabled: true, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, feature_key: 'mypage', label_key: 'nav.mypage', icon: 'User', display_order: 4, enabled: true, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, feature_key: 'logout', label_key: 'nav.logout', icon: 'LogOut', display_order: 5, enabled: true, status: 'active', updated_at: nowIso },
+    ];
+
+    const { error: shortcutError } = await adminClient
+      .from("tenant_shortcut_menu")
+      .insert(defaultShortcuts);
+
+    if (shortcutError) {
+      console.error("Failed to create default shortcuts:", shortcutError);
+      await adminClient.from("tenants").delete().eq("id", data.id);
+      return NextResponse.json(
+        { ok: false, message: "テナントの初期設定（ショートカット作成）に失敗しました。" },
         { status: 500 },
       );
     }
