@@ -73,6 +73,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const defaultCategories = [
+      { id: randomUUID(), tenant_id: data.id, category_key: 'important', category_name: '重要なお知らせ', display_order: 1, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'circular', category_name: '回覧板', display_order: 2, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'event', category_name: 'イベント', display_order: 3, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'rules', category_name: 'ルール・規約', display_order: 4, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'question', category_name: '質問', display_order: 5, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'request', category_name: '要望', display_order: 6, status: 'active', updated_at: nowIso },
+      { id: randomUUID(), tenant_id: data.id, category_key: 'other', category_name: 'その他', display_order: 7, status: 'active', updated_at: nowIso },
+    ];
+
+    const { error: categoryError } = await adminClient
+      .from("board_categories")
+      .insert(defaultCategories);
+
+    if (categoryError) {
+      console.error("Failed to create default categories:", categoryError);
+      await adminClient.from("tenants").delete().eq("id", data.id);
+      return NextResponse.json(
+        { ok: false, message: "テナントの初期設定（カテゴリ作成）に失敗しました。" },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({ ok: true, tenantId: data.id });
   } catch (error) {
     if (error instanceof SystemAdminApiError) {

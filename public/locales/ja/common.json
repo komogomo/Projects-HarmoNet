@@ -191,6 +191,7 @@
       "i18n": {
         "translate": "翻訳",
         "translateButton": "翻訳を表示",
+        "translating": "翻訳しています…",
         "viewOriginal": "原文で表示",
         "viewTranslated": "翻訳で表示",
         "error": "翻訳に失敗しました。"

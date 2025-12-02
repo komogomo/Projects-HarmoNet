@@ -79,13 +79,13 @@
         "label": "使用规则",
         "description": "查看管理规定和使用规则。"
       },
-      "notification": {
-        "label": "通知设置",
-        "description": "设置通知接收方式。"
+      "survey": {
+        "label": "问卷调查",
+        "description": "回答问卷。"
       },
-      "dummy": {
-        "label": "敬请期待",
-        "description": "此功能将在以后提供。"
+      "tenantAdmin": {
+        "label": "租户管理",
+        "description": "管理租户用户。"
       }
     }
   },
@@ -190,6 +190,7 @@
       },
       "i18n": {
         "translate": "显示译文",
+        "translateButton": "显示译文",
         "translating": "正在翻译...",
         "viewOriginal": "显示原文",
         "viewTranslated": "显示译文",
@@ -297,7 +298,8 @@
         },
         "attachment": {
           "invalidType": "部分所选文件格式不受支持。仅允许附加 PDF、Office 文件和 JPG/PNG 图片。",
-          "tooLarge": "部分文件大小超过 5MB 上限。"
+          "tooLarge": "部分文件大小超过 5MB 上限。",
+          "tooMany": "附件数量超过上限。每个帖子最多可附加 5 个文件。"
         },
         "summary": {
           "validation": "输入内容存在问题。请检查各项目下方的错误信息。",
@@ -327,6 +329,54 @@
           "content": "正文",
           "attachment": "附件"
         }
+      }
+    }
+  },
+  "tadmin": {
+    "users": {
+      "create": {
+        "success": "用户注册成功。"
+      },
+      "delete": {
+        "success": "用户删除成功。",
+        "confirm": "确定要删除此用户吗？"
+      },
+      "error": {
+        "validation": "请检查输入内容。",
+        "email": {
+          "required": "请输入电子邮件地址。",
+          "format": "电子邮件地址格式不正确。"
+        },
+        "name": {
+          "required": "请输入姓名和显示名称。"
+        },
+        "unauthorized": "请重新登录。",
+        "internal": "发生服务器错误。"
+      }
+    }
+  },
+  "sysadmin": {
+    "tenants": {
+      "save": {
+        "success": "租户信息已保存。"
+      },
+      "delete": {
+        "success": "租户已删除。"
+      },
+      "admin": {
+        "create": {
+          "success": "管理员用户注册成功。"
+        },
+        "update": {
+          "success": "管理员用户更新成功。"
+        },
+        "remove": {
+          "success": "管理员角色已解除。"
+        }
+      },
+      "error": {
+        "validation": "请检查输入内容。",
+        "internal": "发生服务器错误。请稍后重试。"
       }
     }
   }

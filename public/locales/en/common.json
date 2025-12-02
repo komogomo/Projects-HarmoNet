@@ -79,13 +79,13 @@
         "label": "Rules",
         "description": "View house rules and policies."
       },
-      "notification": {
-        "label": "Notification settings",
-        "description": "Configure how you receive notifications."
+      "survey": {
+        "label": "Survey",
+        "description": "Answer surveys."
       },
-      "dummy": {
-        "label": "Coming soon",
-        "description": "This feature will be available later."
+      "tenantAdmin": {
+        "label": "Tenant Admin",
+        "description": "Manage tenant users."
       }
     }
   },
@@ -190,6 +190,7 @@
       },
       "i18n": {
         "translate": "Translate",
+        "translateButton": "View translation",
         "translating": "Translating...",
         "viewOriginal": "View original",
         "viewTranslated": "View translation",
@@ -199,6 +200,11 @@
         "play": "Read aloud",
         "stop": "Stop",
         "error": "Failed to start text-to-speech."
+      },
+      "favorite": {
+        "add": "Add to favorites",
+        "remove": "Remove from favorites",
+        "error": "Failed to update favorites. Please try again later."
       },
       "pdf": {
         "close": "Close",
@@ -323,6 +329,54 @@
           "content": "Content",
           "attachment": "Attachments"
         }
+      }
+    }
+  },
+  "tadmin": {
+    "users": {
+      "create": {
+        "success": "User registered successfully."
+      },
+      "delete": {
+        "success": "User deleted successfully.",
+        "confirm": "Are you sure you want to delete this user?"
+      },
+      "error": {
+        "validation": "Please check your input.",
+        "email": {
+          "required": "Email address is required.",
+          "format": "Invalid email address format."
+        },
+        "name": {
+          "required": "Name and Display Name are required."
+        },
+        "unauthorized": "Please sign in again.",
+        "internal": "Server error occurred."
+      }
+    }
+  },
+  "sysadmin": {
+    "tenants": {
+      "save": {
+        "success": "Tenant information saved."
+      },
+      "delete": {
+        "success": "Tenant deleted."
+      },
+      "admin": {
+        "create": {
+          "success": "Admin user registered."
+        },
+        "update": {
+          "success": "Admin user updated."
+        },
+        "remove": {
+          "success": "Admin role removed from user."
+        }
+      },
+      "error": {
+        "validation": "Please check your input.",
+        "internal": "Server error occurred. Please try again later."
       }
     }
   }

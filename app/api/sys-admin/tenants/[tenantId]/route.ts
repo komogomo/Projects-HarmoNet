@@ -126,7 +126,23 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     await adminClient.from("tenant_shortcut_menu").delete().eq("tenant_id", tenantId);
     await adminClient.from("tenant_residents").delete().eq("tenant_id", tenantId);
 
+    // Cache & Notifications & Reactions
+    // board_reactions は board_posts の削除で Cascade されますが、念のため明示的に削除します
+    await adminClient.from("board_favorites").delete().eq("tenant_id", tenantId);
+    await adminClient.from("board_reactions").delete().eq("tenant_id", tenantId);
+
+    await adminClient.from("translation_cache").delete().eq("tenant_id", tenantId);
+    await adminClient.from("tts_cache").delete().eq("tenant_id", tenantId);
+    await adminClient.from("notifications").delete().eq("tenant_id", tenantId);
+    await adminClient.from("user_notification_settings").delete().eq("tenant_id", tenantId);
+
     // --- 1. Delete User Relations ---
+
+    // --- 1. Delete User Relations ---
+
+    // 0. Delete user_profiles
+    // user_profiles は users と tenants 両方に依存しているため、users削除前に削除します
+    await adminClient.from("user_profiles").delete().eq("tenant_id", tenantId);
 
     // 1. Delete user_roles associated with the tenant
     const { error: rolesError } = await adminClient

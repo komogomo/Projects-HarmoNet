@@ -162,6 +162,8 @@ model tenant_settings {
   status           status   @default(active)
 
   tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
 }
 
 /// 機能フラグ
@@ -175,6 +177,8 @@ model tenant_features {
   status      status   @default(active)
 
   tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@index([tenant_id])
 }
 
 // --- 2. Users / Auth ---
@@ -229,6 +233,8 @@ model tenant_residents {
   user   users?  @relation(fields: [user_id], references: [id])
 
   @@unique([tenant_id, residence_code])
+  @@index([tenant_id])
+  @@index([user_id])
 }
 
 /// ユーザーとテナントの所属関係
@@ -241,6 +247,7 @@ model user_tenants {
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
   @@id([user_id, tenant_id])
+  @@index([tenant_id])
 }
 
 /// ユーザーごとのロール割り当て
@@ -254,7 +261,9 @@ model user_roles {
   tenant tenants @relation(fields: [tenant_id], references: [id])
   role   roles   @relation(fields: [role_id], references: [id])
 
-  @@unique([user_id, tenant_id, role_id])
+  @@id([user_id, tenant_id, role_id])
+  @@index([tenant_id])
+  @@index([role_id])
 }
 
 // --- 3. Roles / Permissions ---
@@ -285,6 +294,7 @@ model role_inheritances {
   child  roles @relation("child", fields: [child_role_id], references: [id])
 
   @@id([parent_role_id, child_role_id])
+  @@index([child_role_id])
 }
 
 /// 権限マスタ
@@ -310,6 +320,7 @@ model role_permissions {
   permission permissions @relation(fields: [permission_id], references: [id])
 
   @@id([role_id, permission_id])
+  @@index([permission_id])
 }
 
 // --- 4. Board / Community ---
@@ -356,6 +367,10 @@ model board_posts {
   approval_logs board_approval_logs[]
   translations  board_post_translations[]
   favorites     board_favorites[]
+
+  @@index([tenant_id])
+  @@index([category_id])
+  @@index([author_id])
 }
 
 /// 投稿コメント
@@ -376,6 +391,10 @@ model board_comments {
   post                     board_posts                  @relation(fields: [post_id], references: [id], onDelete: Cascade)
   author                   users                        @relation(fields: [author_id], references: [id])
   boardCommentTranslations board_comment_translations[]
+
+  @@index([tenant_id])
+  @@index([post_id])
+  @@index([author_id])
 }
 
 /// 投稿リアクション
@@ -393,6 +412,9 @@ model board_reactions {
   user   users       @relation(fields: [user_id], references: [id])
 
   @@unique([post_id, user_id, reaction_type])
+  @@index([tenant_id])
+  @@index([post_id])
+  @@index([user_id])
 }
 
 /// 添付ファイル（PDFプレビュー対応）
@@ -409,6 +431,9 @@ model board_attachments {
   // Relations
   tenant tenants     @relation(fields: [tenant_id], references: [id])
   post   board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([post_id])
 }
 
 /// 承認履歴
@@ -425,6 +450,10 @@ model board_approval_logs {
   tenant   tenants     @relation(fields: [tenant_id], references: [id])
   post     board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
   approver users       @relation(fields: [approver_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([post_id])
+  @@index([approver_id])
 }
 
 /// 投稿記事のお気に入り
@@ -440,6 +469,9 @@ model board_favorites {
   post   board_posts @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, user_id, post_id])
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([post_id])
 }
 
 // --- 5. Announcements ---
@@ -460,6 +492,8 @@ model announcements {
   tenant  tenants                @relation(fields: [tenant_id], references: [id])
   reads   announcement_reads[]
   targets announcement_targets[]
+
+  @@index([tenant_id])
 }
 
 /// お知らせ既読管理
@@ -472,7 +506,8 @@ model announcement_reads {
   announcement announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
   user         users         @relation(fields: [user_id], references: [id])
 
-  @@unique([announcement_id, user_id])
+  @@id([announcement_id, user_id])
+  @@index([user_id])
 }
 
 /// お知らせ配信対象
@@ -484,6 +519,8 @@ model announcement_targets {
 
   // Relations
   announcement announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+
+  @@index([announcement_id])
 }
 
 // --- 6. Facilities / Reservations ---
@@ -503,6 +540,8 @@ model facilities {
   slots          facility_slots[]
   reservations   facility_reservations[]
   blocked_ranges facility_blocked_ranges[]
+
+  @@index([tenant_id])
 }
 
 /// 施設別の利用ルール設定
@@ -520,6 +559,8 @@ model facility_settings {
   // Relations
   tenant   tenants    @relation(fields: [tenant_id], references: [id])
   facility facilities @relation(fields: [facility_id], references: [id])
+
+  @@index([tenant_id])
 }
 
 /// 施設区画
@@ -535,6 +576,9 @@ model facility_slots {
   tenant       tenants                 @relation(fields: [tenant_id], references: [id])
   facility     facilities              @relation(fields: [facility_id], references: [id])
   reservations facility_reservations[]
+
+  @@index([tenant_id])
+  @@index([facility_id])
 }
 
 /// 施設予約
@@ -555,6 +599,11 @@ model facility_reservations {
   facility facilities      @relation(fields: [facility_id], references: [id])
   slot     facility_slots? @relation(fields: [slot_id], references: [id])
   user     users           @relation(fields: [user_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([facility_id])
+  @@index([slot_id])
+  @@index([user_id])
 }
 
 /// 予約不可期間
@@ -569,6 +618,9 @@ model facility_blocked_ranges {
   // Relations
   tenant   tenants    @relation(fields: [tenant_id], references: [id])
   facility facilities @relation(fields: [facility_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([facility_id])
 }
 
 // --- 7. Audit / Moderation ---
@@ -588,6 +640,9 @@ model audit_logs {
   // Relations
   tenant tenants @relation(fields: [tenant_id], references: [id])
   user   users   @relation(fields: [user_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([user_id])
 }
 
 /// AIモデレーションログ
@@ -606,6 +661,9 @@ model moderation_logs {
   // Relations
   tenant   tenants @relation(fields: [tenant_id], references: [id])
   reviewer users?  @relation(fields: [reviewed_by], references: [id])
+
+  @@index([tenant_id])
+  @@index([reviewed_by])
 }
 
 // --- 8. UI Configuration ---

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronsUpDown, TriangleAlert } from 'lucide-react';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { TenantAdminUserManagementProps, UserListItem, UserFormData } from './TenantAdminUserManagement.types';
 
@@ -679,26 +679,34 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                     onClick={handleCancelDelete}
                 >
                     <div
-                        className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+                        className="w-full max-w-md rounded-2xl border-2 border-red-500 bg-white/90 p-4 text-sm text-gray-700 shadow-lg"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <p className="mb-3 whitespace-pre-line">
-                            {t('tadmin.users.delete.confirm')}
-                        </p>
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2 text-red-600">
+                                <TriangleAlert className="h-5 w-5" strokeWidth={2.5} />
+                                <span className="text-lg font-bold text-gray-900">
+                                    {users.find(u => u.userId === deletingUserId)?.email}
+                                </span>
+                            </div>
+                            <p className="whitespace-pre-line">
+                                {t('tadmin.users.delete.confirm')}
+                            </p>
+                        </div>
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={handleCancelDelete}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50"
                             >
                                 キャンセル
                             </button>
                             <button
                                 type="button"
                                 onClick={handleConfirmDelete}
-                                className="font-semibold text-red-500 hover:text-red-600"
+                                className="rounded-lg border-2 border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
                             >
-                                OK
+                                削除
                             </button>
                         </div>
                     </div>
