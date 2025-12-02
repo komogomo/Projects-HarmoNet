@@ -531,6 +531,7 @@ model facilities {
   tenant_id     String
   facility_name String
   facility_type String
+  description   String? // 施設説明・備考
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
@@ -553,6 +554,10 @@ model facility_settings {
   fee_unit                fee_unit @default(day)
   max_consecutive_days    Int      @default(3)
   reservable_until_months Int      @default(1)
+  slot_duration_minutes   Int      @default(30)
+  available_from_time     String   @default("09:00")
+  available_to_time       String   @default("19:00")
+  monthly_limit           Int?
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
 
@@ -571,6 +576,7 @@ model facility_slots {
   slot_key    String
   slot_name   String
   status      facility_slot_status @default(active)
+  meta        Json?                // 座標データ { x: 10, y: 20, w: 5, h: 5 } 等
 
   // Relations
   tenant       tenants                 @relation(fields: [tenant_id], references: [id])
@@ -590,6 +596,9 @@ model facility_reservations {
   user_id     String
   start_at    DateTime
   end_at      DateTime
+  purpose           String?
+  participant_count Int?
+  meta              Json?
   status      reservation_status @default(pending)
   created_at  DateTime           @default(now())
   updated_at  DateTime           @updatedAt

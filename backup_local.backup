@@ -1,0 +1,2357 @@
+
+
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
+
+
+
+
+
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
+
+
+
+
+
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
+
+
+
+
+
+
+CREATE TYPE "public"."announcement_target_mode" AS ENUM (
+    'all',
+    'group',
+    'role',
+    'user'
+);
+
+
+ALTER TYPE "public"."announcement_target_mode" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."approval_action" AS ENUM (
+    'approve',
+    'reconsider'
+);
+
+
+ALTER TYPE "public"."approval_action" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."board_author_role" AS ENUM (
+    'management',
+    'general'
+);
+
+
+ALTER TYPE "public"."board_author_role" OWNER TO "supabase_admin";
+
+
+CREATE TYPE "public"."board_post_status" AS ENUM (
+    'draft',
+    'pending',
+    'published',
+    'archived'
+);
+
+
+ALTER TYPE "public"."board_post_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."board_reaction_type" AS ENUM (
+    'like',
+    'report',
+    'bookmark'
+);
+
+
+ALTER TYPE "public"."board_reaction_type" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."comment_status" AS ENUM (
+    'active',
+    'deleted'
+);
+
+
+ALTER TYPE "public"."comment_status" OWNER TO "supabase_admin";
+
+
+CREATE TYPE "public"."decision_source" AS ENUM (
+    'system',
+    'human'
+);
+
+
+ALTER TYPE "public"."decision_source" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."facility_slot_status" AS ENUM (
+    'active',
+    'inactive'
+);
+
+
+ALTER TYPE "public"."facility_slot_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."fee_unit" AS ENUM (
+    'day',
+    'hour'
+);
+
+
+ALTER TYPE "public"."fee_unit" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."moderation_decision" AS ENUM (
+    'allow',
+    'mask',
+    'block'
+);
+
+
+ALTER TYPE "public"."moderation_decision" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."reservation_status" AS ENUM (
+    'pending',
+    'confirmed',
+    'canceled'
+);
+
+
+ALTER TYPE "public"."reservation_status" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."role_scope" AS ENUM (
+    'system_admin',
+    'tenant_admin',
+    'general_user'
+);
+
+
+ALTER TYPE "public"."role_scope" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."shortcut_feature_key" AS ENUM (
+    'home',
+    'board',
+    'facility',
+    'mypage',
+    'logout'
+);
+
+
+ALTER TYPE "public"."shortcut_feature_key" OWNER TO "postgres";
+
+
+CREATE TYPE "public"."status" AS ENUM (
+    'active',
+    'inactive',
+    'archived'
+);
+
+
+ALTER TYPE "public"."status" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_auth_user"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'auth'
+    AS $$
+DECLARE
+  v_display_name text;
+BEGIN
+  v_display_name := COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.email);
+
+  BEGIN
+    INSERT INTO public.users (
+      id,
+      tenant_id,
+      email,
+      display_name,
+      language,
+      created_at,
+      updated_at,
+      status
+    )
+    VALUES (
+      NEW.id::text,
+      NULL,                    -- no tenant yet at auth-signup time
+      NEW.email,
+      v_display_name,
+      'ja',                    -- default language
+      now(),
+      now(),
+      'active'::status
+    )
+    ON CONFLICT (id) DO UPDATE
+      SET email        = EXCLUDED.email,
+          display_name = EXCLUDED.display_name;
+  EXCEPTION WHEN others THEN
+    -- Best-effort sync only; never break Auth flows because of app-side schema.
+    NULL;
+  END;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_auth_user"() OWNER TO "postgres";
+
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."announcement_reads" (
+    "announcement_id" "text" NOT NULL,
+    "user_id" "text" NOT NULL,
+    "read_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."announcement_reads" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."announcement_targets" (
+    "id" "text" NOT NULL,
+    "announcement_id" "text" NOT NULL,
+    "target_type" "text" NOT NULL,
+    "target_id" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."announcement_targets" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."announcements" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "title" "text" NOT NULL,
+    "content" "text" NOT NULL,
+    "target_mode" "public"."announcement_target_mode" DEFAULT 'all'::"public"."announcement_target_mode" NOT NULL,
+    "valid_from" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "valid_until" timestamp(3) without time zone,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."announcements" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."audit_logs" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "user_id" "text" NOT NULL,
+    "action_type" "text" NOT NULL,
+    "target_resource" "text" NOT NULL,
+    "target_id" "text",
+    "ip_address" "text" NOT NULL,
+    "user_agent" "text" NOT NULL,
+    "timestamp" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."audit_logs" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_approval_logs" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "approver_id" "text" NOT NULL,
+    "action" "public"."approval_action" NOT NULL,
+    "comment" "text" NOT NULL,
+    "acted_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."board_approval_logs" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_attachments" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "file_url" "text" NOT NULL,
+    "file_name" "text" NOT NULL,
+    "file_type" "text" NOT NULL,
+    "file_size" integer NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."board_attachments" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_categories" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "category_key" "text" NOT NULL,
+    "category_name" "text" NOT NULL,
+    "display_order" integer DEFAULT 0 NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."board_categories" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_comment_translations" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "comment_id" "text" NOT NULL,
+    "lang" "text" NOT NULL,
+    "content" "text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."board_comment_translations" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_comments" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "author_id" "text" NOT NULL,
+    "content" "text" NOT NULL,
+    "parent_comment_id" "text",
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."comment_status" DEFAULT 'active'::"public"."comment_status" NOT NULL,
+    "author_display_name" character varying(100)
+);
+
+
+ALTER TABLE "public"."board_comments" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_favorites" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "user_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."board_favorites" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_post_translations" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "lang" "text" NOT NULL,
+    "title" "text",
+    "content" "text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."board_post_translations" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_posts" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "category_id" "text" NOT NULL,
+    "author_id" "text" NOT NULL,
+    "title" "text" NOT NULL,
+    "content" "text" NOT NULL,
+    "status" "public"."board_post_status" DEFAULT 'draft'::"public"."board_post_status" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "author_display_name" "text",
+    "author_role" "public"."board_author_role" DEFAULT 'general'::"public"."board_author_role" NOT NULL
+);
+
+
+ALTER TABLE "public"."board_posts" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."board_reactions" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "post_id" "text" NOT NULL,
+    "user_id" "text" NOT NULL,
+    "reaction_type" "public"."board_reaction_type" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."board_reactions" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."facilities" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "facility_name" "text" NOT NULL,
+    "facility_type" "text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."facilities" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."facility_blocked_ranges" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "facility_id" "text" NOT NULL,
+    "start_at" timestamp(3) without time zone NOT NULL,
+    "end_at" timestamp(3) without time zone NOT NULL,
+    "reason" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."facility_blocked_ranges" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."facility_reservations" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "facility_id" "text" NOT NULL,
+    "slot_id" "text",
+    "user_id" "text" NOT NULL,
+    "start_at" timestamp(3) without time zone NOT NULL,
+    "end_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."reservation_status" DEFAULT 'pending'::"public"."reservation_status" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."facility_reservations" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."facility_settings" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "facility_id" "text" NOT NULL,
+    "fee_per_day" numeric(8,2),
+    "fee_unit" "public"."fee_unit" DEFAULT 'day'::"public"."fee_unit" NOT NULL,
+    "max_consecutive_days" integer DEFAULT 3 NOT NULL,
+    "reservable_until_months" integer DEFAULT 1 NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."facility_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."facility_slots" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "facility_id" "text" NOT NULL,
+    "slot_key" "text" NOT NULL,
+    "slot_name" "text" NOT NULL,
+    "status" "public"."facility_slot_status" DEFAULT 'active'::"public"."facility_slot_status" NOT NULL
+);
+
+
+ALTER TABLE "public"."facility_slots" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."moderation_logs" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "content_type" "text" NOT NULL,
+    "content_id" "text" NOT NULL,
+    "ai_score" numeric(5,2) NOT NULL,
+    "flagged_reason" "text" NOT NULL,
+    "decision" "public"."moderation_decision" DEFAULT 'allow'::"public"."moderation_decision" NOT NULL,
+    "decided_by" "public"."decision_source" DEFAULT 'system'::"public"."decision_source" NOT NULL,
+    "decided_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "reviewed_by" "text"
+);
+
+
+ALTER TABLE "public"."moderation_logs" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."permissions" (
+    "id" "text" NOT NULL,
+    "permission_key" "text" NOT NULL,
+    "resource" "text" NOT NULL,
+    "action" "text" NOT NULL,
+    "description" "text",
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."permissions" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."role_inheritances" (
+    "parent_role_id" "text" NOT NULL,
+    "child_role_id" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."role_inheritances" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."role_permissions" (
+    "role_id" "text" NOT NULL,
+    "permission_id" "text" NOT NULL
+);
+
+
+ALTER TABLE "public"."role_permissions" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."roles" (
+    "id" "text" NOT NULL,
+    "role_key" "text" NOT NULL,
+    "name" "text" NOT NULL,
+    "scope" "public"."role_scope" NOT NULL,
+    "permissions_ref" "text",
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE "public"."roles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tenant_features" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "feature_key" "text" NOT NULL,
+    "enabled" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."tenant_features" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tenant_residents" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "user_id" "text",
+    "residence_code" "text" NOT NULL,
+    "real_name" "text" NOT NULL,
+    "real_name_kana" "text" NOT NULL,
+    "phone_number" "text",
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."tenant_residents" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tenant_settings" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "config_json" "jsonb" NOT NULL,
+    "default_language" "text" DEFAULT 'ja'::"text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."tenant_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tenant_shortcut_menu" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "feature_key" "public"."shortcut_feature_key" NOT NULL,
+    "label_key" "text" NOT NULL,
+    "icon" "text" NOT NULL,
+    "display_order" integer NOT NULL,
+    "enabled" boolean DEFAULT true NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."tenant_shortcut_menu" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tenants" (
+    "id" "text" NOT NULL,
+    "tenant_code" "text" NOT NULL,
+    "tenant_name" "text" NOT NULL,
+    "timezone" "text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "status" "public"."status" DEFAULT 'active'::"public"."status" NOT NULL
+);
+
+
+ALTER TABLE "public"."tenants" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_roles" (
+    "user_id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "role_id" "text" NOT NULL,
+    "assigned_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE "public"."user_roles" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."user_tenants" (
+    "user_id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "board_last_seen_at" timestamp(3) without time zone
+);
+
+
+ALTER TABLE "public"."user_tenants" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."users" (
+    "id" "text" NOT NULL,
+    "tenant_id" "text" NOT NULL,
+    "email" "text" NOT NULL,
+    "display_name" "text" NOT NULL,
+    "language" "text" DEFAULT 'JA'::"text" NOT NULL,
+    "created_at" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "full_name" "text" DEFAULT ''::"text" NOT NULL,
+    "full_name_kana" "text",
+    "group_code" character varying(32) DEFAULT ''::character varying NOT NULL,
+    "residence_code" character varying(32) DEFAULT ''::character varying NOT NULL,
+    "phone_number" character varying(32),
+    "note" "text"
+);
+
+
+ALTER TABLE "public"."users" OWNER TO "postgres";
+
+
+ALTER TABLE ONLY "public"."announcement_reads"
+    ADD CONSTRAINT "announcement_reads_pkey" PRIMARY KEY ("announcement_id", "user_id");
+
+
+
+ALTER TABLE ONLY "public"."announcement_targets"
+    ADD CONSTRAINT "announcement_targets_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."announcements"
+    ADD CONSTRAINT "announcements_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."audit_logs"
+    ADD CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_approval_logs"
+    ADD CONSTRAINT "board_approval_logs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_attachments"
+    ADD CONSTRAINT "board_attachments_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_categories"
+    ADD CONSTRAINT "board_categories_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_comment_translations"
+    ADD CONSTRAINT "board_comment_translations_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_comments"
+    ADD CONSTRAINT "board_comments_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_favorites"
+    ADD CONSTRAINT "board_favorites_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_post_translations"
+    ADD CONSTRAINT "board_post_translations_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_posts"
+    ADD CONSTRAINT "board_posts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."board_reactions"
+    ADD CONSTRAINT "board_reactions_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."facilities"
+    ADD CONSTRAINT "facilities_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."facility_blocked_ranges"
+    ADD CONSTRAINT "facility_blocked_ranges_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."facility_reservations"
+    ADD CONSTRAINT "facility_reservations_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."facility_settings"
+    ADD CONSTRAINT "facility_settings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."facility_slots"
+    ADD CONSTRAINT "facility_slots_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."moderation_logs"
+    ADD CONSTRAINT "moderation_logs_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."permissions"
+    ADD CONSTRAINT "permissions_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."role_inheritances"
+    ADD CONSTRAINT "role_inheritances_pkey" PRIMARY KEY ("parent_role_id", "child_role_id");
+
+
+
+ALTER TABLE ONLY "public"."role_permissions"
+    ADD CONSTRAINT "role_permissions_pkey" PRIMARY KEY ("role_id", "permission_id");
+
+
+
+ALTER TABLE ONLY "public"."roles"
+    ADD CONSTRAINT "roles_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tenant_features"
+    ADD CONSTRAINT "tenant_features_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tenant_residents"
+    ADD CONSTRAINT "tenant_residents_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tenant_settings"
+    ADD CONSTRAINT "tenant_settings_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tenant_shortcut_menu"
+    ADD CONSTRAINT "tenant_shortcut_menu_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tenants"
+    ADD CONSTRAINT "tenants_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_pkey" PRIMARY KEY ("user_id", "tenant_id", "role_id");
+
+
+
+ALTER TABLE ONLY "public"."user_tenants"
+    ADD CONSTRAINT "user_tenants_pkey" PRIMARY KEY ("user_id", "tenant_id");
+
+
+
+ALTER TABLE ONLY "public"."users"
+    ADD CONSTRAINT "users_display_name_key" UNIQUE ("display_name");
+
+
+
+ALTER TABLE ONLY "public"."users"
+    ADD CONSTRAINT "users_pkey" PRIMARY KEY ("id");
+
+
+
+CREATE INDEX "announcement_reads_user_id_idx" ON "public"."announcement_reads" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "announcement_targets_announcement_id_idx" ON "public"."announcement_targets" USING "btree" ("announcement_id");
+
+
+
+CREATE INDEX "announcements_tenant_id_idx" ON "public"."announcements" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "audit_logs_tenant_id_idx" ON "public"."audit_logs" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "audit_logs_user_id_idx" ON "public"."audit_logs" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "board_approval_logs_approver_id_idx" ON "public"."board_approval_logs" USING "btree" ("approver_id");
+
+
+
+CREATE INDEX "board_approval_logs_post_id_idx" ON "public"."board_approval_logs" USING "btree" ("post_id");
+
+
+
+CREATE INDEX "board_approval_logs_tenant_id_idx" ON "public"."board_approval_logs" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "board_attachments_post_id_idx" ON "public"."board_attachments" USING "btree" ("post_id");
+
+
+
+CREATE INDEX "board_attachments_tenant_id_idx" ON "public"."board_attachments" USING "btree" ("tenant_id");
+
+
+
+CREATE UNIQUE INDEX "board_categories_tenant_id_category_key_key" ON "public"."board_categories" USING "btree" ("tenant_id", "category_key");
+
+
+
+CREATE UNIQUE INDEX "board_comment_translations_comment_id_lang_key" ON "public"."board_comment_translations" USING "btree" ("comment_id", "lang");
+
+
+
+CREATE INDEX "board_comment_translations_tenant_id_lang_created_at_idx" ON "public"."board_comment_translations" USING "btree" ("tenant_id", "lang", "created_at");
+
+
+
+CREATE INDEX "board_comments_author_id_idx" ON "public"."board_comments" USING "btree" ("author_id");
+
+
+
+CREATE INDEX "board_comments_post_id_idx" ON "public"."board_comments" USING "btree" ("post_id");
+
+
+
+CREATE INDEX "board_comments_tenant_id_idx" ON "public"."board_comments" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "board_favorites_post_id_idx" ON "public"."board_favorites" USING "btree" ("post_id");
+
+
+
+CREATE INDEX "board_favorites_tenant_id_idx" ON "public"."board_favorites" USING "btree" ("tenant_id");
+
+
+
+CREATE UNIQUE INDEX "board_favorites_tenant_id_user_id_post_id_key" ON "public"."board_favorites" USING "btree" ("tenant_id", "user_id", "post_id");
+
+
+
+CREATE INDEX "board_favorites_user_id_idx" ON "public"."board_favorites" USING "btree" ("user_id");
+
+
+
+CREATE UNIQUE INDEX "board_post_translations_post_id_lang_key" ON "public"."board_post_translations" USING "btree" ("post_id", "lang");
+
+
+
+CREATE INDEX "board_post_translations_tenant_id_lang_created_at_idx" ON "public"."board_post_translations" USING "btree" ("tenant_id", "lang", "created_at");
+
+
+
+CREATE INDEX "board_posts_author_id_idx" ON "public"."board_posts" USING "btree" ("author_id");
+
+
+
+CREATE INDEX "board_posts_category_id_idx" ON "public"."board_posts" USING "btree" ("category_id");
+
+
+
+CREATE INDEX "board_posts_tenant_id_idx" ON "public"."board_posts" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "board_reactions_post_id_idx" ON "public"."board_reactions" USING "btree" ("post_id");
+
+
+
+CREATE UNIQUE INDEX "board_reactions_post_id_user_id_reaction_type_key" ON "public"."board_reactions" USING "btree" ("post_id", "user_id", "reaction_type");
+
+
+
+CREATE INDEX "board_reactions_tenant_id_idx" ON "public"."board_reactions" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "board_reactions_user_id_idx" ON "public"."board_reactions" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "facilities_tenant_id_idx" ON "public"."facilities" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "facility_blocked_ranges_facility_id_idx" ON "public"."facility_blocked_ranges" USING "btree" ("facility_id");
+
+
+
+CREATE INDEX "facility_blocked_ranges_tenant_id_idx" ON "public"."facility_blocked_ranges" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "facility_reservations_facility_id_idx" ON "public"."facility_reservations" USING "btree" ("facility_id");
+
+
+
+CREATE INDEX "facility_reservations_slot_id_idx" ON "public"."facility_reservations" USING "btree" ("slot_id");
+
+
+
+CREATE INDEX "facility_reservations_tenant_id_idx" ON "public"."facility_reservations" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "facility_reservations_user_id_idx" ON "public"."facility_reservations" USING "btree" ("user_id");
+
+
+
+CREATE UNIQUE INDEX "facility_settings_facility_id_key" ON "public"."facility_settings" USING "btree" ("facility_id");
+
+
+
+CREATE INDEX "facility_settings_tenant_id_idx" ON "public"."facility_settings" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "facility_slots_facility_id_idx" ON "public"."facility_slots" USING "btree" ("facility_id");
+
+
+
+CREATE INDEX "facility_slots_tenant_id_idx" ON "public"."facility_slots" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "idx_users_tenant_id" ON "public"."users" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "moderation_logs_reviewed_by_idx" ON "public"."moderation_logs" USING "btree" ("reviewed_by");
+
+
+
+CREATE INDEX "moderation_logs_tenant_id_idx" ON "public"."moderation_logs" USING "btree" ("tenant_id");
+
+
+
+CREATE UNIQUE INDEX "permissions_permission_key_key" ON "public"."permissions" USING "btree" ("permission_key");
+
+
+
+CREATE INDEX "role_inheritances_child_role_id_idx" ON "public"."role_inheritances" USING "btree" ("child_role_id");
+
+
+
+CREATE INDEX "role_permissions_permission_id_idx" ON "public"."role_permissions" USING "btree" ("permission_id");
+
+
+
+CREATE UNIQUE INDEX "roles_role_key_key" ON "public"."roles" USING "btree" ("role_key");
+
+
+
+CREATE INDEX "tenant_features_tenant_id_idx" ON "public"."tenant_features" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "tenant_residents_tenant_id_idx" ON "public"."tenant_residents" USING "btree" ("tenant_id");
+
+
+
+CREATE UNIQUE INDEX "tenant_residents_tenant_id_residence_code_key" ON "public"."tenant_residents" USING "btree" ("tenant_id", "residence_code");
+
+
+
+CREATE INDEX "tenant_residents_user_id_idx" ON "public"."tenant_residents" USING "btree" ("user_id");
+
+
+
+CREATE INDEX "tenant_settings_tenant_id_idx" ON "public"."tenant_settings" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "tenant_shortcut_menu_tenant_id_display_order_idx" ON "public"."tenant_shortcut_menu" USING "btree" ("tenant_id", "display_order");
+
+
+
+CREATE UNIQUE INDEX "tenant_shortcut_menu_tenant_id_feature_key_key" ON "public"."tenant_shortcut_menu" USING "btree" ("tenant_id", "feature_key");
+
+
+
+CREATE UNIQUE INDEX "tenants_tenant_code_key" ON "public"."tenants" USING "btree" ("tenant_code");
+
+
+
+CREATE INDEX "user_roles_role_id_idx" ON "public"."user_roles" USING "btree" ("role_id");
+
+
+
+CREATE INDEX "user_roles_tenant_id_idx" ON "public"."user_roles" USING "btree" ("tenant_id");
+
+
+
+CREATE INDEX "user_tenants_tenant_id_idx" ON "public"."user_tenants" USING "btree" ("tenant_id");
+
+
+
+CREATE UNIQUE INDEX "users_email_key" ON "public"."users" USING "btree" ("email");
+
+
+
+ALTER TABLE ONLY "public"."announcement_reads"
+    ADD CONSTRAINT "announcement_reads_announcement_id_fkey" FOREIGN KEY ("announcement_id") REFERENCES "public"."announcements"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."announcement_reads"
+    ADD CONSTRAINT "announcement_reads_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."announcement_targets"
+    ADD CONSTRAINT "announcement_targets_announcement_id_fkey" FOREIGN KEY ("announcement_id") REFERENCES "public"."announcements"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."announcements"
+    ADD CONSTRAINT "announcements_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."audit_logs"
+    ADD CONSTRAINT "audit_logs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."audit_logs"
+    ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_approval_logs"
+    ADD CONSTRAINT "board_approval_logs_approver_id_fkey" FOREIGN KEY ("approver_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_approval_logs"
+    ADD CONSTRAINT "board_approval_logs_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_approval_logs"
+    ADD CONSTRAINT "board_approval_logs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_attachments"
+    ADD CONSTRAINT "board_attachments_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_attachments"
+    ADD CONSTRAINT "board_attachments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_categories"
+    ADD CONSTRAINT "board_categories_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_comment_translations"
+    ADD CONSTRAINT "board_comment_translations_comment_id_fkey" FOREIGN KEY ("comment_id") REFERENCES "public"."board_comments"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_comment_translations"
+    ADD CONSTRAINT "board_comment_translations_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_comments"
+    ADD CONSTRAINT "board_comments_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_comments"
+    ADD CONSTRAINT "board_comments_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_comments"
+    ADD CONSTRAINT "board_comments_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_favorites"
+    ADD CONSTRAINT "board_favorites_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_favorites"
+    ADD CONSTRAINT "board_favorites_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_favorites"
+    ADD CONSTRAINT "board_favorites_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_post_translations"
+    ADD CONSTRAINT "board_post_translations_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_post_translations"
+    ADD CONSTRAINT "board_post_translations_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_posts"
+    ADD CONSTRAINT "board_posts_author_id_fkey" FOREIGN KEY ("author_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_posts"
+    ADD CONSTRAINT "board_posts_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "public"."board_categories"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_posts"
+    ADD CONSTRAINT "board_posts_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_reactions"
+    ADD CONSTRAINT "board_reactions_post_id_fkey" FOREIGN KEY ("post_id") REFERENCES "public"."board_posts"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."board_reactions"
+    ADD CONSTRAINT "board_reactions_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."board_reactions"
+    ADD CONSTRAINT "board_reactions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facilities"
+    ADD CONSTRAINT "facilities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_blocked_ranges"
+    ADD CONSTRAINT "facility_blocked_ranges_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_blocked_ranges"
+    ADD CONSTRAINT "facility_blocked_ranges_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_reservations"
+    ADD CONSTRAINT "facility_reservations_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_reservations"
+    ADD CONSTRAINT "facility_reservations_slot_id_fkey" FOREIGN KEY ("slot_id") REFERENCES "public"."facility_slots"("id") ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."facility_reservations"
+    ADD CONSTRAINT "facility_reservations_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_reservations"
+    ADD CONSTRAINT "facility_reservations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_settings"
+    ADD CONSTRAINT "facility_settings_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_settings"
+    ADD CONSTRAINT "facility_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_slots"
+    ADD CONSTRAINT "facility_slots_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."facility_slots"
+    ADD CONSTRAINT "facility_slots_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."moderation_logs"
+    ADD CONSTRAINT "moderation_logs_reviewed_by_fkey" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."moderation_logs"
+    ADD CONSTRAINT "moderation_logs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."role_inheritances"
+    ADD CONSTRAINT "role_inheritances_child_role_id_fkey" FOREIGN KEY ("child_role_id") REFERENCES "public"."roles"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."role_inheritances"
+    ADD CONSTRAINT "role_inheritances_parent_role_id_fkey" FOREIGN KEY ("parent_role_id") REFERENCES "public"."roles"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."role_permissions"
+    ADD CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "public"."permissions"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."role_permissions"
+    ADD CONSTRAINT "role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."tenant_features"
+    ADD CONSTRAINT "tenant_features_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."tenant_residents"
+    ADD CONSTRAINT "tenant_residents_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."tenant_residents"
+    ADD CONSTRAINT "tenant_residents_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."tenant_settings"
+    ADD CONSTRAINT "tenant_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."tenant_shortcut_menu"
+    ADD CONSTRAINT "tenant_shortcut_menu_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."user_roles"
+    ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."user_tenants"
+    ADD CONSTRAINT "user_tenants_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."user_tenants"
+    ADD CONSTRAINT "user_tenants_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+ALTER TABLE ONLY "public"."users"
+    ADD CONSTRAINT "users_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+
+CREATE POLICY "Users can create their own favorites" ON "public"."board_favorites" FOR INSERT WITH CHECK (((( SELECT "auth"."uid"() AS "uid"))::"text" = "user_id"));
+
+
+
+CREATE POLICY "Users can delete their own favorites" ON "public"."board_favorites" FOR DELETE USING (((( SELECT "auth"."uid"() AS "uid"))::"text" = "user_id"));
+
+
+
+CREATE POLICY "Users can view their own favorites" ON "public"."board_favorites" FOR SELECT USING (((( SELECT "auth"."uid"() AS "uid"))::"text" = "user_id"));
+
+
+
+ALTER TABLE "public"."announcement_reads" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "announcement_reads_insert" ON "public"."announcement_reads" FOR INSERT WITH CHECK (("user_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'sub'::"text")));
+
+
+
+CREATE POLICY "announcement_reads_select" ON "public"."announcement_reads" FOR SELECT USING (("user_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'sub'::"text")));
+
+
+
+ALTER TABLE "public"."announcement_targets" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "announcement_targets_modify_admin_delete" ON "public"."announcement_targets" FOR DELETE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'tenant_admin'::"text"])));
+
+
+
+CREATE POLICY "announcement_targets_modify_admin_insert" ON "public"."announcement_targets" FOR INSERT WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'tenant_admin'::"text"])));
+
+
+
+CREATE POLICY "announcement_targets_modify_admin_update" ON "public"."announcement_targets" FOR UPDATE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'tenant_admin'::"text"]))) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = ANY (ARRAY['system_admin'::"text", 'tenant_admin'::"text"])));
+
+
+
+CREATE POLICY "announcement_targets_select" ON "public"."announcement_targets" FOR SELECT USING (("announcement_id" IN ( SELECT "announcements"."id"
+   FROM "public"."announcements"
+  WHERE ("announcements"."tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")))));
+
+
+
+ALTER TABLE "public"."announcements" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "announcements_delete" ON "public"."announcements" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "announcements_insert" ON "public"."announcements" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "announcements_select" ON "public"."announcements" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "announcements_update" ON "public"."announcements" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."audit_logs" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "audit_logs_insert" ON "public"."audit_logs" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "audit_logs_select" ON "public"."audit_logs" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_approval_logs" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_approval_logs_insert" ON "public"."board_approval_logs" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_approval_logs_select" ON "public"."board_approval_logs" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_attachments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_attachments_delete" ON "public"."board_attachments" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_attachments_insert" ON "public"."board_attachments" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_attachments_select" ON "public"."board_attachments" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_attachments_update" ON "public"."board_attachments" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_categories" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_categories_delete" ON "public"."board_categories" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_categories_insert" ON "public"."board_categories" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_categories_select" ON "public"."board_categories" FOR SELECT USING (("tenant_id" IN ( SELECT "user_tenants"."tenant_id"
+   FROM "public"."user_tenants"
+  WHERE ("user_tenants"."user_id" = (( SELECT "auth"."uid"() AS "uid"))::"text"))));
+
+
+
+CREATE POLICY "board_categories_update" ON "public"."board_categories" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_comment_translations" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_comment_translations_delete" ON "public"."board_comment_translations" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_comment_translations_insert_authenticated" ON "public"."board_comment_translations" FOR INSERT TO "authenticated" WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_comment_translations_update_authenticated" ON "public"."board_comment_translations" FOR UPDATE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text"))) WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_comments" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_comments_delete" ON "public"."board_comments" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_comments_insert" ON "public"."board_comments" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_comments_select" ON "public"."board_comments" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_comments_update" ON "public"."board_comments" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_favorites" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."board_post_translations" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_post_translations_insert_authenticated" ON "public"."board_post_translations" FOR INSERT TO "authenticated" WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_post_translations_update_authenticated" ON "public"."board_post_translations" FOR UPDATE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text"))) WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_posts" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_posts_delete" ON "public"."board_posts" FOR DELETE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_posts_insert" ON "public"."board_posts" FOR INSERT TO "authenticated" WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_posts_select" ON "public"."board_posts" FOR SELECT TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_posts_update" ON "public"."board_posts" FOR UPDATE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."board_reactions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "board_reactions_delete" ON "public"."board_reactions" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_reactions_insert" ON "public"."board_reactions" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_reactions_select" ON "public"."board_reactions" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "board_reactions_update" ON "public"."board_reactions" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."facilities" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "facilities_delete" ON "public"."facilities" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facilities_insert" ON "public"."facilities" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facilities_select" ON "public"."facilities" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facilities_update" ON "public"."facilities" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."facility_blocked_ranges" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "facility_blocked_ranges_delete" ON "public"."facility_blocked_ranges" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_blocked_ranges_insert" ON "public"."facility_blocked_ranges" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_blocked_ranges_select" ON "public"."facility_blocked_ranges" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_blocked_ranges_update" ON "public"."facility_blocked_ranges" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."facility_reservations" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "facility_reservations_delete" ON "public"."facility_reservations" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_reservations_insert" ON "public"."facility_reservations" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_reservations_select" ON "public"."facility_reservations" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_reservations_update" ON "public"."facility_reservations" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."facility_settings" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "facility_settings_delete" ON "public"."facility_settings" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_settings_insert" ON "public"."facility_settings" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_settings_select" ON "public"."facility_settings" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_settings_update" ON "public"."facility_settings" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."facility_slots" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "facility_slots_delete" ON "public"."facility_slots" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_slots_insert" ON "public"."facility_slots" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_slots_select" ON "public"."facility_slots" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "facility_slots_update" ON "public"."facility_slots" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "insert_board_comment_translations_service" ON "public"."board_comment_translations" FOR INSERT TO "service_role" WITH CHECK (true);
+
+
+
+CREATE POLICY "insert_board_post_translations_service" ON "public"."board_post_translations" FOR INSERT TO "service_role" WITH CHECK (true);
+
+
+
+ALTER TABLE "public"."moderation_logs" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "moderation_logs_insert" ON "public"."moderation_logs" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "moderation_logs_select" ON "public"."moderation_logs" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "moderation_logs_update" ON "public"."moderation_logs" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."permissions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "permissions_modify_admin_only_delete" ON "public"."permissions" FOR DELETE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "permissions_modify_admin_only_insert" ON "public"."permissions" FOR INSERT WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "permissions_modify_admin_only_update" ON "public"."permissions" FOR UPDATE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "permissions_select_all" ON "public"."permissions" FOR SELECT USING (true);
+
+
+
+ALTER TABLE "public"."role_inheritances" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "role_inheritances_modify_admin_only_delete" ON "public"."role_inheritances" FOR DELETE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_inheritances_modify_admin_only_insert" ON "public"."role_inheritances" FOR INSERT WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_inheritances_modify_admin_only_update" ON "public"."role_inheritances" FOR UPDATE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_inheritances_select_all" ON "public"."role_inheritances" FOR SELECT USING (true);
+
+
+
+ALTER TABLE "public"."role_permissions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "role_permissions_modify_admin_only_delete" ON "public"."role_permissions" FOR DELETE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_permissions_modify_admin_only_insert" ON "public"."role_permissions" FOR INSERT WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_permissions_modify_admin_only_update" ON "public"."role_permissions" FOR UPDATE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "role_permissions_select_all" ON "public"."role_permissions" FOR SELECT USING (true);
+
+
+
+ALTER TABLE "public"."roles" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "roles_modify_admin_only_delete" ON "public"."roles" FOR DELETE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "roles_modify_admin_only_insert" ON "public"."roles" FOR INSERT WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "roles_modify_admin_only_update" ON "public"."roles" FOR UPDATE USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text")) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'role'::"text") = 'system_admin'::"text"));
+
+
+
+CREATE POLICY "roles_select_all" ON "public"."roles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "select_board_comment_translations_by_tenant" ON "public"."board_comment_translations" FOR SELECT TO "authenticated" USING (("tenant_id" = ((( SELECT "current_setting"('request.jwt.claims'::"text", true) AS "current_setting"))::json ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "select_board_post_translations_by_tenant" ON "public"."board_post_translations" FOR SELECT TO "authenticated" USING (("tenant_id" = ((( SELECT "current_setting"('request.jwt.claims'::"text", true) AS "current_setting"))::json ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."tenant_features" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "tenant_features_delete" ON "public"."tenant_features" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenant_features_insert" ON "public"."tenant_features" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenant_features_select" ON "public"."tenant_features" FOR SELECT USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenant_features_update" ON "public"."tenant_features" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."tenant_residents" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "tenant_residents_select_by_tenant" ON "public"."tenant_residents" FOR SELECT TO "authenticated" USING (("tenant_id" = ((( SELECT "current_setting"('request.jwt.claims'::"text", true) AS "current_setting"))::json ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."tenant_settings" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "tenant_settings_delete" ON "public"."tenant_settings" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenant_settings_insert" ON "public"."tenant_settings" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenant_settings_select_for_tenant_members" ON "public"."tenant_settings" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "tenant_settings_update" ON "public"."tenant_settings" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."tenant_shortcut_menu" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "tenant_shortcut_menu_delete" ON "public"."tenant_shortcut_menu" FOR DELETE TO "authenticated" USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text") = "tenant_id"));
+
+
+
+CREATE POLICY "tenant_shortcut_menu_insert" ON "public"."tenant_shortcut_menu" FOR INSERT TO "authenticated" WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text") = "tenant_id"));
+
+
+
+CREATE POLICY "tenant_shortcut_menu_select" ON "public"."tenant_shortcut_menu" FOR SELECT TO "authenticated" USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text") = "tenant_id"));
+
+
+
+CREATE POLICY "tenant_shortcut_menu_update" ON "public"."tenant_shortcut_menu" FOR UPDATE TO "authenticated" USING (((( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text") = "tenant_id")) WITH CHECK (((( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text") = "tenant_id"));
+
+
+
+ALTER TABLE "public"."tenants" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "tenants_delete" ON "public"."tenants" FOR DELETE USING (("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenants_insert" ON "public"."tenants" FOR INSERT WITH CHECK (("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenants_select" ON "public"."tenants" FOR SELECT USING (("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "tenants_update" ON "public"."tenants" FOR UPDATE USING (("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "update_board_comment_translations_service" ON "public"."board_comment_translations" FOR UPDATE TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+CREATE POLICY "update_board_post_translations_service" ON "public"."board_post_translations" FOR UPDATE TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+ALTER TABLE "public"."user_roles" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "user_roles_delete" ON "public"."user_roles" FOR DELETE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "user_roles_insert" ON "public"."user_roles" FOR INSERT WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "user_roles_select" ON "public"."user_roles" FOR SELECT TO "authenticated" USING (("user_id" = (( SELECT "auth"."uid"() AS "uid"))::"text"));
+
+
+
+CREATE POLICY "user_roles_update" ON "public"."user_roles" FOR UPDATE USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."user_tenants" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "user_tenants_delete" ON "public"."user_tenants" FOR DELETE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "user_tenants_insert" ON "public"."user_tenants" FOR INSERT TO "authenticated" WITH CHECK (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+CREATE POLICY "user_tenants_select" ON "public"."user_tenants" FOR SELECT TO "authenticated" USING ((("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")) OR ("user_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'sub'::"text"))));
+
+
+
+CREATE POLICY "user_tenants_update" ON "public"."user_tenants" FOR UPDATE TO "authenticated" USING (("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")));
+
+
+
+ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "users_insert" ON "public"."users" FOR INSERT WITH CHECK ((("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")) OR ("tenant_id" IS NULL)));
+
+
+
+CREATE POLICY "users_select" ON "public"."users" FOR SELECT USING ((("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")) OR ("tenant_id" IS NULL) OR ("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'sub'::"text"))));
+
+
+
+CREATE POLICY "users_update" ON "public"."users" FOR UPDATE USING ((("tenant_id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'tenant_id'::"text")) OR ("tenant_id" IS NULL) OR ("id" = (( SELECT "auth"."jwt"() AS "jwt") ->> 'sub'::"text"))));
+
+
+
+
+
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
+
+GRANT USAGE ON SCHEMA "public" TO "postgres";
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_auth_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_auth_user"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_auth_user"() TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON TABLE "public"."announcement_reads" TO "anon";
+GRANT ALL ON TABLE "public"."announcement_reads" TO "authenticated";
+GRANT ALL ON TABLE "public"."announcement_reads" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."announcement_targets" TO "anon";
+GRANT ALL ON TABLE "public"."announcement_targets" TO "authenticated";
+GRANT ALL ON TABLE "public"."announcement_targets" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."announcements" TO "anon";
+GRANT ALL ON TABLE "public"."announcements" TO "authenticated";
+GRANT ALL ON TABLE "public"."announcements" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."audit_logs" TO "anon";
+GRANT ALL ON TABLE "public"."audit_logs" TO "authenticated";
+GRANT ALL ON TABLE "public"."audit_logs" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_approval_logs" TO "anon";
+GRANT ALL ON TABLE "public"."board_approval_logs" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_approval_logs" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_attachments" TO "anon";
+GRANT ALL ON TABLE "public"."board_attachments" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_attachments" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_categories" TO "anon";
+GRANT ALL ON TABLE "public"."board_categories" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_categories" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_comment_translations" TO "anon";
+GRANT ALL ON TABLE "public"."board_comment_translations" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_comment_translations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_comments" TO "anon";
+GRANT ALL ON TABLE "public"."board_comments" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_comments" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_favorites" TO "anon";
+GRANT ALL ON TABLE "public"."board_favorites" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_favorites" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_post_translations" TO "anon";
+GRANT ALL ON TABLE "public"."board_post_translations" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_post_translations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_posts" TO "anon";
+GRANT ALL ON TABLE "public"."board_posts" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_posts" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."board_reactions" TO "anon";
+GRANT ALL ON TABLE "public"."board_reactions" TO "authenticated";
+GRANT ALL ON TABLE "public"."board_reactions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."facilities" TO "anon";
+GRANT ALL ON TABLE "public"."facilities" TO "authenticated";
+GRANT ALL ON TABLE "public"."facilities" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."facility_blocked_ranges" TO "anon";
+GRANT ALL ON TABLE "public"."facility_blocked_ranges" TO "authenticated";
+GRANT ALL ON TABLE "public"."facility_blocked_ranges" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."facility_reservations" TO "anon";
+GRANT ALL ON TABLE "public"."facility_reservations" TO "authenticated";
+GRANT ALL ON TABLE "public"."facility_reservations" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."facility_settings" TO "anon";
+GRANT ALL ON TABLE "public"."facility_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."facility_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."facility_slots" TO "anon";
+GRANT ALL ON TABLE "public"."facility_slots" TO "authenticated";
+GRANT ALL ON TABLE "public"."facility_slots" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."moderation_logs" TO "anon";
+GRANT ALL ON TABLE "public"."moderation_logs" TO "authenticated";
+GRANT ALL ON TABLE "public"."moderation_logs" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."permissions" TO "anon";
+GRANT ALL ON TABLE "public"."permissions" TO "authenticated";
+GRANT ALL ON TABLE "public"."permissions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."role_inheritances" TO "anon";
+GRANT ALL ON TABLE "public"."role_inheritances" TO "authenticated";
+GRANT ALL ON TABLE "public"."role_inheritances" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."role_permissions" TO "anon";
+GRANT ALL ON TABLE "public"."role_permissions" TO "authenticated";
+GRANT ALL ON TABLE "public"."role_permissions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."roles" TO "anon";
+GRANT ALL ON TABLE "public"."roles" TO "authenticated";
+GRANT ALL ON TABLE "public"."roles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tenant_features" TO "anon";
+GRANT ALL ON TABLE "public"."tenant_features" TO "authenticated";
+GRANT ALL ON TABLE "public"."tenant_features" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tenant_residents" TO "anon";
+GRANT ALL ON TABLE "public"."tenant_residents" TO "authenticated";
+GRANT ALL ON TABLE "public"."tenant_residents" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tenant_settings" TO "anon";
+GRANT ALL ON TABLE "public"."tenant_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."tenant_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tenant_shortcut_menu" TO "anon";
+GRANT ALL ON TABLE "public"."tenant_shortcut_menu" TO "authenticated";
+GRANT ALL ON TABLE "public"."tenant_shortcut_menu" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tenants" TO "anon";
+GRANT ALL ON TABLE "public"."tenants" TO "authenticated";
+GRANT ALL ON TABLE "public"."tenants" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_roles" TO "anon";
+GRANT ALL ON TABLE "public"."user_roles" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_roles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."user_tenants" TO "anon";
+GRANT ALL ON TABLE "public"."user_tenants" TO "authenticated";
+GRANT ALL ON TABLE "public"."user_tenants" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."users" TO "anon";
+GRANT ALL ON TABLE "public"."users" TO "authenticated";
+GRANT ALL ON TABLE "public"."users" TO "service_role";
+
+
+
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
