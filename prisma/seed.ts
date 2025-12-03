@@ -1,4 +1,7 @@
 import { PrismaClient } from '@prisma/client'
+import fs from 'fs'
+import path from 'path'
+
 const prisma = new PrismaClient()
 
 async function main() {
@@ -63,6 +66,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'ttakeda43+sysadmin@gmail.com',
       display_name: 'システム管理者（竹田）',
+      full_name: 'システム管理者（竹田）',
+      group_code: 'ADM',
+      residence_code: '000',
       language: 'ja',
     },
   })
@@ -94,6 +100,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'ttakeda43+admin@gmail.com',
       display_name: '管理組合理事長',
+      full_name: '管理組合理事長',
+      group_code: 'A-1',
+      residence_code: '101',
       language: 'ja',
     },
   })
@@ -125,6 +134,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'ttakeda43@gmail.com',
       display_name: '認証テストユーザー（竹田）',
+      full_name: '認証テストユーザー（竹田）',
+      group_code: 'A-1',
+      residence_code: '102',
       language: 'ja',
     },
   })
@@ -156,6 +168,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'ttakeda43+user1@gmail.com',
       display_name: '山田太郎',
+      full_name: '山田太郎',
+      group_code: 'A-1',
+      residence_code: '103',
       language: 'ja',
     },
   })
@@ -187,6 +202,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'admin@gmail.com',
       display_name: '管理組合アカウント',
+      full_name: '管理組合アカウント',
+      group_code: 'A-1',
+      residence_code: '201',
       language: 'ja',
     },
   })
@@ -217,6 +235,9 @@ async function main() {
       tenant_id: tenant.id,
       email: 'user01@gmail.com',
       display_name: '一般利用者 user01',
+      full_name: '一般利用者 user01',
+      group_code: 'A-1',
+      residence_code: '202',
       language: 'ja',
     },
   })
@@ -356,15 +377,38 @@ async function main() {
     })
   }
 
+  // 既存の駐車場施設があればそれを再利用し、なければ新規作成する（名前での重複作成を避ける）
   let facilityParking = await prisma.facilities.findFirst({
-    where: { facility_name: 'ゲスト駐車場', tenant_id: tenant.id },
+    where: { tenant_id: tenant.id, facility_type: 'parking' },
   })
+
+  // 駐車場配置図 PNG をファイルシステムから読み込み、バイナリとして保持
+  let parkingImageData: Uint8Array | null = null
+  try {
+    const projectRoot = process.cwd()
+    const parkingImagePath = path.join(projectRoot, 'public', 'images', 'facility', 'ParkingLayout.png')
+    const buffer = await fs.promises.readFile(parkingImagePath)
+    parkingImageData = new Uint8Array(buffer)
+  } catch (e) {
+    console.error('⚠️ 駐車場配置図(ParkingLayout.png) の読み込みに失敗しました', e)
+  }
+
   if (!facilityParking) {
     facilityParking = await prisma.facilities.create({
       data: {
         tenant_id: tenant.id,
         facility_name: 'ゲスト駐車場',
         facility_type: 'parking',
+        parkingimage: (parkingImageData ?? undefined) as any,
+      },
+    })
+  } else {
+    // 既存レコードの場合も、parkingimage が未設定なら補完する
+    facilityParking = await prisma.facilities.update({
+      where: { id: facilityParking.id },
+      data: {
+        parkingimage:
+          ((facilityParking as any).parkingimage ?? (parkingImageData ?? undefined)) as any,
       },
     })
   }
@@ -401,19 +445,17 @@ async function main() {
   console.log('✅ 施設設定登録完了')
 
   // === 10. 駐車場区画登録 ===
+  // このテナントはゲスト駐車場 8 台分（①〜⑧）だけを持つ想定とし、
+  // 画面上の配置図と同じ番号になるように slot_name を設定する。
   const parkingSlots = [
-    { slot_key: 'F1', slot_name: '表F1' },
-    { slot_key: 'F2', slot_name: '表F2' },
-    { slot_key: 'F3', slot_name: '表F3' },
-    { slot_key: 'F4', slot_name: '表F4' },
-    { slot_key: 'F5', slot_name: '表F5' },
-    { slot_key: 'F6', slot_name: '表F6' },
-    { slot_key: 'B1', slot_name: '裏B1' },
-    { slot_key: 'B2', slot_name: '裏B2' },
-    { slot_key: 'B3', slot_name: '裏B3' },
-    { slot_key: 'B4', slot_name: '裏B4' },
-    { slot_key: 'B5', slot_name: '裏B5' },
-    { slot_key: 'B6', slot_name: '裏B6' },
+    { slot_key: '1', slot_name: '①' },
+    { slot_key: '2', slot_name: '②' },
+    { slot_key: '3', slot_name: '③' },
+    { slot_key: '4', slot_name: '④' },
+    { slot_key: '5', slot_name: '⑤' },
+    { slot_key: '6', slot_name: '⑥' },
+    { slot_key: '7', slot_name: '⑦' },
+    { slot_key: '8', slot_name: '⑧' },
   ]
 
   for (const slot of parkingSlots) {

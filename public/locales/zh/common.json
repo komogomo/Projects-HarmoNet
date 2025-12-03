@@ -30,7 +30,7 @@
       "magiclink": {
         "title": "使用邮箱登录",
         "description": "我们会向登记的邮箱发送登录链接。",
-        "button_login": "登录",
+        "button_login": "通过电子邮件发送登录URL",
         "button_sending": "发送中…"
       },
       "email": {

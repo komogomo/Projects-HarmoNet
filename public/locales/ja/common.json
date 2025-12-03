@@ -3,6 +3,7 @@
     "language": "言語",
     "save": "保存",
     "cancel": "キャンセル",
+    "back": "戻る",
     "copyright": "© 2025 HarmoNet. All rights reserved.",
     "shortcut_navigation": "ショートカット"
   },
@@ -28,9 +29,9 @@
     "network_error": "ネットワークエラーが発生しました",
     "login": {
       "magiclink": {
-        "title": "メールでログイン",
+        "title": "メールアドレスでログイン",
         "description": "ご登録のメールアドレス宛にログイン用リンクを送信します。",
-        "button_login": "ログイン",
+        "button_login": "ログインURLをメール送信",
         "button_sending": "送信中…"
       },
       "email": {

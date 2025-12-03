@@ -11,7 +11,10 @@
     "purpose": "使用目的",
     "participant_count": "参加人数",
     "equipment": "设备使用",
-    "notes": "备注"
+    "notes": "备注",
+    "vehicle_number": "车牌号（可选）",
+    "vehicle_model": "车型・颜色（可选）",
+    "reservation_date": "预约日期："
   },
   "top": {
     "selectFacility": "选择设施",
@@ -24,7 +27,9 @@
       "available": "可预约",
       "past": "过去日期",
       "saturday": "周六",
-      "sunday": "周日"
+      "sunday": "周日",
+      "unavailable": "不可预约",
+      "mine": "自己的预约"
     },
     "weekdays": {
       "sun": "周日",
@@ -36,8 +41,42 @@
       "sat": "周六"
     },
     "facilityName": {
-      "room": "会议室",
+      "room": "安全站",
       "parking": "访客停车位"
+    },
+    "parkingTermsNote": "・关于访客停车位的使用规定，请参阅公告板中的“规则・规约”栏目。",
+    "viewReservationDetail": "预约详情",
+    "parkingRangeTooLong": "已超过可指定的最长期间。请重新选择。",
+    "parkingRangeNotAvailable": "在所选期间内没有可预约的停车位，请选择其他日期。"
+  },
+  "booking": {
+    "parkingLayoutTitle": "停车场布局图",
+    "slotSectionTitle": "选择车位",
+    "timeSlotSectionTitle": "空闲情况",
+    "reservationSectionTitle": "预约详情",
+    "startTime": "开始时间",
+    "endTime": "结束时间",
+    "allDay": "整天",
+    "selectTimePlaceholder": "请选择",
+    "confirmButton": "确认页面",
+    "legend": {
+      "available": "空位",
+      "selected": "已选择",
+      "booked": "已预约",
+      "my": "自己的预约"
     }
+  },
+  "confirm": {
+    "heading": "预约内容",
+    "dateLabel": "预约日期",
+    "timeLabel": "预约时间",
+    "participantsLabel": "参加人数",
+    "purposeLabel": "使用目的",
+    "executeNotice": "将以上内容作为预约信息进行登记。如无问题，请点击“预约”按钮。",
+    "submitButton": "预约",
+    "errorMessage": "创建预约时发生错误，请稍后再试。",
+    "completeTitle": "预约已完成",
+    "completeBody": "您可以在设施预约首页或“我的页面”中查看预约内容。",
+    "completeBackButton": "返回设施预约首页"
   }
 }

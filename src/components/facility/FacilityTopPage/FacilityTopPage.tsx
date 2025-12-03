@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Languages, CalendarDays, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Languages, CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 
@@ -20,6 +21,7 @@ type FacilitySettingsMap = Record<
     feeUnit?: string | null;
     maxConsecutiveDays?: number | null;
     reservableUntilMonths?: number | null;
+    minReservationMinutes?: number | null;
   }
 >;
 
@@ -31,6 +33,7 @@ interface FacilityTopPageProps {
   facilities: FacilitySummary[];
   settings: FacilitySettingsMap;
   usageNotes: UsageNotesMap;
+  maxReservableDays: number;
 }
 
 const resolveFacilityKey = (obj: any, key: string): string | undefined => {
@@ -53,6 +56,12 @@ type CalendarCell = {
   isToday: boolean;
   isPast: boolean;
   weekday: number;
+};
+
+type CalendarDaySummary = {
+  date: string; // YYYY-MM-DD
+  hasAvailability: boolean;
+  hasMyReservation: boolean;
 };
 
 const getDaysInMonth = (year: number, monthIndex: number): CalendarCell[] => {
@@ -95,8 +104,10 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   facilities,
   settings,
   usageNotes,
+  maxReservableDays,
 }) => {
   const { t, currentLocale } = useI18n();
+  const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
 
@@ -118,12 +129,16 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
       }
     };
 
-    load();
+    void load();
 
     return () => {
       cancelled = true;
     };
   }, [currentLocale]);
+
+  // カレンダー日別サマリー（予約可能 / 予約不可 / 自予約済）
+  const [daySummaries, setDaySummaries] = useState<Record<string, CalendarDaySummary>>({});
+  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
   const tf = useCallback(
     (key: string) => {
@@ -155,10 +170,80 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   const [displayYear, setDisplayYear] = useState<number>(today.getFullYear());
   const [displayMonthIndex, setDisplayMonthIndex] = useState<number>(today.getMonth());
 
+  // 駐車場用の開始日/終了日レンジ選択状態
+  const [rangeStartDate, setRangeStartDate] = useState<Date | null>(null);
+  const [rangeEndDate, setRangeEndDate] = useState<Date | null>(null);
+  const [isCheckingRange, setIsCheckingRange] = useState(false);
+  const [hasRangeAvailable, setHasRangeAvailable] = useState<boolean | null>(null);
+  const [showRangeError, setShowRangeError] = useState(false);
+  const [showRangeTooLongError, setShowRangeTooLongError] = useState(false);
+
   const selectedFacility = useMemo(
     () => facilities.find((f) => f.id === selectedFacilityId) ?? null,
     [facilities, selectedFacilityId],
   );
+
+  // 表示中の月が変わったとき、または施設が変わったときに日別サマリーを取得
+  useEffect(() => {
+    if (!selectedFacility) return;
+
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        setIsLoadingCalendar(true);
+
+        const monthStart = new Date(displayYear, displayMonthIndex, 1);
+        const monthEnd = new Date(displayYear, displayMonthIndex + 1, 0);
+
+        const startParam = formatDateParam(monthStart);
+        const endParam = formatDateParam(monthEnd);
+
+        const res = await fetch(
+          `/api/facilities/${selectedFacility.id}/calendar?start=${encodeURIComponent(
+            startParam,
+          )}&end=${encodeURIComponent(endParam)}`,
+          { signal: controller.signal },
+        );
+
+        if (!res.ok) {
+          setDaySummaries({});
+          return;
+        }
+
+        const data = (await res.json()) as
+          | { ok: true; days: CalendarDaySummary[] }
+          | { ok: false };
+
+        if (!("ok" in data) || !data.ok || !Array.isArray((data as any).days)) {
+          setDaySummaries({});
+          return;
+        }
+
+        const map: Record<string, CalendarDaySummary> = {};
+        for (const day of data.days) {
+          if (day && typeof day.date === "string") {
+            map[day.date] = day;
+          }
+        }
+
+        setDaySummaries(map);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        setDaySummaries({});
+      } finally {
+        setIsLoadingCalendar(false);
+      }
+    };
+
+    void load();
+
+    return () => {
+      controller.abort();
+    };
+  }, [selectedFacility, displayYear, displayMonthIndex]);
 
   const selectedSettings = selectedFacility
     ? settings[selectedFacility.id] ?? {}
@@ -182,6 +267,27 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
     return selectedUsageNotes.ja || "";
   }, [selectedFacility, selectedUsageNotes, currentLocale]);
 
+  const processedUsageText = useMemo(() => {
+    const base =
+      typeof usageText === "string"
+        ? usageText.replace(/^\s+/, "")
+        : usageText;
+
+    if (!selectedFacility) return base;
+
+    if (selectedFacility.type === "parking") {
+      const note = tf("top.parkingTermsNote");
+
+      if (!base) {
+        return note;
+      }
+
+      return `${base}\n\n${note}`;
+    }
+
+    return base;
+  }, [usageText, selectedFacility, tf]);
+
   const hasTranslation = useMemo(() => {
     if (!selectedFacility) return false;
     if (currentLocale === "en") {
@@ -194,6 +300,132 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   }, [selectedFacility, selectedUsageNotes, currentLocale]);
 
   const showTranslateButton = currentLocale !== "ja";
+
+  const formatDateParam = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateClick = useCallback(
+    (date: Date) => {
+      if (!selectedFacility) return;
+
+      const dateParam = formatDateParam(date);
+      const path = `/facilities/${selectedFacility.id}/book?date=${dateParam}`;
+      router.push(path);
+    },
+    [router, selectedFacility],
+  );
+
+  const handleParkingDateClick = useCallback(
+    async (date: Date) => {
+      if (!selectedFacility || selectedFacility.type !== "parking") return;
+
+      // 過去日や予約可能期間外はここでは呼ばれない前提
+
+      // 既にレンジが完了している場合、またはまだ何も選択されていない場合は開始日としてセット
+      if (!rangeStartDate || (rangeStartDate && rangeEndDate)) {
+        setRangeStartDate(date);
+        setRangeEndDate(null);
+        setHasRangeAvailable(null);
+        setShowRangeError(false);
+        setShowRangeTooLongError(false);
+        return;
+      }
+
+      // rangeStartDate があり rangeEndDate がまだの場合
+      const start = rangeStartDate;
+
+      // 同じ日をタップした場合はトグル動作として選択解除（開始日もクリア）
+      if (
+        date.getFullYear() === start.getFullYear() &&
+        date.getMonth() === start.getMonth() &&
+        date.getDate() === start.getDate()
+      ) {
+        setRangeStartDate(null);
+        setRangeEndDate(null);
+        setHasRangeAvailable(null);
+        setShowRangeError(false);
+        setShowRangeTooLongError(false);
+        return;
+      }
+
+      if (date < start) {
+        // 逆順で選ばれた場合は開始日として扱う
+        setRangeStartDate(date);
+        setRangeEndDate(null);
+        setHasRangeAvailable(null);
+        setShowRangeError(false);
+        setShowRangeTooLongError(false);
+        return;
+      }
+
+      // レンジ長（開始日〜終了日、日数）は maxReservableDays 以内に制限
+      const startOnlyDate = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate(),
+      );
+      const endOnlyDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const diffMs = endOnlyDate.getTime() - startOnlyDate.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1; // 開始日・終了日を含む
+
+      if (diffDays > Math.max(1, maxReservableDays)) {
+        // 最大連続利用日数を超える場合はレンジを確定させずエラー表示のみ
+        setRangeEndDate(null);
+        setHasRangeAvailable(false);
+        setShowRangeError(false);
+        setShowRangeTooLongError(true);
+        return;
+      }
+
+      setRangeEndDate(date);
+      setIsCheckingRange(true);
+      setHasRangeAvailable(null);
+      setShowRangeError(false);
+      setShowRangeTooLongError(false);
+
+      try {
+        const startParam = formatDateParam(start);
+        const endParam = formatDateParam(date);
+        const res = await fetch(
+          `/api/facilities/${selectedFacility.id}/availability?start=${encodeURIComponent(
+            startParam,
+          )}&end=${encodeURIComponent(endParam)}`,
+        );
+
+        if (!res.ok) {
+          setHasRangeAvailable(false);
+          setShowRangeError(true);
+          return;
+        }
+
+        const data = (await res.json()) as { ok?: boolean; hasAvailableSlot?: boolean };
+        if (!data.ok) {
+          setHasRangeAvailable(false);
+          setShowRangeError(true);
+          setShowRangeTooLongError(false);
+          return;
+        }
+
+        const flag = !!data.hasAvailableSlot;
+        setHasRangeAvailable(flag);
+        if (!flag) {
+          setShowRangeError(true);
+          setShowRangeTooLongError(false);
+        }
+      } catch {
+        setHasRangeAvailable(false);
+        setShowRangeError(true);
+        setShowRangeTooLongError(false);
+      } finally {
+        setIsCheckingRange(false);
+      }
+    },
+    [rangeStartDate, rangeEndDate, selectedFacility],
+  );
 
   const daysInMonth = useMemo(
     () => getDaysInMonth(displayYear, displayMonthIndex),
@@ -294,23 +526,10 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                 aria-label="facility-info"
                 className="rounded-lg border-2 border-gray-200 bg-white p-4 space-y-3"
               >
-                {/* 利用時間などの概要 */}
-                <div className="flex flex-wrap gap-3 text-[11px] text-gray-600">
-                  {selectedSettings?.availableFromTime && selectedSettings?.availableToTime && (
-                    <div className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-blue-700">
-                      <CalendarDays className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                      <span>
-                        {tf("top.usageTimeLabel")}: {selectedSettings.availableFromTime}〜
-                        {selectedSettings.availableToTime}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
                 {/* 利用説明＋翻訳ボタン */}
                 <div className="mt-2 space-y-2">
                   <p className="whitespace-pre-wrap text-sm text-gray-800">
-                    {usageText}
+                    {processedUsageText}
                   </p>
 
                   {showTranslateButton && (
@@ -346,23 +565,48 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                   {tf("top.calendarTitle")}
                 </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <button
-                    type="button"
-                    onClick={handlePrevMonth}
-                    className="rounded-md border-2 border-gray-200 bg-white px-2 py-0.5 text-[11px] hover:bg-gray-50"
-                  >
-                    {tf("top.prevMonth")}
-                  </button>
-                  <span className="font-medium">
-                    {formatMonthLabel(displayYear, displayMonthIndex, currentLocale)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleNextMonth}
-                    className="rounded-md border-2 border-gray-200 bg-white px-2 py-0.5 text-[11px] hover:bg-gray-50"
-                  >
-                    {tf("top.nextMonth")}
-                  </button>
+                  {(() => {
+                    const todayDate = new Date();
+                    const isPrevDisabled =
+                      displayYear === todayDate.getFullYear() &&
+                      displayMonthIndex === todayDate.getMonth();
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isPrevDisabled) return;
+                            handlePrevMonth();
+                          }}
+                          disabled={isPrevDisabled}
+                          className="inline-flex items-center justify-center rounded-md border-2 border-gray-200 bg-white p-1 text-[11px] text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label={tf("top.prevMonth")}
+                        >
+                          <ChevronLeft
+                            className="h-4 w-4 text-blue-600"
+                            strokeWidth={2.6}
+                            aria-hidden="true"
+                          />
+                        </button>
+                        <span className="font-medium">
+                          {formatMonthLabel(displayYear, displayMonthIndex, currentLocale)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleNextMonth}
+                          className="inline-flex items-center justify-center rounded-md border-2 border-gray-200 bg-white p-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                          aria-label={tf("top.nextMonth")}
+                        >
+                          <ChevronRight
+                            className="h-4 w-4 text-blue-600"
+                            strokeWidth={2.6}
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -388,34 +632,88 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                     }
 
                     const day = cell.date.getDate();
-                    const isSunday = cell.weekday === 0;
-                    const isSaturday = cell.weekday === 6;
 
                     const baseClasses =
                       "flex h-8 items-center justify-center rounded-md border-2 text-[12px]";
 
+                    const dateKey = formatDateParam(cell.date as Date);
+                    const summary = daySummaries[dateKey];
+                    const isSunday = cell.weekday === 0;
+                    const isSaturday = cell.weekday === 6;
+
                     let stateClasses: string;
                     if (cell.isPast) {
-                      stateClasses = "border-gray-200 bg-gray-50 text-gray-400";
+                      stateClasses = "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed";
+                    } else if (summary?.hasMyReservation) {
+                      // 自予約済（背景は予約不可と同じグレー、枠と文字を青に）
+                      stateClasses =
+                        "border-blue-500 bg-gray-200 text-blue-700 hover:bg-gray-100";
+                    } else if (summary && !summary.hasAvailability) {
+                      // 予約不可（曜日に関係なく優先）
+                      stateClasses =
+                        "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed";
                     } else if (cell.isToday) {
-                      stateClasses = "border-blue-500 bg-blue-50 text-blue-700 font-semibold";
+                      // 本日（凡例通りのスタイル）
+                      stateClasses =
+                        "border-blue-500 bg-blue-50 text-blue-700 font-semibold";
                     } else if (isSunday) {
+                      // 予約可能な日曜日
                       stateClasses =
                         "border-red-400 bg-white text-red-500 hover:bg-red-50";
                     } else if (isSaturday) {
+                      // 予約可能な土曜日
                       stateClasses =
                         "border-yellow-400 bg-white text-yellow-600 hover:bg-yellow-50";
                     } else {
+                      // 平日の予約可能日、またはサマリー未取得時
                       stateClasses =
                         "border-blue-200 bg-white text-gray-800 hover:bg-blue-50";
                     }
+
+                    const isParking = selectedFacility?.type === "parking";
+
+                    const isSelectedRangeDay = (() => {
+                      if (!isParking || !rangeStartDate) return false;
+                      const target = cell.date as Date;
+                      const start = new Date(
+                        rangeStartDate.getFullYear(),
+                        rangeStartDate.getMonth(),
+                        rangeStartDate.getDate(),
+                      );
+                      const end = rangeEndDate
+                        ? new Date(
+                            rangeEndDate.getFullYear(),
+                            rangeEndDate.getMonth(),
+                            rangeEndDate.getDate(),
+                          )
+                        : start;
+                      return target >= start && target <= end;
+                    })();
+
+                    const selectionClasses = isSelectedRangeDay
+                      ? " ring-2 ring-blue-400 ring-offset-1"
+                      : "";
+
+                    const isUnavailable =
+                      !cell.isPast && summary !== undefined && !summary.hasAvailability;
+                    const disabled = cell.isPast || isUnavailable;
+
+                    const handleClick = () => {
+                      if (!cell.date || disabled) return;
+                      if (isParking) {
+                        void handleParkingDateClick(cell.date as Date);
+                      } else {
+                        handleDateClick(cell.date as Date);
+                      }
+                    };
 
                     return (
                       <button
                         key={cell.date.toISOString()}
                         type="button"
-                        disabled={cell.isPast}
-                        className={`${baseClasses} ${stateClasses}`}
+                        disabled={disabled}
+                        onClick={handleClick}
+                        className={`${baseClasses} ${stateClasses}${selectionClasses}`}
                       >
                         {day}
                       </button>
@@ -430,19 +728,88 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                     <span>{tf("top.legend.today")}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
+                    <span className="inline-flex h-4 w-4 rounded-sm border-2 border-gray-400 bg-gray-300" />
+                    <span>{tf("top.legend.unavailable")}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-4 w-4 rounded-sm border-2 border-blue-200 bg-white" />
                     <span>{tf("top.legend.available")}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
-                    <span className="inline-flex h-4 w-4 rounded-sm border-2 border-yellow-400 bg-white" />
-                    <span className="text-yellow-700">{tf("top.legend.saturday")}</span>
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <span className="inline-flex h-4 w-4 rounded-sm border-2 border-red-400 bg-white" />
-                    <span className="text-red-600">{tf("top.legend.sunday")}</span>
+                    <span className="inline-flex h-4 w-4 rounded-sm border-2 border-blue-500 bg-gray-300" />
+                    <span>{tf("top.legend.mine")}</span>
                   </div>
                 </div>
               </div>
+              {/* 駐車場のみ：予約詳細ボタン */}
+              {selectedFacility?.type === "parking" && (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex-1 text-left">
+                    {showRangeTooLongError && (
+                      <p className="text-xs text-red-600">
+                        {tf("top.parkingRangeTooLong")}
+                      </p>
+                    )}
+                    {!showRangeTooLongError && showRangeError && (
+                      <p className="text-xs text-red-600">
+                        {tf("top.parkingRangeNotAvailable")}
+                      </p>
+                    )}
+                  </div>
+                  {/**
+                   * 予約詳細ボタンの活性条件
+                   * - 開始日が選択されていること
+                   * - レンジチェック中でないこと
+                   * - レンジ指定がある場合は hasRangeAvailable !== false
+                   */}
+                  {(() => {
+                    const hasStart = !!rangeStartDate;
+                    const hasEnd = !!rangeEndDate;
+                    const rangeInvalid = hasEnd && hasRangeAvailable === false;
+                    const disableButton =
+                      !hasStart || isCheckingRange || rangeInvalid || showRangeTooLongError;
+
+                    return (
+                  <button
+                    type="button"
+                    disabled={disableButton}
+                    onClick={() => {
+                      if (!selectedFacility || !rangeStartDate) return;
+
+                      // 単日フロー（開始日のみ選択）
+                      if (!rangeEndDate) {
+                        const dateParam = formatDateParam(rangeStartDate);
+                        router.push(
+                          `/facilities/${selectedFacility.id}/book?date=${encodeURIComponent(
+                            dateParam,
+                          )}`,
+                        );
+                        return;
+                      }
+
+                      // 連泊フロー（開始日+終了日）
+                      if (!hasRangeAvailable) {
+                        setShowRangeError(true);
+                        setShowRangeTooLongError(false);
+                        return;
+                      }
+
+                      const startParam = formatDateParam(rangeStartDate);
+                      const endParam = formatDateParam(rangeEndDate);
+                      router.push(
+                        `/facilities/${selectedFacility.id}/book?start=${encodeURIComponent(
+                          startParam,
+                        )}&end=${encodeURIComponent(endParam)}`,
+                      );
+                    }}
+                    className="inline-flex items-center whitespace-nowrap rounded-md border-2 border-blue-600 bg-white px-4 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
+                  >
+                    {tf("top.viewReservationDetail")}
+                  </button>
+                    );
+                  })()}
+                </div>
+              )}
             </section>
           </section>
         </div>

@@ -30,7 +30,7 @@
       "magiclink": {
         "title": "Sign in with email",
         "description": "We will send a login link to your registered email address.",
-        "button_login": "Sign in",
+        "button_login": "Send login URL via email",
         "button_sending": "Sending…"
       },
       "email": {

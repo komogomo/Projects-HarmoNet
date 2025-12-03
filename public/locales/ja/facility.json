@@ -12,8 +12,9 @@
     "participant_count": "参加人数",
     "equipment": "備品利用",
     "notes": "特記事項",
-    "vehicle_number": "車両ナンバー",
-    "vehicle_model": "車種"
+    "vehicle_number": "車両ナンバー（任意）",
+    "vehicle_model": "車種・色（任意）",
+    "reservation_date": "予約日："
   },
   "top": {
     "selectFacility": "施設を選択",
@@ -26,7 +27,9 @@
       "available": "予約可能",
       "past": "過去日",
       "saturday": "土曜",
-      "sunday": "日曜"
+      "sunday": "日曜",
+      "unavailable": "予約不可",
+      "mine": "自予約済"
     },
     "weekdays": {
       "sun": "日",
@@ -38,8 +41,42 @@
       "sat": "土"
     },
     "facilityName": {
-      "room": "集会室",
+      "room": "セキュレアステーション",
       "parking": "ゲスト用駐車場"
+    },
+    "parkingTermsNote": "・ゲスト用駐車場の利用規約については、掲示板の「ルール・規約」からご確認下さい。",
+    "viewReservationDetail": "予約詳細",
+    "parkingRangeTooLong": "最大指定可能期間を超過しています。選択し直して下さい。",
+    "parkingRangeNotAvailable": "指定期間中に予約可能な区画がありません。別の日付を選択してください。"
+  },
+  "booking": {
+    "parkingLayoutTitle": "駐車場配置図",
+    "slotSectionTitle": "区画を選択",
+    "timeSlotSectionTitle": "空き状況",
+    "reservationSectionTitle": "予約詳細",
+    "startTime": "開始時刻",
+    "endTime": "終了時刻",
+    "allDay": "終日",
+    "selectTimePlaceholder": "選択してください",
+    "confirmButton": "確認画面",
+    "legend": {
+      "available": "空き",
+      "selected": "選択中",
+      "booked": "予約不可",
+      "my": "自己予約済"
     }
+  },
+  "confirm": {
+    "heading": "ご予約内容",
+    "dateLabel": "予約日",
+    "timeLabel": "予約時間",
+    "participantsLabel": "参加人数",
+    "purposeLabel": "利用目的",
+    "executeNotice": "上記の内容で予約します。よろしければ「予約」ボタンをタップしてください。",
+    "submitButton": "予約",
+    "errorMessage": "エラーが発生しました。時間をおいて再度お試しください。",
+    "completeTitle": "予約が完了しました",
+    "completeBody": "予約内容は施設予約トップやマイページからご確認いただけます。",
+    "completeBackButton": "施設予約トップへ"
   }
 }

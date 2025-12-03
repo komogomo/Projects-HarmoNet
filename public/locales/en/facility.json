@@ -11,7 +11,10 @@
     "purpose": "Purpose of Use",
     "participant_count": "Number of Participants",
     "equipment": "Equipment Use",
-    "notes": "Notes"
+    "notes": "Notes",
+    "vehicle_number": "Vehicle number (optional)",
+    "vehicle_model": "Vehicle model / color (optional)",
+    "reservation_date": "Reservation date: "
   },
   "top": {
     "selectFacility": "Select facility",
@@ -24,7 +27,9 @@
       "available": "Available",
       "past": "Past days",
       "saturday": "Saturday",
-      "sunday": "Sunday"
+      "sunday": "Sunday",
+      "unavailable": "Unavailable",
+      "mine": "My reservation"
     },
     "weekdays": {
       "sun": "Sun.",
@@ -36,8 +41,42 @@
       "sat": "Sat."
     },
     "facilityName": {
-      "room": "Community room",
+      "room": "SECUREA STATION",
       "parking": "Guest parking"
+    },
+    "parkingTermsNote": "- For guest parking regulations, please refer to \"Rules & Regulations\" on the notice board.",
+    "viewReservationDetail": "Reservation details",
+    "parkingRangeTooLong": "The selected period exceeds the maximum allowed length. Please select a shorter period.",
+    "parkingRangeNotAvailable": "No parking slot is available for the selected period. Please choose different dates."
+  },
+  "booking": {
+    "parkingLayoutTitle": "Parking layout",
+    "slotSectionTitle": "Select slot",
+    "timeSlotSectionTitle": "Availability",
+    "reservationSectionTitle": "Reservation details",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "allDay": "All day",
+    "selectTimePlaceholder": "Please select",
+    "confirmButton": "Confirm",
+    "legend": {
+      "available": "Available",
+      "selected": "Selected",
+      "booked": "Booked",
+      "my": "My reservation"
     }
+  },
+  "confirm": {
+    "heading": "Reservation summary",
+    "dateLabel": "Reservation date",
+    "timeLabel": "Reservation time",
+    "participantsLabel": "Number of participants",
+    "purposeLabel": "Purpose of use",
+    "executeNotice": "We will create the reservation with the above details. Tap the \"Confirm\" button if this is correct.",
+    "submitButton": "Confirm",
+    "errorMessage": "An error occurred while creating the reservation. Please try again later.",
+    "completeTitle": "Reservation completed",
+    "completeBody": "You can review your reservation from the Facility booking top page or My page.",
+    "completeBackButton": "Back to facility booking top"
   }
 }

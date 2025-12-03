@@ -12,13 +12,13 @@ type BannerState = {
 } | null;
 
 const cardBaseClassName =
-  'rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.06)] border border-gray-100 bg-white px-4 py-4';
+  'rounded-lg border-2 border-gray-200 bg-white px-5 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]';
 
 const emailInputClassName =
-  'mt-1 block w-full h-11 px-3 rounded-2xl border border-gray-300 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'mt-1 block w-full max-w-xs h-11 px-3 mx-auto rounded-md border-2 border-gray-300 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 const loginButtonClassName =
-  'mt-3 w-full h-11 rounded-2xl bg-[#6495ed] text-white text-sm font-medium flex items-center justify-center disabled:opacity-60 hover:bg-[#5386d9] transition-colors';
+  'mt-3 w-full max-w-xs h-11 mx-auto rounded-md bg-[#6495ed] text-white text-sm font-semibold flex items-center justify-center disabled:opacity-60 hover:bg-[#5386d9] transition-colors';
 
 type AuthErrorBannerProps = {
   kind: 'info' | 'error';
@@ -187,8 +187,9 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
     [handleLogin],
   );
 
-  const cardClassName = `${cardBaseClassName} ${state === 'sending' ? 'opacity-60 pointer-events-none' : ''
-    } ${className ?? ''}`;
+  const cardClassName = `${cardBaseClassName} ${
+    state === 'sending' ? 'opacity-60 pointer-events-none' : ''
+  } ${className ?? ''}`;
 
   return (
     <div className={cardClassName}>
@@ -206,7 +207,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
 
       <form className="mt-4 space-y-3" onSubmit={handleSubmit} noValidate>
         <div>
-          <label className="block text-sm font-medium text-gray-700" htmlFor="email">
+          <label className="sr-only" htmlFor="email">
             {t('auth.login.email.label')}
           </label>
           <input

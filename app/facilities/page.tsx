@@ -136,6 +136,7 @@ export default async function FacilitiesPage() {
       feeUnit?: string | null;
       maxConsecutiveDays?: number | null;
       reservableUntilMonths?: number | null;
+      minReservationMinutes?: number | null;
     }
   > = {};
 
@@ -145,7 +146,7 @@ export default async function FacilitiesPage() {
     const { data: settingsRows, error: settingsError } = await supabaseAdmin
       .from("facility_settings")
       .select(
-        "facility_id, available_from_time, available_to_time, fee_per_day, fee_unit, max_consecutive_days, reservable_until_months",
+        "facility_id, available_from_time, available_to_time, fee_per_day, fee_unit, max_consecutive_days, reservable_until_months, min_reservation_minutes",
       )
       .eq("tenant_id", tenantId)
       .in("facility_id", facilityIds);
@@ -166,6 +167,7 @@ export default async function FacilitiesPage() {
         feeUnit: (row.fee_unit as string | null) ?? null,
         maxConsecutiveDays: (row.max_consecutive_days as number | null) ?? null,
         reservableUntilMonths: (row.reservable_until_months as number | null) ?? null,
+        minReservationMinutes: (row.min_reservation_minutes as number | null) ?? null,
       };
     }
   }
@@ -214,6 +216,13 @@ export default async function FacilitiesPage() {
     }
   }
 
+  // 予約可能期間（日数）の設定（テナント設定で未指定の場合はデフォルト3日）
+  let maxReservableDays = 3;
+  const rawMaxDays = (facilitySection?.maxReservableDays ?? null) as unknown;
+  if (typeof rawMaxDays === "number" && Number.isFinite(rawMaxDays) && rawMaxDays > 0) {
+    maxReservableDays = Math.floor(rawMaxDays);
+  }
+
   return (
     <FacilityTopPage
       tenantId={tenantId}
@@ -221,6 +230,7 @@ export default async function FacilitiesPage() {
       facilities={facilities}
       settings={settingsMap}
       usageNotes={usageNotesMap}
+      maxReservableDays={maxReservableDays}
     />
   );
 }

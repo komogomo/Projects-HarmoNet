@@ -83,6 +83,15 @@ enum reservation_status {
   canceled
 }
 
+/// 施設予約履歴イベント種別
+enum reservation_history_event {
+  created // 予約作成
+  confirmed // 予約確定・承認
+  user_canceled // 利用者によるキャンセル
+  admin_canceled // 管理者によるキャンセル
+  changed // 予約内容変更（将来用）
+}
+
 /// AIモデレーション判定
 enum moderation_decision {
   allow
@@ -138,7 +147,6 @@ model tenants {
   board_attachments          board_attachments[]
   board_approval_logs        board_approval_logs[]
   board_favorites            board_favorites[]
-  announcements              announcements[]
   facilities                 facilities[]
   facility_settings          facility_settings[]
   facility_slots             facility_slots[]
@@ -207,7 +215,6 @@ model users {
   board_comments           board_comments[]
   board_reactions          board_reactions[]
   board_favorites          board_favorites[]
-  announcement_reads       announcement_reads[]
   facility_reservations    facility_reservations[]
   audit_logs               audit_logs[]
   moderation_logs_reviewer moderation_logs[]
@@ -474,56 +481,7 @@ model board_favorites {
   @@index([post_id])
 }
 
-// --- 5. Announcements ---
-
-/// お知らせ
-model announcements {
-  id          String                   @id @default(uuid())
-  tenant_id   String
-  title       String
-  content     String                   @db.Text
-  target_mode announcement_target_mode @default(all)
-  valid_from  DateTime                 @default(now())
-  valid_until DateTime?
-  created_at  DateTime                 @default(now())
-  updated_at  DateTime                 @updatedAt
-
-  // Relations
-  tenant  tenants                @relation(fields: [tenant_id], references: [id])
-  reads   announcement_reads[]
-  targets announcement_targets[]
-
-  @@index([tenant_id])
-}
-
-/// お知らせ既読管理
-model announcement_reads {
-  announcement_id String
-  user_id         String
-  read_at         DateTime
-
-  // Relations
-  announcement announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
-  user         users         @relation(fields: [user_id], references: [id])
-
-  @@id([announcement_id, user_id])
-  @@index([user_id])
-}
-
-/// お知らせ配信対象
-model announcement_targets {
-  id              String @id @default(uuid())
-  announcement_id String
-  target_type     String // "group", "role", "user"
-  target_id       String // UUID of the target
-
-  // Relations
-  announcement announcements @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
-
-  @@index([announcement_id])
-}
-
-// --- 6. Facilities / Reservations ---
+// --- 5. Facilities / Reservations ---
 
 /// 施設マスタ
 model facilities {
@@ -532,6 +490,7 @@ model facilities {
   facility_name String
   facility_type String
   description   String? // 施設説明・備考
+  parkingimage  Bytes? // マスタとして保持する施設画像（駐車場配置図など）のバイナリ
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
@@ -555,9 +514,11 @@ model facility_settings {
   max_consecutive_days    Int      @default(3)
   reservable_until_months Int      @default(1)
   slot_duration_minutes   Int      @default(30)
+  min_reservation_minutes Int      @default(120)
   available_from_time     String   @default("09:00")
   available_to_time       String   @default("19:00")
   monthly_limit           Int?
+  max_participants        Int?
   cancel_restriction_days Int      @default(1) // キャンセル可能期限（X日前まで）
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
@@ -577,7 +538,7 @@ model facility_slots {
   slot_key    String
   slot_name   String
   status      facility_slot_status @default(active)
-  meta        Json?                // 座標データ { x: 10, y: 20, w: 5, h: 5 } 等
+  meta        Json? // 座標データ { x: 10, y: 20, w: 5, h: 5 } 等
 
   // Relations
   tenant       tenants                 @relation(fields: [tenant_id], references: [id])
@@ -590,19 +551,19 @@ model facility_slots {
 
 /// 施設予約
 model facility_reservations {
-  id          String             @id @default(uuid())
-  tenant_id   String
-  facility_id String
-  slot_id     String?
-  user_id     String
-  start_at    DateTime
-  end_at      DateTime
+  id                String             @id @default(uuid())
+  tenant_id         String
+  facility_id       String
+  slot_id           String?
+  user_id           String
+  start_at          DateTime
+  end_at            DateTime
   purpose           String?
   participant_count Int?
   meta              Json?
-  status      reservation_status @default(pending)
-  created_at  DateTime           @default(now())
-  updated_at  DateTime           @updatedAt
+  status            reservation_status @default(pending)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
 
   // Relations
   tenant   tenants         @relation(fields: [tenant_id], references: [id])
@@ -614,6 +575,29 @@ model facility_reservations {
   @@index([facility_id])
   @@index([slot_id])
   @@index([user_id])
+}
+
+/// 施設予約履歴（状態変化イベントのログ）
+model reservation_history {
+  id             String                    @id @default(uuid())
+  tenant_id      String
+  reservation_id String // facility_reservations.id
+  facility_id    String
+  slot_id        String?
+  user_id        String // 予約の所有者
+  actor_user_id  String? // 実際に操作したユーザー（本人 or 管理者）
+  event_type     reservation_history_event
+  from_status    reservation_status?
+  to_status      reservation_status?
+  occurred_at    DateTime                  @default(now()) // イベント発生時刻
+  note           String?                   @db.Text
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([tenant_id])
+  @@index([reservation_id])
+  @@index([facility_id])
 }
 
 /// 予約不可期間
