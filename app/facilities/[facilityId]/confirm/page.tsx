@@ -194,6 +194,7 @@ export default async function FacilityConfirmPage(props: FacilityConfirmPageProp
         <main className="min-h-screen bg-white">
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <FacilityMeetingRoomConfirm
+              tenantId={tenantId}
               facilityId={facilityId}
               facilityName={facilityName}
               date={dateParam}
@@ -211,9 +212,20 @@ export default async function FacilityConfirmPage(props: FacilityConfirmPageProp
   }
 
   if (facilityType === "parking") {
-    if (!dateParam || !startParam || !endParam || !slotIdParam) {
+    const isRangeMode = !dateParam && !!startParam && !!endParam;
+
+    // range モードでは start/end と slotId があれば確認画面へ進める。単日モードでは date も必須。
+    if (
+      !startParam ||
+      !endParam ||
+      !slotIdParam ||
+      (!isRangeMode && !dateParam)
+    ) {
       redirect(`/facilities/${facilityId}/book`);
     }
+
+    const effectiveDateForDisplay = isRangeMode ? startParam : dateParam;
+    const effectiveDisplayDateJa = formatDisplayDateJa(effectiveDateForDisplay);
 
     const {
       data: slot,
@@ -243,10 +255,11 @@ export default async function FacilityConfirmPage(props: FacilityConfirmPageProp
         <main className="min-h-screen bg-white">
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <FacilityParkingConfirm
+              tenantId={tenantId}
               facilityId={facilityId}
               facilityName={facilityName}
-              date={dateParam}
-              displayDate={displayDateJa}
+              date={effectiveDateForDisplay}
+              displayDate={effectiveDisplayDateJa}
               startTime={startParam}
               endTime={endParam}
               slotId={slotIdParam}

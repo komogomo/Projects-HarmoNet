@@ -10,6 +10,7 @@ import { BoardTabBar } from "./BoardTabBar";
 import { BoardPostSummaryList } from "./BoardPostSummaryList";
 import { BoardEmptyState } from "./BoardEmptyState";
 import { BoardErrorState } from "./BoardErrorState";
+import { BoardPagination } from "./BoardPagination";
 
 const CATEGORY_TAGS: BoardCategoryTag[] = [
   { id: "important", labelKey: "board.postForm.category.important" },
@@ -61,6 +62,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     if (qp === "favorite") return "favorite";
     return "all";
   });
+
   const [activeCategoryFilters, setActiveCategoryFilters] = useState<BoardCategoryKey[]>(() => {
     const qp = searchParams?.get("tab");
     if (qp && CATEGORY_TAGS.some((tag) => tag.id === qp)) {
@@ -68,9 +70,13 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     }
     return [];
   });
+
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
+  const [messages, setMessages] = useState<Record<string, string>>({});
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const [fabOffset, setFabOffset] = useState({ x: 0, y: 0 });
   const [isDraggingFab, setIsDraggingFab] = useState(false);
@@ -137,6 +143,16 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     });
   }, [posts, tab, activeCategoryFilters]);
 
+  const totalItems = filteredPosts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const pagedPosts = useMemo(() => {
+    if (totalItems === 0) return [] as BoardPostSummary[];
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return filteredPosts.slice(startIndex, endIndex);
+  }, [filteredPosts, pageSize, safeCurrentPage, totalItems]);
+
   const handleChangeTab = (next: BoardTab) => {
     setTab(next);
 
@@ -166,6 +182,23 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
       }
       return [...prev, categoryKey];
     });
+  };
+
+  const handleChangePage = (page: number) => {
+    setCurrentPage((prev) => {
+      const next = Number.isFinite(page) ? page : prev;
+      if (next < 1) return 1;
+      if (next > totalPages) return totalPages;
+      return next;
+    });
+  };
+
+  const handleChangePageSize = (size: number) => {
+    if (!Number.isFinite(size) || size <= 0) {
+      return;
+    }
+    setPageSize(size);
+    setCurrentPage(1);
   };
 
   useEffect(() => {
@@ -214,6 +247,55 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
       isCancelled = true;
     };
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const response = await fetch(`/api/tenant-static-translations/board-top?${params.toString()}`);
+
+        if (!response.ok) {
+          if (!isCancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!isCancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!isCancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    loadMessages();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
+  const resolveMessage = (key: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return t(key);
+  };
 
   useEffect(() => {
     if (!isDraggingFab) return;
@@ -328,7 +410,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
             <header>
               {tenantName && (
                 <div className="mb-1 flex justify-center">
-                  <p className="max-w-full truncate text-base font-medium text-gray-600">
+                  <p className="max-w-full truncate text-base text-gray-600">
                     {tenantName}
                   </p>
                 </div>
@@ -337,7 +419,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
                 id="board-top-title"
                 className="sr-only"
               >
-                {t("board.top.title")}
+                {resolveMessage("board.top.title")}
               </h1>
             </header>
 
@@ -349,15 +431,25 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
                 onToggleCategory={handleToggleCategoryFilter}
                 onResetAll={handleResetAllFilters}
                 categoryTags={CATEGORY_TAGS}
+                tOverride={resolveMessage}
               />
             </div>
 
             {isLoading ? null : isError ? (
-              <BoardErrorState />
+              <BoardErrorState tOverride={resolveMessage} />
             ) : filteredPosts.length === 0 ? (
-              <BoardEmptyState />
+              <BoardEmptyState tOverride={resolveMessage} />
             ) : (
-              <BoardPostSummaryList posts={filteredPosts} />
+              <>
+                <BoardPostSummaryList posts={pagedPosts} tOverride={resolveMessage} />
+                <BoardPagination
+                  currentPage={safeCurrentPage}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  onChangePage={handleChangePage}
+                  onChangePageSize={handleChangePageSize}
+                />
+              </>
             )}
           </section>
         </div>
@@ -369,8 +461,8 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
           onTouchStart={handleFabTouchStart}
           className="fixed bottom-24 right-4 z-[960] flex h-11 w-11 items-center justify-center rounded-full bg-transparent border-2 border-blue-400 text-blue-600 shadow-lg shadow-blue-200/60 hover:bg-blue-50/40 active:bg-blue-100/40 focus:outline-none focus:ring-2 focus:ring-blue-300/70 focus:ring-offset-2"
           style={{ transform: `translate3d(${fabOffset.x}px, ${fabOffset.y}px, 0)` }}
-          aria-label={t("board.top.newPost.button")}
-          title={t("board.top.newPost.button")}
+          aria-label={resolveMessage("board.top.newPost.button")}
+          title={resolveMessage("board.top.newPost.button")}
           data-testid="board-top-fab"
         >
           <Plus className="h-6 w-6" strokeWidth={2.6} aria-hidden="true" />

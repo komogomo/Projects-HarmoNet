@@ -12,6 +12,7 @@ export interface BoardTabBarProps {
   onToggleCategory: (category: BoardCategoryKey) => void;
   onResetAll: () => void;
   categoryTags: BoardCategoryTag[];
+  tOverride?: (key: string) => string;
 }
 
 export const BoardTabBar: React.FC<BoardTabBarProps> = ({
@@ -21,8 +22,10 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
   onToggleCategory,
   onResetAll,
   categoryTags,
+  tOverride,
 }) => {
   const { t } = useI18n();
+  const translate = tOverride ?? t;
 
   return (
     <nav aria-label="Board tabs">
@@ -32,9 +35,9 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
           const id: BoardTab = "all";
           const isActive = activeTab === id && activeCategories.length === 0;
           const baseClasses =
-            "whitespace-nowrap rounded-lg px-3 py-1.5 font-medium border-2 transition-colors";
+            "whitespace-nowrap rounded-md px-3 py-1.5 border-2 transition-colors";
           const activeClasses = "bg-white text-blue-600 border-blue-400";
-          const inactiveClasses = "bg-white text-gray-500 border-gray-200";
+          const inactiveClasses = "bg-white text-gray-600 border-gray-200";
 
           return (
             <button
@@ -44,7 +47,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
               className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
               data-testid={`board-top-tab-${id}`}
             >
-              {t("board.top.tab.all")}
+              {translate("board.top.tab.all")}
             </button>
           );
         })()}
@@ -54,9 +57,9 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
           const id = tag.id as BoardCategoryKey;
           const isActive = activeCategories.includes(id);
           const baseClasses =
-            "whitespace-nowrap rounded-lg px-3 py-1.5 font-medium border-2 transition-colors";
+            "whitespace-nowrap rounded-md px-3 py-1.5 border-2 transition-colors";
           const activeClasses = "bg-white text-blue-600 border-blue-400";
-          const inactiveClasses = "bg-white text-gray-500 border-gray-200";
+          const inactiveClasses = "bg-white text-gray-600 border-gray-200";
 
           return (
             <button
@@ -66,7 +69,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
               className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
               data-testid={`board-top-tab-${id}`}
             >
-              {t(tag.labelKey)}
+              {translate(tag.labelKey)}
             </button>
           );
         })}
@@ -76,9 +79,9 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
           const id: BoardTab = "favorite";
           const active = activeTab === id;
           const baseClasses =
-            "whitespace-nowrap rounded-lg px-3 py-1.5 font-medium border-2 transition-colors";
+            "whitespace-nowrap rounded-md px-3 py-1.5 border-2 transition-colors";
           const activeClasses = "bg-white text-yellow-400 border-yellow-400";
-          const inactiveClasses = "bg-white text-gray-500 border-gray-200";
+          const inactiveClasses = "bg-white text-gray-600 border-gray-200";
 
           return (
             <button
@@ -87,7 +90,7 @@ export const BoardTabBar: React.FC<BoardTabBarProps> = ({
               onClick={() => onChangeTab(active ? "all" : id)}
               className={`${baseClasses} ${active ? activeClasses : inactiveClasses}`}
               data-testid={`board-top-tab-${id}`}
-              aria-label={t("board.top.tab.favorite")}
+              aria-label={translate("board.top.tab.favorite")}
             >
               <Star className="h-4 w-4" aria-hidden="true" />
             </button>

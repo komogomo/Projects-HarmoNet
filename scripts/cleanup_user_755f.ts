@@ -42,21 +42,8 @@ async function cleanupUser() {
     if (tenantsError) console.error('Error deleting user_tenants:', tenantsError);
     else console.log('Deleted from user_tenants');
 
-    // 3. Delete from tenant_residents (if exists, based on schema knowledge)
-    // Checking schema... tenant_residents also has user_id usually? 
-    // Based on previous file views, tenant_residents has user_id.
-    const { error: residentsError } = await supabaseAdmin
-        .from('tenant_residents')
-        .delete()
-        .eq('user_id', TARGET_USER_ID);
-
-    if (residentsError) {
-        // It might not exist or column might be different, but good to try if we want full cleanup
-        // If table doesn't exist it will error, which is fine.
-        console.log('Note: tenant_residents deletion attempt result:', residentsError.message);
-    } else {
-        console.log('Deleted from tenant_residents');
-    }
+    // 3. Delete from tenant_residents (table removed)
+    console.log('Skip tenant_residents cleanup: table has been removed from the schema.');
 
     // 4. Delete from public.users
     const { error: usersError } = await supabaseAdmin

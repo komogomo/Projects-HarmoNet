@@ -7,6 +7,8 @@ export type HomeFeatureTileDefinition = {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   isEnabled: boolean;
   onClick?: () => void;
+  labelOverride?: string;
+  descriptionOverride?: string;
 };
 
 export type HomeFeatureTileProps = HomeFeatureTileDefinition;

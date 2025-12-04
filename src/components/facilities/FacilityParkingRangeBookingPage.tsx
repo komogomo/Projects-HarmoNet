@@ -17,6 +17,7 @@ export interface FacilityParkingRangeBookingPageProps {
 }
 
 const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageProps> = ({
+  tenantId,
   facilityId,
   facilityName,
   rangeStart,
@@ -28,6 +29,7 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState<string>("");
@@ -57,6 +59,49 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
       cancelled = true;
     };
   }, [currentLocale]);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!rangeStart || !rangeEnd) {
@@ -112,18 +157,48 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   const bookingTexts = facilityTranslations?.booking ?? {};
   const labels = facilityTranslations?.labels ?? {};
 
-  const parkingLayoutTitle: string =
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return fallback;
+  };
+
+  const parkingLayoutTitleBase: string =
     (bookingTexts.parkingLayoutTitle as string | undefined) ?? "駐車場配置図";
-  const slotSectionTitle: string =
+  const parkingLayoutTitle: string = resolveMessage(
+    "booking.parkingLayoutTitle",
+    parkingLayoutTitleBase,
+  );
+
+  const slotSectionTitleBase: string =
     (bookingTexts.slotSectionTitle as string | undefined) ?? "区画を選択";
-  const reservationSectionTitle: string =
+  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle", slotSectionTitleBase);
+
+  const reservationSectionTitleBase: string =
     (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const confirmButtonLabel: string =
+  const reservationSectionTitle: string = resolveMessage(
+    "booking.reservationSectionTitle",
+    reservationSectionTitleBase,
+  );
+
+  const confirmButtonLabelBase: string =
     (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const reservationDateLabel: string =
+  const confirmButtonLabel: string = resolveMessage(
+    "booking.confirmButton",
+    confirmButtonLabelBase,
+  );
+
+  const reservationDateLabelBase: string =
     (labels.reservation_date as string | undefined) ?? "予約日：";
+  const reservationDateLabel: string = resolveMessage(
+    "labels.reservation_date",
+    reservationDateLabelBase,
+  );
 
   const hasRange = !!rangeStart && !!rangeEnd;
+  const canSubmit = hasRange && !!selectedSlotId;
 
   return (
     <section className="flex-1 space-y-4" aria-label="parking-booking-range">
@@ -157,6 +232,7 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
         <h2 className="text-sm font-semibold text-gray-800">{slotSectionTitle}</h2>
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           <ParkingSlotSelector
+            tenantId={tenantId}
             slots={slots}
             selectedSlotId={selectedSlotId}
             onSelectSlot={setSelectedSlotId}
@@ -186,14 +262,24 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
           <div className="mt-4 flex justify-end">
             <button
               type="button"
-              disabled={!hasRange}
+              disabled={!canSubmit}
               onClick={() => {
-                if (!hasRange) return;
-                const startParam = encodeURIComponent(rangeStart);
-                const endParam = encodeURIComponent(rangeEnd);
-                router.push(
-                  `/facilities/${facilityId}/confirm?start=${startParam}&end=${endParam}`,
-                );
+                if (!canSubmit || !selectedSlotId) return;
+
+                const params = new URLSearchParams();
+                params.set("start", rangeStart);
+                params.set("end", rangeEnd);
+                params.set("slotId", selectedSlotId);
+
+                if (vehicleNumber.trim().length > 0) {
+                  params.set("vehicleNumber", vehicleNumber.trim());
+                }
+
+                if (vehicleModel.trim().length > 0) {
+                  params.set("vehicleModel", vehicleModel.trim());
+                }
+
+                router.push(`/facilities/${facilityId}/confirm?${params.toString()}`);
               }}
               className="inline-flex items-center rounded-md border-2 border-blue-600 bg-white px-4 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
             >

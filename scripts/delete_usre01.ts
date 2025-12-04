@@ -31,7 +31,6 @@ async function deleteTypoUser() {
     await supabaseAdmin.from('user_tenants').delete().eq('user_id', TYPO_USER_ID);
 
     // 3. Delete from tenant_residents
-    await supabaseAdmin.from('tenant_residents').delete().eq('user_id', TYPO_USER_ID);
 
     // 4. Delete from public.users
     const { error: publicError } = await supabaseAdmin.from('users').delete().eq('id', TYPO_USER_ID);

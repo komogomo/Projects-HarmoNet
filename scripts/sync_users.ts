@@ -43,7 +43,6 @@ async function syncUsers() {
         // Delete related records first to avoid FK errors
         await supabaseAdmin.from('user_roles').delete().eq('user_id', orphan.id);
         await supabaseAdmin.from('user_tenants').delete().eq('user_id', orphan.id);
-        await supabaseAdmin.from('tenant_residents').delete().eq('user_id', orphan.id);
 
         const { error } = await supabaseAdmin.from('users').delete().eq('id', orphan.id);
         if (error) console.error(`Error deleting ${orphan.id}:`, error.message);

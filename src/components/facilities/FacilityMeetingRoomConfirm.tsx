@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 
 interface FacilityMeetingRoomConfirmProps {
+  tenantId: string;
   facilityId: string;
   facilityName: string;
   date: string; // YYYY-MM-DD
@@ -16,6 +17,7 @@ interface FacilityMeetingRoomConfirmProps {
 }
 
 const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
+  tenantId,
   facilityId,
   facilityName,
   date,
@@ -30,6 +32,7 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +58,49 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
       cancelled = true;
     };
   }, [currentLocale]);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
 
   // 予約日表示をロケールに合わせて整形（曜日ラベルは facility.json の weekdays を利用）
   const localizedDisplayDate: string = React.useMemo(() => {
@@ -103,24 +149,58 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
   }, [date, displayDate, facilityTranslations, currentLocale]);
 
   const topTexts = facilityTranslations?.top ?? {};
-  const facilityNameLabel: string =
-    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
-
   const confirmTexts = facilityTranslations?.confirm ?? {};
-  const heading: string = (confirmTexts.heading as string | undefined) ?? "ご予約内容";
-  const dateLabel: string = (confirmTexts.dateLabel as string | undefined) ?? "予約日";
-  const timeLabel: string = (confirmTexts.timeLabel as string | undefined) ?? "予約時間";
-  const participantsLabel: string =
+
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return fallback;
+  };
+
+  const facilityNameLabelBase: string =
+    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
+  const facilityNameLabel: string = resolveMessage(
+    "top.facilityName.room",
+    facilityNameLabelBase,
+  );
+
+  const headingBase: string = (confirmTexts.heading as string | undefined) ?? "ご予約内容";
+  const heading: string = resolveMessage("confirm.heading", headingBase);
+
+  const dateLabelBase: string = (confirmTexts.dateLabel as string | undefined) ?? "予約日";
+  const dateLabel: string = resolveMessage("confirm.dateLabel", dateLabelBase);
+
+  const timeLabelBase: string = (confirmTexts.timeLabel as string | undefined) ?? "予約時間";
+  const timeLabel: string = resolveMessage("confirm.timeLabel", timeLabelBase);
+
+  const participantsLabelBase: string =
     (confirmTexts.participantsLabel as string | undefined) ?? "参加人数";
-  const purposeLabel: string = (confirmTexts.purposeLabel as string | undefined) ?? "利用目的";
-  const executeNotice: string =
+  const participantsLabel: string = resolveMessage(
+    "confirm.participantsLabel",
+    participantsLabelBase,
+  );
+
+  const purposeLabelBase: string =
+    (confirmTexts.purposeLabel as string | undefined) ?? "利用目的";
+  const purposeLabel: string = resolveMessage("confirm.purposeLabel", purposeLabelBase);
+
+  const executeNoticeBase: string =
     (confirmTexts.executeNotice as string | undefined) ??
     "上記の内容で予約します。よろしければ「予約」ボタンをタップしてください。";
-  const submitLabel: string =
-    (confirmTexts.submitButton as string | undefined) ?? "予約";
-  const errorMessageText: string =
+  const executeNotice: string = resolveMessage("confirm.executeNotice", executeNoticeBase);
+
+  const submitLabelBase: string = (confirmTexts.submitButton as string | undefined) ?? "予約";
+  const submitLabel: string = resolveMessage("confirm.submitButton", submitLabelBase);
+
+  const errorMessageTextBase: string =
     (confirmTexts.errorMessage as string | undefined) ??
     "エラーが発生しました。時間をおいて再度お試しください。";
+  const errorMessageText: string = resolveMessage(
+    "confirm.errorMessage",
+    errorMessageTextBase,
+  );
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -179,14 +259,14 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
     <section className="flex-1 space-y-6" aria-label="facility-confirm-meeting-room">
       {facilityNameLabel && (
         <header className="text-center">
-          <p className="text-sm font-semibold text-gray-800">{facilityNameLabel}</p>
+          <p className="text-sm font-semibold text-gray-600">{facilityNameLabel}</p>
         </header>
       )}
 
       <section className="space-y-3">
-        <div className="rounded-lg border-2 border-gray-200 bg-white p-4 text-sm text-gray-800">
-          <h2 className="mb-3 text-sm text-gray-800">{heading}</h2>
-          <div className="space-y-1 text-sm text-gray-800">
+        <div className="rounded-lg border-2 border-gray-200 bg-white p-4 text-sm text-gray-600">
+          <h2 className="mb-3 text-sm text-gray-600">{heading}</h2>
+          <div className="space-y-1 text-sm text-gray-600">
             <p>
               {dateLabel}：{localizedDisplayDate}
             </p>
@@ -202,19 +282,19 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
           </div>
           {purpose && (
             <div className="mt-2 rounded-md border-2 border-gray-200 bg-white px-3 py-2 min-h-[80px]">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
                 {purpose}
               </p>
             </div>
           )}
-          <p className="mt-4 text-xs text-gray-500">{executeNotice}</p>
+          <p className="mt-4 text-xs text-gray-600">{executeNotice}</p>
         </div>
 
         {submitError && (
           <p className="text-xs text-red-600">{submitError}</p>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={handleSubmit}

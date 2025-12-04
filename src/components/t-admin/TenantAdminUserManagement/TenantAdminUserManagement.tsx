@@ -646,7 +646,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         disabled={currentPage === 1}
                                         className={`px-3 py-1 rounded-md border-2 text-sm transition-colors ${currentPage === 1
                                             ? 'border-gray-200 bg-white text-gray-300 cursor-not-allowed'
-                                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-600 hover:text-blue-600'
+                                            : 'border-blue-400 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500'
                                             }`}
                                     >
                                         前へ
@@ -660,7 +660,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         disabled={currentPage === totalPages || totalPages === 0}
                                         className={`px-3 py-1 rounded-md border-2 text-sm transition-colors ${currentPage === totalPages || totalPages === 0
                                             ? 'border-gray-200 bg-white text-gray-300 cursor-not-allowed'
-                                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-600 hover:text-blue-600'
+                                            : 'border-blue-400 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500'
                                             }`}
                                     >
                                         次へ

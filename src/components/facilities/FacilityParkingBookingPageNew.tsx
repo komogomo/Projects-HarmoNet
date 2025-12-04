@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
 import ParkingSlotSelector, { type ParkingSlot } from "./ParkingSlotSelector";
@@ -18,6 +18,7 @@ export interface FacilityParkingBookingPageProps {
 }
 
 const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
+  tenantId,
   facilityId,
   facilityName,
   selectedDate,
@@ -30,6 +31,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<string>("");
@@ -65,6 +67,49 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
       cancelled = true;
     };
   }, [currentLocale]);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -196,64 +241,107 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const labels = facilityTranslations?.labels ?? {};
   const topTexts = facilityTranslations?.top ?? {};
 
-  const parkingLayoutTitle: string =
-    (bookingTexts.parkingLayoutTitle as string | undefined) ?? "駐車場配置図";
-  const slotSectionTitle: string =
-    (bookingTexts.slotSectionTitle as string | undefined) ?? "区画を選択";
-  const timeSlotSectionTitle: string =
-    (bookingTexts.timeSlotSectionTitle as string | undefined) ?? "空き状況";
-  const reservationSectionTitle: string =
-    (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const startTimeLabel: string = (bookingTexts.startTime as string | undefined) ?? "開始時刻";
-  const endTimeLabel: string = (bookingTexts.endTime as string | undefined) ?? "終了時刻";
-  const allDayLabel: string = (bookingTexts.allDay as string | undefined) ?? "終日";
-  const timeSelectPlaceholder: string =
-    (bookingTexts.selectTimePlaceholder as string | undefined) ?? "選択してください";
-  const confirmButtonLabel: string =
-    (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const cancelButtonLabel: string =
-    (bookingTexts.cancelButton as string | undefined) ?? "キャンセル";
-  const cancelConfirmMessage: string =
-    (bookingTexts.cancelConfirmMessage as string | undefined) ?? "この予約をキャンセルしますか？";
-  const cancelConfirmNoLabel: string =
-    (bookingTexts.cancelConfirmNo as string | undefined) ?? "いいえ";
-  const cancelConfirmYesLabel: string =
-    (bookingTexts.cancelConfirmYes as string | undefined) ?? "はい";
-  const reservationDateLabel: string =
-    (labels.reservation_date as string | undefined) ?? "予約日：";
-  const facilityNameLabel: string =
-    (topTexts.facilityName?.parking as string | undefined) ?? facilityName;
-
-  const timeOptions: string[] = useMemo(() => {
-    const results: string[] = [];
-
-    const parseTime = (value: string | null | undefined): number | null => {
-      if (!value || !/^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value)) return null;
-      const [h, m] = value.split(":").map((v) => Number(v));
-      if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-      return h * 60 + m;
-    };
-
-    const formatTime = (totalMinutes: number): string => {
-      const h = Math.floor(totalMinutes / 60)
-        .toString()
-        .padStart(2, "0");
-      const m = (totalMinutes % 60).toString().padStart(2, "0");
-      return `${h}:${m}`;
-    };
-
-    const defaultStart = 0; // 00:00
-    const defaultEnd = 23 * 60 + 30; // 23:30
-
-    const from = parseTime(availableFromTime) ?? defaultStart;
-    const to = parseTime(availableToTime) ?? defaultEnd;
-
-    for (let t = from; t <= to; t += 30) {
-      results.push(formatTime(t));
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
     }
+    return fallback;
+  };
 
-    return results;
-  }, [availableFromTime, availableToTime]);
+  const parkingLayoutTitleBase: string =
+    (bookingTexts.parkingLayoutTitle as string | undefined) ?? "駐車場配置図";
+  const parkingLayoutTitle: string = resolveMessage(
+    "booking.parkingLayoutTitle",
+    parkingLayoutTitleBase,
+  );
+
+  const slotSectionTitleBase: string =
+    (bookingTexts.slotSectionTitle as string | undefined) ?? "区画を選択";
+  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle", slotSectionTitleBase);
+
+  const timeSlotSectionTitleBase: string =
+    (bookingTexts.timeSlotSectionTitle as string | undefined) ?? "空き状況";
+  const timeSlotSectionTitle: string = resolveMessage(
+    "booking.timeSlotSectionTitle",
+    timeSlotSectionTitleBase,
+  );
+
+  const reservationSectionTitleBase: string =
+    (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
+  const reservationSectionTitle: string = resolveMessage(
+    "booking.reservationSectionTitle",
+    reservationSectionTitleBase,
+  );
+
+  const startTimeLabelBase: string =
+    (bookingTexts.startTime as string | undefined) ?? "開始時刻";
+  const startTimeLabel: string = resolveMessage("booking.startTime", startTimeLabelBase);
+
+  const endTimeLabelBase: string = (bookingTexts.endTime as string | undefined) ?? "終了時刻";
+  const endTimeLabel: string = resolveMessage("booking.endTime", endTimeLabelBase);
+
+  const allDayLabelBase: string = (bookingTexts.allDay as string | undefined) ?? "終日";
+  const allDayLabel: string = resolveMessage("booking.allDay", allDayLabelBase);
+
+  const timeSelectPlaceholderBase: string =
+    (bookingTexts.selectTimePlaceholder as string | undefined) ?? "選択してください";
+  const timeSelectPlaceholder: string = resolveMessage(
+    "booking.selectTimePlaceholder",
+    timeSelectPlaceholderBase,
+  );
+
+  const confirmButtonLabelBase: string =
+    (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
+  const confirmButtonLabel: string = resolveMessage(
+    "booking.confirmButton",
+    confirmButtonLabelBase,
+  );
+
+  const cancelButtonLabelBase: string =
+    (bookingTexts.cancelButton as string | undefined) ?? "キャンセル";
+  const cancelButtonLabel: string = resolveMessage("booking.cancelButton", cancelButtonLabelBase);
+
+  const cancelConfirmMessageBase: string =
+    (bookingTexts.cancelConfirmMessage as string | undefined) ?? "この予約をキャンセルしますか？";
+  const cancelConfirmMessage: string = resolveMessage(
+    "booking.cancelConfirmMessage",
+    cancelConfirmMessageBase,
+  );
+
+  const cancelConfirmNoLabelBase: string =
+    (bookingTexts.cancelConfirmNo as string | undefined) ?? "いいえ";
+  const cancelConfirmNoLabel: string = resolveMessage(
+    "booking.cancelConfirmNo",
+    cancelConfirmNoLabelBase,
+  );
+
+  const cancelConfirmYesLabelBase: string =
+    (bookingTexts.cancelConfirmYes as string | undefined) ?? "はい";
+  const cancelConfirmYesLabel: string = resolveMessage(
+    "booking.cancelConfirmYes",
+    cancelConfirmYesLabelBase,
+  );
+
+  const reservationDateLabelBase: string =
+    (labels.reservation_date as string | undefined) ?? "予約日：";
+  const reservationDateLabel: string = resolveMessage(
+    "labels.reservation_date",
+    reservationDateLabelBase,
+  );
+
+  const facilityNameLabelBase: string =
+    (topTexts.facilityName?.parking as string | undefined) ?? facilityName;
+  const facilityNameLabel: string = resolveMessage(
+    "top.facilityName.parking",
+    facilityNameLabelBase,
+  );
+
+  const isValidTime = (value: string | null | undefined): value is string =>
+    !!value && /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
+
+  const minTime: string = isValidTime(availableFromTime) ? availableFromTime : "00:00";
+  const maxTime: string = isValidTime(availableToTime) ? availableToTime : "23:30";
 
   const canSubmit =
     !!selectedDate &&
@@ -314,7 +402,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
       {/* ヘッダー（説明文がある場合のみ） */}
       {facilityDescription && (
         <header className="space-y-2">
-          <div className="mt-2 rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-700">
+          <div className="mt-2 rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-600">
             <p className="whitespace-pre-wrap leading-relaxed">{facilityDescription}</p>
           </div>
         </header>
@@ -323,7 +411,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
       {/* 駐車場配置図（DBの image_url/meta から渡された場合のみ表示） */}
       {parkingImageUrl && (
         <section className="space-y-2" aria-label="parking-layout">
-          <h2 className="text-sm font-semibold text-gray-800">{parkingLayoutTitle}</h2>
+          <h2 className="text-sm text-gray-600">{parkingLayoutTitle}</h2>
           <div className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white">
             <div className="relative w-full" style={{ paddingBottom: "150%" }}>
               <img
@@ -338,9 +426,10 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
 
       {/* 区画セレクター */}
       <section className="space-y-2" aria-label="parking-slot-selector">
-        <h2 className="text-sm font-semibold text-gray-800">{slotSectionTitle}</h2>
+        <h2 className="text-sm text-gray-600">{slotSectionTitle}</h2>
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           <ParkingSlotSelector
+            tenantId={tenantId}
             slots={slots}
             selectedSlotId={selectedSlotId}
             onSelectSlot={setSelectedSlotId}
@@ -351,9 +440,9 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
       {/* 時間帯選択＋予約詳細 */}
       <section className="space-y-2" aria-label="reservation-detail-form-single">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-gray-800">{reservationSectionTitle}</h2>
+          <h2 className="text-sm text-gray-600">{reservationSectionTitle}</h2>
           {selectedDate && (
-            <p className="text-sm font-semibold text-gray-800">
+            <p className="text-sm text-gray-600">
               {reservationDateLabel}
               {selectedDate}
             </p>
@@ -362,43 +451,37 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           {/* 時刻セレクト */}
           <div className="mb-4 space-y-2" aria-label={timeSlotSectionTitle}>
-            <div className="grid grid-cols-2 gap-3 text-xs text-gray-700">
+            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
               <div className="space-y-1">
-                <label className="block text-xs font-medium text-gray-700">{startTimeLabel}</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                <label className="block text-xs text-gray-600">{startTimeLabel}</label>
+                <input
+                  type="time"
+                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={startTime}
                   onChange={(event) => setStartTime(event.target.value)}
                   disabled={isAllDay}
-                >
-                  <option value="">{timeSelectPlaceholder}</option>
-                  {timeOptions.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  min={minTime}
+                  max={maxTime}
+                  step={30 * 60}
+                />
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-medium text-gray-700">{endTimeLabel}</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                <label className="block text-xs text-gray-600">{endTimeLabel}</label>
+                <input
+                  type="time"
+                  className="mt1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={endTime}
                   onChange={(event) => setEndTime(event.target.value)}
                   disabled={isAllDay}
-                >
-                  <option value="">{timeSelectPlaceholder}</option>
-                  {timeOptions.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                  min={minTime}
+                  max={maxTime}
+                  step={30 * 60}
+                />
               </div>
             </div>
 
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-700">
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
               <label className="inline-flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -443,35 +526,35 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
       </section>
 
       {isCancelConfirmOpen && (
-      <div
-        className="fixed inset-0 z-[1050] flex items-center justify-center bg-transparent"
-        onClick={handleCancelDialogClose}
-      >
         <div
-          className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
-          onClick={(event) => event.stopPropagation()}
+          className="fixed inset-0 z-[1050] flex items-center justify-center bg-transparent"
+          onClick={handleCancelDialogClose}
         >
-          <p className="mb-3 whitespace-pre-line">{cancelConfirmMessage}</p>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleCancelDialogClose}
-              disabled={isSubmittingCancel}
-              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-            >
-              {cancelConfirmNoLabel}
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmCancel}
-              disabled={isSubmittingCancel}
-              className="font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
-            >
-              {cancelConfirmYesLabel}
-            </button>
+          <div
+            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-600 shadow-lg"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="mb-3 whitespace-pre-line">{cancelConfirmMessage}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCancelDialogClose}
+                disabled={isSubmittingCancel}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                {cancelConfirmNoLabel}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancel}
+                disabled={isSubmittingCancel}
+                className="text-red-500 hover:text-red-600 disabled:opacity-50"
+              >
+                {cancelConfirmYesLabel}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       )}
     </section>
   );

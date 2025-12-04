@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutGrid, Bell, MessageSquare, Calendar, FileText, ClipboardList, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
@@ -53,9 +53,53 @@ const FEATURE_TILES: HomeFeatureTileDefinition[] = [
   },
 ];
 
-export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmin = false }) => {
-  const { t } = useI18n();
+export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmin = false, tenantId }) => {
+  const { t, currentLocale } = useI18n();
   const router = useRouter();
+
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(`/api/tenant-static-translations/home?${params.toString()}`);
+
+        if (!res.ok) return;
+
+        const data = (await res.json()) as { messages?: Record<string, string> };
+
+        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
+  const resolveMessage = (key: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return t(key);
+  };
 
   // Filter tiles based on role
   const baseTiles = FEATURE_TILES.filter((tile) => {
@@ -66,9 +110,15 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
   });
 
   const effectiveTiles = baseTiles.map((tile) => {
+    const baseTile: HomeFeatureTileDefinition = {
+      ...tile,
+      labelOverride: resolveMessage(tile.labelKey),
+      descriptionOverride: resolveMessage(tile.descriptionKey),
+    };
+
     if (tile.featureKey === 'NOTICE') {
       return {
-        ...tile,
+        ...baseTile,
         isEnabled: true,
         onClick: () => {
           router.push('/board?tab=important');
@@ -78,7 +128,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
 
     if (tile.featureKey === 'BOARD') {
       return {
-        ...tile,
+        ...baseTile,
         isEnabled: true,
         onClick: () => {
           router.push('/board');
@@ -88,7 +138,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
 
     if (tile.featureKey === 'FACILITY') {
       return {
-        ...tile,
+        ...baseTile,
         isEnabled: true,
         onClick: () => {
           router.push('/facilities');
@@ -98,7 +148,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
 
     if (tile.featureKey === 'RULES') {
       return {
-        ...tile,
+        ...baseTile,
         isEnabled: true,
         onClick: () => {
           router.push('/board?tab=rules');
@@ -108,7 +158,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
 
     if (tile.featureKey === 'TENANT_ADMIN') {
       return {
-        ...tile,
+        ...baseTile,
         isEnabled: true,
         onClick: () => {
           router.push('/t-admin/users');
@@ -116,14 +166,14 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
       };
     }
 
-    return tile;
+    return baseTile;
   });
 
   return (
     <section aria-labelledby="home-feature-tiles-title">
       <h2
         id="home-feature-tiles-title"
-        className="mb-3 flex items-center gap-1 text-base font-semibold text-gray-900"
+        className="mb-3 flex items-center gap-1 text-sm text-gray-600"
       >
         <LayoutGrid
           aria-hidden="true"

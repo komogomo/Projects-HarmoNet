@@ -134,8 +134,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const startAt = parseDateTime(date, startTime);
-    const endAt = parseDateTime(date, endTime);
+    // 連泊用の駐車場予約では、date/startTime/endTime がいずれも日付(YYYY-MM-DD)として渡される。
+    // その場合は [startDate, endDate+1日) の期間として扱う。
+    const isRangeMode =
+      /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      date === startTime &&
+      /^\d{4}-\d{2}-\d{2}$/.test(endTime);
+
+    let startAt: Date | null;
+    let endAt: Date | null;
+
+    if (isRangeMode) {
+      const startDate = new Date(`${date}T00:00:00`);
+      const endDateExclusive = new Date(`${endTime}T00:00:00`);
+      // 終了日は翌日の 0:00 を上限として扱うことで、表示上の「終了日」までを予約対象とする
+      endDateExclusive.setDate(endDateExclusive.getDate() + 1);
+
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDateExclusive.getTime()) ||
+        endDateExclusive <= startDate
+      ) {
+        return NextResponse.json(
+          { ok: false as const, errorCode: "validation_error" as const },
+          { status: 400 },
+        );
+      }
+
+      startAt = startDate;
+      endAt = endDateExclusive;
+    } else {
+      startAt = parseDateTime(date, startTime);
+      endAt = parseDateTime(date, endTime);
+    }
 
     if (!startAt || !endAt || endAt <= startAt) {
       return NextResponse.json(

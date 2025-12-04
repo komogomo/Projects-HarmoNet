@@ -15,15 +15,18 @@ interface ParkingSlotSelectorProps {
   slots: ParkingSlot[];
   selectedSlotId: string | null;
   onSelectSlot?: (slotId: string | null) => void;
+  tenantId: string;
 }
 
 const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
   slots,
   selectedSlotId,
   onSelectSlot,
+  tenantId,
 }) => {
   const { currentLocale } = useI18n();
   const [facilityTranslations, setFacilityTranslations] = React.useState<any | null>(null);
+  const [messages, setMessages] = React.useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -50,11 +53,70 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
     };
   }, [currentLocale]);
 
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
   const legendTexts = facilityTranslations?.booking?.legend ?? {};
-  const legendAvailable: string = (legendTexts.available as string | undefined) ?? "空き";
-  const legendSelected: string = (legendTexts.selected as string | undefined) ?? "選択中";
-  const legendBooked: string = (legendTexts.booked as string | undefined) ?? "予約済";
-  const legendMy: string = (legendTexts.my as string | undefined) ?? "自己予約済";
+
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return fallback;
+  };
+
+  const legendAvailableBase: string = (legendTexts.available as string | undefined) ?? "空き";
+  const legendAvailable: string = resolveMessage("booking.legend.available", legendAvailableBase);
+
+  const legendSelectedBase: string = (legendTexts.selected as string | undefined) ?? "選択中";
+  const legendSelected: string = resolveMessage("booking.legend.selected", legendSelectedBase);
+
+  const legendBookedBase: string = (legendTexts.booked as string | undefined) ?? "予約済";
+  const legendBooked: string = resolveMessage("booking.legend.booked", legendBookedBase);
+
+  const legendMyBase: string = (legendTexts.my as string | undefined) ?? "自己予約済";
+  const legendMy: string = resolveMessage("booking.legend.my", legendMyBase);
 
   const handleClick = (slot: ParkingSlot) => {
     if (slot.state === "booked") return;
@@ -83,7 +145,7 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
             classes += " border-blue-500 bg-gray-200 text-blue-700";
           } else {
             // 空き（予約可能：薄い青枠）
-            classes += " border-blue-200 bg-white text-gray-800";
+            classes += " border-blue-200 bg-white text-gray-600";
           }
 
           return (

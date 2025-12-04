@@ -151,6 +151,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { data: defaultTranslations, error: defaultTranslationsError } = await adminClient
+      .from("static_translation_defaults")
+      .select("screen_id, screen_key, message_key, text_ja, text_en, text_zh");
+
+    if (defaultTranslationsError) {
+      console.error("Failed to read static translation defaults:", defaultTranslationsError);
+      await adminClient.from("tenants").delete().eq("id", data.id);
+      return NextResponse.json(
+        { ok: false, message: "テナントの初期設定（翻訳マスタ読込）に失敗しました。" },
+        { status: 500 },
+      );
+    }
+
+    if (defaultTranslations && defaultTranslations.length > 0) {
+      const seedRows = (defaultTranslations as {
+        screen_id: string | null;
+        screen_key: string | null;
+        message_key: string | null;
+        text_ja: string | null;
+        text_en: string | null;
+        text_zh: string | null;
+      }[]).map((row) => ({
+        id: randomUUID(),
+        tenant_id: data.id,
+        screen_id: row.screen_id,
+        screen_key: row.screen_key,
+        message_key: row.message_key,
+        text_ja: row.text_ja,
+        text_en: row.text_en,
+        text_zh: row.text_zh,
+        status: "active",
+        created_at: nowIso,
+        updated_at: nowIso,
+      }));
+
+      const { error: seedError } = await adminClient
+        .from("tenant_static_translations")
+        .insert(seedRows);
+
+      if (seedError) {
+        console.error("Failed to seed tenant_static_translations:", seedError);
+        await adminClient.from("tenants").delete().eq("id", data.id);
+        return NextResponse.json(
+          { ok: false, message: "テナントの初期設定（翻訳データ作成）に失敗しました。" },
+          { status: 500 },
+        );
+      }
+    }
+
     return NextResponse.json({ ok: true, tenantId: data.id });
   } catch (error) {
     if (error instanceof SystemAdminApiError) {

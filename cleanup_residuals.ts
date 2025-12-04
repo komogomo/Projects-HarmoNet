@@ -22,19 +22,6 @@ async function main() {
     }
 
     // 2. Delete test permissions (just in case)
-    const permissions = await prisma.permissions.findMany({
-        where: { permission_key: { startsWith: 'test-' } }
-    });
-
-    if (permissions.length > 0) {
-        console.log(`Found ${permissions.length} test permissions. Deleting...`);
-        const { count } = await prisma.permissions.deleteMany({
-            where: { permission_key: { startsWith: 'test-' } }
-        });
-        console.log(`✅ Deleted ${count} test permissions.`);
-    } else {
-        console.log('✅ No test permissions found.');
-    }
 }
 
 main()

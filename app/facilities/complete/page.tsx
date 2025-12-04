@@ -1,75 +1,64 @@
-"use client";
+import React from "react";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { logError } from "@/src/lib/logging/log.util";
+import FacilityCompletePage from "@/src/components/facilities/FacilityCompletePage";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
-import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+export default async function FacilitiesCompleteRoutePage() {
+  const supabase = await createSupabaseServerClient();
 
-const FacilityCompletePage: React.FC = () => {
-  const { currentLocale } = useI18n();
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    let cancelled = false;
+  if (authError || !user || !user.email) {
+    logError("auth.callback.no_session", {
+      reason: authError?.message ?? "no_session",
+      screen: "FacilityComplete",
+    });
+    redirect("/login?error=no_session");
+  }
 
-    const load = async () => {
-      try {
-        const res = await fetch(`/locales/${currentLocale}/facility.json`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) {
-          setFacilityTranslations(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
+  const email = user.email;
 
-    void load();
+  const {
+    data: appUser,
+    error: appUserError,
+  } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
+  if (appUserError || !appUser) {
+    logError("auth.callback.unauthorized.user_not_found", {
+      screen: "FacilityComplete",
+      email,
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=unauthorized");
+  }
 
-  const confirmTexts = facilityTranslations?.confirm ?? {};
-  const completeTitle: string =
-    (confirmTexts.completeTitle as string | undefined) ?? "予約が完了しました";
-  const completeBody: string =
-    (confirmTexts.completeBody as string | undefined) ??
-    "予約内容は施設予約トップやマイページからご確認いただけます。";
-  const backLabel: string =
-    (confirmTexts.completeBackButton as string | undefined) ?? "施設予約トップへ";
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
+    .from("user_tenants")
+    .select("tenant_id")
+    .eq("user_id", appUser.id)
+    .maybeSingle();
 
-  return (
-    <>
-      <main className="min-h-screen bg-white">
-        <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
-          <section
-            className="flex-1 flex flex-col items-center justify-center space-y-6"
-            aria-label="facility-complete"
-          >
-            <div className="text-center space-y-2">
-              <h1 className="text-lg font-semibold text-gray-900">{completeTitle}</h1>
-              <p className="text-sm text-gray-600">{completeBody}</p>
-            </div>
+  if (membershipError || !membership || !membership.tenant_id) {
+    logError("auth.callback.unauthorized.no_tenant", {
+      screen: "FacilityComplete",
+      userId: appUser.id,
+    });
+    await supabase.auth.signOut();
+    redirect("/login?error=unauthorized");
+  }
 
-            <div className="flex gap-3">
-              <Link
-                href="/facilities"
-                className="inline-flex items-center rounded-md border-2 border-blue-600 bg-white px-4 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50"
-              >
-                {backLabel}
-              </Link>
-            </div>
-          </section>
-        </div>
-      </main>
-      <HomeFooterShortcuts />
-    </>
-  );
-};
+  const tenantId = membership.tenant_id as string;
 
-export default FacilityCompletePage;
+  return <FacilityCompletePage tenantId={tenantId} />;
+}

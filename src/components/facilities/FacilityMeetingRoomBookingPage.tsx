@@ -18,6 +18,7 @@ export interface FacilityMeetingRoomBookingPageProps {
 }
 
 const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPageProps> = ({
+  tenantId,
   facilityId,
   facilityName,
   selectedDate,
@@ -30,6 +31,7 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
   const [rangeStartTime, setRangeStartTime] = useState<string | null>(null);
   const [rangeEndTime, setRangeEndTime] = useState<string | null>(null);
   const [purpose, setPurpose] = useState<string>("");
@@ -62,6 +64,49 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
       cancelled = true;
     };
   }, [currentLocale]);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -127,29 +172,79 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   }, [facilityId, selectedDate]);
 
   const labels = facilityTranslations?.labels ?? {};
-  const reservationDateLabel: string =
-    (labels.reservation_date as string | undefined) ?? "予約日：";
-  const purposeLabel: string = (labels.purpose as string | undefined) ?? "利用目的";
-  const participantCountLabel: string =
-    (labels.participant_count as string | undefined) ?? "参加人数";
-
   const topTexts = facilityTranslations?.top ?? {};
-  const facilityNameLabel: string =
-    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
-
   const bookingTexts = facilityTranslations?.booking ?? {};
-  const reservationSectionTitle: string =
+
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return fallback;
+  };
+
+  const reservationDateLabelBase: string =
+    (labels.reservation_date as string | undefined) ?? "予約日：";
+  const reservationDateLabel: string = resolveMessage(
+    "labels.reservation_date",
+    reservationDateLabelBase,
+  );
+
+  const purposeLabelBase: string = (labels.purpose as string | undefined) ?? "利用目的";
+  const purposeLabel: string = resolveMessage("labels.purpose", purposeLabelBase);
+
+  const participantCountLabelBase: string =
+    (labels.participant_count as string | undefined) ?? "参加人数";
+  const participantCountLabel: string = resolveMessage(
+    "labels.participant_count",
+    participantCountLabelBase,
+  );
+
+  const facilityNameLabelBase: string =
+    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
+  const facilityNameLabel: string = resolveMessage(
+    "top.facilityName.room",
+    facilityNameLabelBase,
+  );
+
+  const reservationSectionTitleBase: string =
     (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const confirmButtonLabel: string =
+  const reservationSectionTitle: string = resolveMessage(
+    "booking.reservationSectionTitle",
+    reservationSectionTitleBase,
+  );
+
+  const confirmButtonLabelBase: string =
     (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const cancelButtonLabel: string =
+  const confirmButtonLabel: string = resolveMessage(
+    "booking.confirmButton",
+    confirmButtonLabelBase,
+  );
+
+  const cancelButtonLabelBase: string =
     (bookingTexts.cancelButton as string | undefined) ?? "キャンセル";
-  const cancelConfirmMessage: string =
+  const cancelButtonLabel: string = resolveMessage("booking.cancelButton", cancelButtonLabelBase);
+
+  const cancelConfirmMessageBase: string =
     (bookingTexts.cancelConfirmMessage as string | undefined) ?? "この予約をキャンセルしますか？";
-  const cancelConfirmNoLabel: string =
+  const cancelConfirmMessage: string = resolveMessage(
+    "booking.cancelConfirmMessage",
+    cancelConfirmMessageBase,
+  );
+
+  const cancelConfirmNoLabelBase: string =
     (bookingTexts.cancelConfirmNo as string | undefined) ?? "いいえ";
-  const cancelConfirmYesLabel: string =
+  const cancelConfirmNoLabel: string = resolveMessage(
+    "booking.cancelConfirmNo",
+    cancelConfirmNoLabelBase,
+  );
+
+  const cancelConfirmYesLabelBase: string =
     (bookingTexts.cancelConfirmYes as string | undefined) ?? "はい";
+  const cancelConfirmYesLabel: string = resolveMessage(
+    "booking.cancelConfirmYes",
+    cancelConfirmYesLabelBase,
+  );
 
   const handleRequestCancel = () => {
     if (!existingReservationId || isSubmittingCancel) return;
@@ -189,11 +284,12 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
       <section className="space-y-2" aria-label="time-slot-selector">
         {facilityNameLabel && (
           <div className="flex justify-center">
-            <p className="text-sm font-semibold text-gray-800">{facilityNameLabel}</p>
+            <p className="text-sm text-gray-600">{facilityNameLabel}</p>
           </div>
         )}
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           <TimeSlotSelector
+            tenantId={tenantId}
             availableFromTime={availableFromTime}
             availableToTime={availableToTime}
             onRangeChange={(start, end) => {
@@ -207,9 +303,9 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
       {/* 予約詳細フォーム */}
       <section className="space-y-2" aria-label="reservation-detail-form">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-gray-800">{reservationSectionTitle}</h2>
+          <h2 className="text-sm text-gray-600">{reservationSectionTitle}</h2>
           {selectedDate && (
-            <p className="text-sm font-semibold text-gray-800">
+            <p className="text-sm text-gray-600">
               {reservationDateLabel}
               {selectedDate}
             </p>
@@ -288,7 +384,7 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
               type="button"
               onClick={handleConfirmCancel}
               disabled={isSubmittingCancel}
-              className="font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
+              className="text-red-500 hover:text-red-600 disabled:opacity-50"
             >
               {cancelConfirmYesLabel}
             </button>

@@ -20,18 +20,6 @@ async function main() {
         console.log(`✅ [roles] Clean`);
     }
 
-    // Check permissions
-    const permissions = await prisma.permissions.findMany({
-        where: {
-            permission_key: { startsWith: 'test-' }
-        }
-    });
-
-    if (permissions.length > 0) {
-        console.error(`❌ [permissions] Found ${permissions.length} residual records!`);
-    } else {
-        console.log(`✅ [permissions] Clean`);
-    }
 }
 
 main()

@@ -503,7 +503,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
           onClick={handleCancelRemoveAttachment}
         >
           <div
-            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
+            className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-600 shadow-lg"
             onClick={(event) => event.stopPropagation()}
           >
             <p className="mb-3 whitespace-pre-line">
@@ -520,7 +520,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmRemoveAttachment}
-                className="font-semibold text-red-500 hover:text-red-600"
+                className="text-red-500 hover:text-red-600"
               >
                 {t("board.detail.post.deleteConfirmYes")}
               </button>
@@ -531,7 +531,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {!isReplyMode && isManagementMember && (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm text-gray-600">
             {t("board.postForm.field.posterType.label")}
           </div>
           <div className="flex gap-4 text-sm">
@@ -563,7 +563,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {!isReplyMode && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-500">
+          <label className="block text-sm text-gray-600">
             {t("board.postForm.field.category.label")}
             <select
               className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -587,11 +587,11 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {!isReplyMode && (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm text-gray-600">
             {t("board.postForm.field.displayName.label")}
           </div>
           {viewerRole === "admin" && posterType === "management" ? (
-            <div className="text-sm text-gray-500">{t("board.authorType.admin")}</div>
+            <div className="text-sm text-gray-600">{t("board.authorType.admin")}</div>
           ) : (
             <>
               <div className="flex gap-4 text-sm">
@@ -630,7 +630,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {!isReplyMode && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-500">
+          <label className="block text-sm text-gray-600">
             <span className="inline-flex items-center gap-1">
               {t("board.postForm.field.title.label")}
               <span className="text-red-500" aria-hidden="true">
@@ -653,7 +653,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {isReplyMode && isTenantAdmin && (
         <section className="space-y-2">
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm text-gray-600">
             {t("board.postForm.field.posterType.label")}
           </div>
           <div className="flex gap-4 text-sm">
@@ -685,11 +685,11 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {isReplyMode && (
         <section className="space-y-2">
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm text-gray-600">
             {t("board.postForm.field.displayName.label")}
           </div>
           {isTenantAdmin && replyAuthorType === "admin" ? (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-600">
               {t("board.postForm.field.displayName.label")}：{t("board.authorType.admin")}
             </p>
           ) : (
@@ -722,7 +722,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
       )}
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-500">
+        <label className="block text-sm text-gray-600">
           <span className="inline-flex items-center gap-1">
             {t("board.postForm.field.content.label")}
             <span className="text-red-500" aria-hidden="true">
@@ -743,20 +743,20 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
 
       {!isReplyMode && (
         <div className="space-y-2">
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm text-gray-600">
             {t("board.postForm.section.attachment")}
           </div>
-          <div className="space-y-1 text-xs text-gray-500">
+          <div className="space-y-1 text-xs text-gray-600">
             <p>{t("board.postForm.note.attachment.description")}</p>
             <p>{t("board.postForm.note.attachment.attachmentAllowed")}</p>
             <p>{t("board.postForm.note.attachment.sizeLimit")}</p>
             <p>{t("board.postForm.note.attachment.previewNote")}</p>
           </div>
-          <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-700">
+          <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-600">
             <div className="mb-2 flex justify-start">
               <label
                 htmlFor="board-post-form-attachment-input"
-                className="inline-flex cursor-pointer items-center rounded-md border-2 border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50"
+                className="inline-flex cursor-pointer items-center rounded-md border-2 border-gray-300 bg-white px-2.5 py-1 text-[11px] text-blue-600 hover:bg-gray-50"
               >
                 {t("board.postForm.button.attachFile")}
               </label>
@@ -775,15 +775,15 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                 {attachments.map((attachment) => (
                   <li
                     key={attachment.id}
-                    className="flex items-center justify-between rounded border border-gray-200 px-2 py-1"
+                    className="flex items-center justify-between rounded border-2 border-gray-200 px-2 py-1"
                   >
                     <div className="min-w-0">
-                      <span className="block truncate font-medium">{attachment.fileName}</span>
+                      <span className="block truncate">{attachment.fileName}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRequestRemoveAttachment(attachment.id)}
-                      className="flex h-5 w-5 items-center justify-center text-[16px] font-extrabold text-red-500 hover:text-red-600"
+                      className="flex h-5 w-5 items-center justify-center text-[16px] text-red-500 hover:text-red-600"
                       aria-label={t("common.cancel")}
                     >
                       ×
@@ -803,14 +803,14 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         <button
           type="button"
           onClick={handleClickCancel}
-          className="rounded-md border-2 border-gray-300 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50"
+          className="rounded-md border-2 border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
         >
           {t("board.postForm.button.cancel")} 
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md border-2 border-blue-200 bg-white px-4 py-2 text-sm text-blue-600 shadow-sm hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="board-post-form-submit-button"
         >
           {isSubmitting ? t("board.postForm.button.submitting") : t("board.postForm.button.submit")}
@@ -820,7 +820,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
             type="button"
             onClick={handleSubmitWithMaskedContent}
             disabled={isSubmitting}
-            className="rounded-md bg-yellow-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md bg-yellow-500 px-4 py-2 text-sm text-white shadow-sm hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-60"
             data-testid="board-post-form-submit-masked-button"
           >
             {t("board.postForm.button.submitMasked")}
@@ -835,29 +835,29 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
         >
           <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
             <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-gray-500">
+              <h2 className="text-lg text-gray-600">
                 {t("board.postForm.confirm.submit.title")}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 {t("board.postForm.confirm.submit.notice")}
               </p>
-              <div className="space-y-2 rounded-md bg-gray-50 p-3 text-sm text-gray-500">
+              <div className="space-y-2 rounded-md border-2 border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
                 <div>
-                  <div className="font-medium">
+                  <div>
                     {t("board.postForm.confirm.preview.title")}
                   </div>
                   <div>{title}</div>
                 </div>
                 {!isReplyMode && (
                   <div>
-                    <div className="font-medium">
+                    <div>
                       {t("board.postForm.confirm.preview.category")}
                     </div>
                     <div>{selectedCategoryLabel}</div>
                   </div>
                 )}
                 <div>
-                  <div className="font-medium">
+                  <div>
                     {t("board.postForm.confirm.preview.content")}
                   </div>
                   <div className="whitespace-pre-wrap">
@@ -866,7 +866,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                 </div>
                 {attachments.length > 0 && (
                   <div>
-                    <div className="font-medium">
+                    <div>
                       {t("board.postForm.confirm.preview.attachment")}
                     </div>
                     <ul className="list-disc pl-5">
@@ -882,7 +882,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                   type="button"
                   onClick={handleCancelConfirm}
                   disabled={isSubmitting}
-                  className="rounded-md border-2 border-gray-300 px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md border-2 border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {t("board.postForm.confirm.submit.cancel")}
                 </button>
@@ -890,7 +890,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
                   type="button"
                   onClick={handleConfirmSubmit}
                   disabled={isSubmitting}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md border-2 border-blue-200 bg-white px-4 py-2 text-sm text-blue-600 shadow-sm hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                   data-testid="board-post-form-confirm-ok"
                 >
                   {isSubmitting

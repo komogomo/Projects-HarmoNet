@@ -38,33 +38,33 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
       {/* 予約時間（選択中レンジの表示） */}
       {selectedStartTime && selectedEndTime && (
-        <p className="text-sm font-semibold text-gray-800">
+        <p className="text-sm text-gray-600">
           予約時間：{selectedStartTime} ～ {selectedEndTime}
         </p>
       )}
 
       {/* 利用目的 */}
       <div className="space-y-1">
-        <label className="block text-xs font-medium text-gray-700">
+        <label className="block text-xs text-gray-600">
           {purposeLabel}
           <span className="ml-1 text-red-500" aria-hidden="true">
             *
           </span>
         </label>
         <textarea
-          className="mt-1 block w-full min-h-[80px] rounded-md border-2 border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full min-h-[80px] rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={purpose}
           onChange={(event) => onChangePurpose(event.target.value)}
         />
       </div>
 
-      <div className="flex flex-col gap-3 text-xs text-gray-700 sm:flex-row">
+      <div className="flex flex-col gap-3 text-xs text-gray-600 sm:flex-row">
         <div className="flex-1 space-y-1">
-          <label className="block text-xs font-medium text-gray-700">
+          <label className="block text-xs text-gray-600">
             {participantCountLabel}
           </label>
           <select
-            className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={participantCount}
             onChange={(event) => onChangeParticipantCount(event.target.value)}
           >

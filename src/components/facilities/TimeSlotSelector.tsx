@@ -14,6 +14,7 @@ interface TimeSlotSelectorProps {
   availableFromTime?: string | null;
   availableToTime?: string | null;
   onRangeChange?: (startTime: string | null, endTime: string | null) => void;
+  tenantId: string;
 }
 
 const parseHmToMinutes = (value: string | null | undefined, fallback: number): number => {
@@ -55,11 +56,13 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   availableFromTime,
   availableToTime,
   onRangeChange,
+  tenantId,
 }) => {
   const { currentLocale } = useI18n();
   const [rangeStartIndex, setRangeStartIndex] = useState<number | null>(null);
   const [rangeEndIndex, setRangeEndIndex] = useState<number | null>(null);
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +89,49 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     };
   }, [currentLocale]);
 
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
   const slots: Slot[] = useMemo(() => {
     const baseTimes = buildTimeList(availableFromTime ?? undefined, availableToTime ?? undefined);
 
@@ -96,10 +142,26 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   }, [availableFromTime, availableToTime]);
 
   const legendTexts = facilityTranslations?.booking?.legend ?? {};
-  const legendSelected: string = (legendTexts.selected as string | undefined) ?? "選択中";
-  const legendBooked: string = (legendTexts.booked as string | undefined) ?? "予約済";
-  const legendAvailable: string = (legendTexts.available as string | undefined) ?? "予約可能";
-  const legendMy: string = (legendTexts.my as string | undefined) ?? "自予約済";
+
+  const resolveMessage = (key: string, fallback: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    return fallback;
+  };
+
+  const legendSelectedBase: string = (legendTexts.selected as string | undefined) ?? "選択中";
+  const legendSelected: string = resolveMessage("booking.legend.selected", legendSelectedBase);
+
+  const legendBookedBase: string = (legendTexts.booked as string | undefined) ?? "予約済";
+  const legendBooked: string = resolveMessage("booking.legend.booked", legendBookedBase);
+
+  const legendAvailableBase: string = (legendTexts.available as string | undefined) ?? "予約可能";
+  const legendAvailable: string = resolveMessage("booking.legend.available", legendAvailableBase);
+
+  const legendMyBase: string = (legendTexts.my as string | undefined) ?? "自予約済";
+  const legendMy: string = resolveMessage("booking.legend.my", legendMyBase);
 
   const handleToggle = (slot: Slot, index: number) => {
     if (slot.state === "booked" || slot.state === "blocked") {
@@ -165,7 +227,7 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
             "flex items-center justify-center rounded-md border-2 px-1.5 py-1.5 text-[11px]";
           if (state === "available") {
             // カレンダーの「予約可能」と同じ青系アウトライン
-            classes += " border-blue-200 bg-white text-gray-800 hover:bg-blue-50";
+            classes += " border-blue-200 bg-white text-gray-600 hover:bg-blue-50";
           } else if (state === "booked") {
             classes += " border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
           } else if (state === "blocked") {
@@ -192,7 +254,7 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
         })}
       </div>
 
-      <div className="flex flex-wrap justify-center gap-3 text-[12px] text-gray-600">
+      <div className="flex flex-wrap justify-center gap-3 text-xs text-gray-600">
         <div className="inline-flex items-center gap-1">
           <span className="inline-flex h-3.5 w-3.5 rounded-sm border-2 border-blue-500 bg-blue-50" />
           <span>{legendSelected}</span>

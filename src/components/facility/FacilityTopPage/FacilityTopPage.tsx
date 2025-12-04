@@ -99,7 +99,7 @@ const formatMonthLabel = (year: number, monthIndex: number, locale: "ja" | "en" 
 };
 
 const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
-  tenantId: _tenantId,
+  tenantId,
   tenantName,
   facilities,
   settings,
@@ -110,6 +110,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -136,17 +137,68 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
     };
   }, [currentLocale]);
 
+  useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const response = await fetch(
+          `/api/tenant-static-translations/facility?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
   // カレンダー日別サマリー（予約可能 / 予約不可 / 自予約済）
   const [daySummaries, setDaySummaries] = useState<Record<string, CalendarDaySummary>>({});
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
   const tf = useCallback(
     (key: string) => {
-      if (!facilityTranslations) return key;
-      const value = resolveFacilityKey(facilityTranslations, key);
-      return typeof value === "string" ? value : key;
+      const fromDb = messages[key];
+      if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+        return fromDb;
+      }
+
+      const fromJson = resolveFacilityKey(facilityTranslations, key);
+      if (typeof fromJson === "string" && fromJson.trim().length > 0) {
+        return fromJson;
+      }
+
+      return key;
     },
-    [facilityTranslations],
+    [messages, facilityTranslations],
   );
 
   const getFacilityDisplayName = useCallback(
@@ -450,7 +502,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
         <main className="min-h-screen bg-white">
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <section className="flex-1 flex items-center justify-center">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 {t("board.detail.section.content")}
               </p>
             </section>
@@ -474,7 +526,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
             {tenantName && (
               <header>
                 <div className="mb-1 flex justify-center">
-                  <p className="max-w-full truncate text-base font-medium text-gray-600">
+                  <p className="max-w-full truncate text-base text-gray-600">
                     {tenantName}
                   </p>
                 </div>
@@ -493,7 +545,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
               </div>
 
               <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
-                <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                <label className="block text-[11px] text-gray-600 mb-1">
                   {tf("top.selectFacility")}
                 </label>
                 <div className="relative">
@@ -528,7 +580,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
               >
                 {/* 利用説明＋翻訳ボタン */}
                 <div className="mt-2 space-y-2">
-                  <p className="whitespace-pre-wrap text-sm text-gray-800">
+                  <p className="whitespace-pre-wrap text-sm text-gray-600">
                     {processedUsageText}
                   </p>
 
@@ -561,7 +613,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
               className="space-y-3"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-gray-900">
+                <h2 className="text-sm text-gray-600">
                   {tf("top.calendarTitle")}
                 </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -589,7 +641,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                             aria-hidden="true"
                           />
                         </button>
-                        <span className="font-medium">
+                        <span>
                           {formatMonthLabel(displayYear, displayMonthIndex, currentLocale)}
                         </span>
                         <button
@@ -610,8 +662,8 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                 </div>
               </div>
 
-              <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-700">
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-gray-500 mb-1">
+              <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-600">
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-gray-600 mb-1">
                   <span>{tf("top.weekdays.sun")}</span>
                   <span>{tf("top.weekdays.mon")}</span>
                   <span>{tf("top.weekdays.tue")}</span>

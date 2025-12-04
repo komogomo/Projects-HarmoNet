@@ -3,6 +3,7 @@ import type { HomeFeatureTileDefinition } from './HomeFeatureTile.types';
 
 export type HomeFeatureTilesProps = {
   isTenantAdmin?: boolean;
+  tenantId?: string;
 };
 
 export const HOME_FEATURE_TILES: HomeFeatureTileDefinition[] = [

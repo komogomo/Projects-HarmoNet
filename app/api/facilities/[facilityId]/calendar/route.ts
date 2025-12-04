@@ -172,8 +172,8 @@ export async function GET(req: NextRequest, context: CalendarRouteContext) {
       ? minReservationMinutesRaw
       : 120;
 
-    // 予約とブロック範囲をまとめて取得
-    const [reservations, blocks, slots] = await Promise.all([
+    // 予約情報とスロット情報を取得
+    const [reservations, slots] = await Promise.all([
       prisma.facility_reservations.findMany({
         where: {
           tenant_id: tenantId,
@@ -189,22 +189,6 @@ export async function GET(req: NextRequest, context: CalendarRouteContext) {
         select: {
           user_id: true,
           slot_id: true,
-          start_at: true,
-          end_at: true,
-        },
-      }),
-      prisma.facility_blocked_ranges.findMany({
-        where: {
-          tenant_id: tenantId,
-          facility_id: facilityId,
-          start_at: {
-            lt: rangeEndExclusive,
-          },
-          end_at: {
-            gt: rangeStart,
-          },
-        },
-        select: {
           start_at: true,
           end_at: true,
         },
@@ -241,8 +225,6 @@ export async function GET(req: NextRequest, context: CalendarRouteContext) {
         (r) => r.start_at < dayEnd && r.end_at > dayStart,
       );
 
-      const dayBlocks = blocks.filter((b) => b.start_at < dayEnd && b.end_at > dayStart);
-
       const hasMyReservation = dayReservations.some((r) => r.user_id === userId);
 
       let hasAvailability = false;
@@ -252,14 +234,11 @@ export async function GET(req: NextRequest, context: CalendarRouteContext) {
         Math.ceil(minReservationMinutes / (slotDurationMinutes > 0 ? slotDurationMinutes : 30)),
       );
 
-      const mergedBlocks = dayBlocks.map((b) => ({ start: b.start_at, end: b.end_at }));
-
       if (facilityType === "parking" && hasSlots) {
         for (const slotId of activeSlotIds) {
           const slotReservations = dayReservations.filter((r) => r.slot_id === slotId);
           const intervals = [
             ...slotReservations.map((r) => ({ start: r.start_at, end: r.end_at })),
-            ...mergedBlocks,
           ];
 
           const { maxFreeSlots, slotsPerDay } = buildBusySlots(
@@ -279,7 +258,6 @@ export async function GET(req: NextRequest, context: CalendarRouteContext) {
         // 集会室など（単一リソース扱い）
         const intervals = [
           ...dayReservations.map((r) => ({ start: r.start_at, end: r.end_at })),
-          ...mergedBlocks,
         ];
 
         const { maxFreeSlots, slotsPerDay } = buildBusySlots(

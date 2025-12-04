@@ -19,24 +19,28 @@ const CATEGORY_LABEL_MAP: Record<BoardCategoryKey, string> = {
 
 interface CategoryBadgeProps {
   categoryKey: BoardCategoryKey;
+  tOverride?: (key: string) => string;
 }
 
-const CategoryBadge: React.FC<CategoryBadgeProps> = ({ categoryKey }) => {
+const CategoryBadge: React.FC<CategoryBadgeProps> = ({ categoryKey, tOverride }) => {
   const { t } = useI18n();
+  const translate = tOverride ?? t;
   const labelKey = CATEGORY_LABEL_MAP[categoryKey] ?? CATEGORY_LABEL_MAP.other;
   return (
-    <span className="inline-flex items-center rounded-lg bg-white border-2 border-blue-400 px-2 py-0.5 font-medium text-blue-600">
-      {t(labelKey)}
+    <span className="inline-flex items-center rounded-md bg-white border-2 border-blue-400 px-2 py-0.5 text-blue-600">
+      {translate(labelKey)}
     </span>
   );
 };
 
 interface BoardPostSummaryCardProps {
   post: BoardPostSummary;
+  tOverride?: (key: string) => string;
 }
 
-export const BoardPostSummaryCard: React.FC<BoardPostSummaryCardProps> = ({ post }) => {
+export const BoardPostSummaryCard: React.FC<BoardPostSummaryCardProps> = ({ post, tOverride }) => {
   const { t } = useI18n();
+  const translate = tOverride ?? t;
   const router = useRouter();
 
   const handleClick = () => {
@@ -58,12 +62,12 @@ export const BoardPostSummaryCard: React.FC<BoardPostSummaryCardProps> = ({ post
       className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
       data-testid="board-top-post-card"
     >
-      <div className="mb-2 flex items-center justify-between text-[11px] text-gray-500">
-        <CategoryBadge categoryKey={post.categoryKey} />
+      <div className="mb-2 flex items-center justify-between text-[11px] text-gray-600">
+        <CategoryBadge categoryKey={post.categoryKey} tOverride={translate} />
         <div className="flex items-center gap-1">
           {post.isUnreadNotice && (
             <span
-              className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[10px] font-bold text-white"
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 text-[10px] text-white"
               aria-hidden="true"
             >
               !
@@ -72,25 +76,25 @@ export const BoardPostSummaryCard: React.FC<BoardPostSummaryCardProps> = ({ post
           <span>{createdAtLabel}</span>
         </div>
       </div>
-      <p className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900">{post.title}</p>
+      <p className="mb-1 line-clamp-2 text-sm text-gray-600">{post.title}</p>
       <p className="line-clamp-3 text-xs text-gray-600">{post.contentPreview}</p>
-      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
+      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-600">
         <span>{post.authorDisplayName}</span>
         <div className="flex items-center gap-2">
           {post.replyCount > 0 && (
             <span
               className="inline-flex items-center gap-0.5"
-              aria-label={t("board.top.reply.tooltip")}
-              title={t("board.top.reply.tooltip")}
+              aria-label={translate("board.top.reply.tooltip")}
+              title={translate("board.top.reply.tooltip")}
             >
               <MessageCircle className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
-              <span className="text-[11px] text-gray-500">{post.replyCount}</span>
+              <span className="text-[11px] text-gray-600">{post.replyCount}</span>
             </span>
           )}
           {post.hasAttachment && (
             <span
               className="inline-flex items-center gap-1"
-              aria-label={t("board.top.attachment.tooltip")}
+              aria-label={translate("board.top.attachment.tooltip")}
             >
               <Paperclip className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
             </span>

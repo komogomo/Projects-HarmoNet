@@ -124,5 +124,5 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     notFound();
   }
 
-  return <BoardDetailPage data={post} tenantName={tenantName} />;
+  return <BoardDetailPage data={post} tenantName={tenantName} tenantId={tenantId} />;
 }

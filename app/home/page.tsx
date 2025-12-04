@@ -175,7 +175,7 @@ export default async function HomePage() {
         <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
           <div className="flex-1 space-y-6">
             <HomeBoardNoticeContainer tenantId={tenantId} tenantName={tenantName} maxItems={noticeMaxCount} />
-            <HomeFeatureTiles isTenantAdmin={isTenantAdmin} />
+            <HomeFeatureTiles isTenantAdmin={isTenantAdmin} tenantId={tenantId} />
           </div>
         </div>
       </main>

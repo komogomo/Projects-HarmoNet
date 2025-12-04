@@ -147,7 +147,6 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     // Facility Data
     // Delete from child to parent just in case
     await adminClient.from("facility_reservations").delete().eq("tenant_id", tenantId);
-    await adminClient.from("facility_blocked_ranges").delete().eq("tenant_id", tenantId);
     await adminClient.from("facility_slots").delete().eq("tenant_id", tenantId);
     await adminClient.from("facility_settings").delete().eq("tenant_id", tenantId);
     const { error: facilitiesError } = await adminClient
@@ -157,17 +156,12 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     if (facilitiesError) console.error("Error deleting facilities:", facilitiesError);
 
     // Logs & Settings & Residents
-    await adminClient.from("audit_logs").delete().eq("tenant_id", tenantId);
     await adminClient.from("moderation_logs").delete().eq("tenant_id", tenantId);
     await adminClient.from("tenant_settings").delete().eq("tenant_id", tenantId);
-    await adminClient.from("tenant_features").delete().eq("tenant_id", tenantId);
     await adminClient.from("tenant_shortcut_menu").delete().eq("tenant_id", tenantId);
-    await adminClient.from("tenant_residents").delete().eq("tenant_id", tenantId);
 
-    // Cache & Notifications & Reactions
-    // board_reactions は board_posts の削除で Cascade されますが、念のため明示的に削除します
+    // Cache & Notifications
     await adminClient.from("board_favorites").delete().eq("tenant_id", tenantId);
-    await adminClient.from("board_reactions").delete().eq("tenant_id", tenantId);
 
     await adminClient.from("translation_cache").delete().eq("tenant_id", tenantId);
     await adminClient.from("tts_cache").delete().eq("tenant_id", tenantId);

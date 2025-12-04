@@ -27,7 +27,7 @@ type AuthErrorBannerProps = {
 
 const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
   if (!message) return null;
-  const base = 'w-full rounded-2xl px-3 py-2 text-sm flex items-start gap-2';
+  const base = 'w-full max-w-xs rounded-md px-3 py-2 text-sm flex items-start gap-2 mx-auto';
   const palette = kind === 'info' ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-700';
   return (
     <div className={`${base} ${palette}`} role={kind === 'error' ? 'alert' : 'status'} aria-live="polite">
@@ -228,7 +228,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
             : t('auth.login.magiclink.button_login')}
         </button>
 
-        <div className="mt-3 min-h-[44px] flex items-start w-full">
+        <div className="mt-3 min-h-[44px] flex items-start w-full justify-center">
           {banner && <AuthErrorBanner kind={banner.kind} message={t(banner.messageKey)} />}
         </div>
       </form>
