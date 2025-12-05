@@ -197,6 +197,20 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
     reservationDateLabelBase,
   );
 
+  const vehicleNumberLabelBase: string =
+    (labels.vehicle_number as string | undefined) ?? "車両ナンバー（任意）";
+  const vehicleNumberLabel: string = resolveMessage(
+    "labels.vehicle_number",
+    vehicleNumberLabelBase,
+  );
+
+  const vehicleModelLabelBase: string =
+    (labels.vehicle_model as string | undefined) ?? "車種・色（任意）";
+  const vehicleModelLabel: string = resolveMessage(
+    "labels.vehicle_model",
+    vehicleModelLabelBase,
+  );
+
   const hasRange = !!rangeStart && !!rangeEnd;
   const canSubmit = hasRange && !!selectedSlotId;
 
@@ -258,6 +272,8 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
             vehicleModel={vehicleModel}
             onChangeVehicleNumber={setVehicleNumber}
             onChangeVehicleModel={setVehicleModel}
+            vehicleNumberLabel={vehicleNumberLabel}
+            vehicleModelLabel={vehicleModelLabel}
           />
           <div className="mt-4 flex justify-end">
             <button

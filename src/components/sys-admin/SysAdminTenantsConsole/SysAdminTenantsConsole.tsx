@@ -36,7 +36,7 @@ const TENANT_TIMEZONE_OPTIONS = ["Asia/Tokyo"];
 export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   initialTenants,
 }) => {
-  const { t } = useI18n();
+  const { t, currentLocale } = useI18n();
 
   const safeInitial = initialTenants ?? [];
   // const firstTenant = safeInitial.length > 0 ? safeInitial[0] : null; // Default selection removed
@@ -58,6 +58,8 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   const [deleteCheckTenantId, setDeleteCheckTenantId] = useState<string | null>(
     null,
   );
+
+  const [messages, setMessages] = useState<Record<string, string>>({});
 
   const [admins, setAdmins] = useState<TenantAdminUser[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
@@ -81,6 +83,44 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ lang: currentLocale });
+        const res = await fetch(
+          `/api/sys-admin/tenants/translations?${params.toString()}`,
+        );
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocale]);
+
   async function loadAdmins(targetTenantId: string) {
     setAdminsLoading(true);
     setAdminMessage(null);
@@ -91,7 +131,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
       if (!res.ok) {
         setAdminMessage({
           type: "error",
-          text: "管理者一覧の取得に失敗しました。時間をおいて再度お試しください。",
+          text: "sysadmin.tenants.adminPanel.loadError",
         });
         setAdmins([]);
         return;
@@ -108,7 +148,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     } catch {
       setAdminMessage({
         type: "error",
-        text: "管理者一覧の取得に失敗しました。時間をおいて再度お試しください。",
+        text: "sysadmin.tenants.adminPanel.loadError",
       });
       setAdmins([]);
     } finally {
@@ -150,6 +190,17 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     adminEmail.trim().length > 0 &&
     adminDisplayName.trim().length > 0 &&
     adminFullName.trim().length > 0;
+
+  const resolveMessage = (key: string, fallback?: string): string => {
+    const fromDb = messages[key];
+    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
+      return fromDb;
+    }
+    if (typeof fallback === "string" && fallback.trim().length > 0) {
+      return fallback;
+    }
+    return t(key);
+  };
 
   const handleSelectTenant = (tenant: TenantListItem) => {
     setSelectedTenantId(tenant.id);
@@ -509,10 +560,16 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">
-                テナント詳細
+                {resolveMessage(
+                  "sysadmin.tenants.form.title",
+                  "テナント詳細",
+                )}
               </h2>
               <p className="mt-1 text-[11px] text-gray-500">
-                テナントの基本情報を編集します。
+                {resolveMessage(
+                  "sysadmin.tenants.form.description",
+                  "テナントの基本情報を編集します。",
+                )}
               </p>
             </div>
           </div>
@@ -525,7 +582,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 }`}
             >
               {tenantMessage.text.startsWith("sysadmin.")
-                ? t(tenantMessage.text)
+                ? resolveMessage(tenantMessage.text)
                 : tenantMessage.text}
             </div>
           )}
@@ -533,7 +590,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label className="block text-[11px] font-medium text-gray-700">
-                テナントコード <span className="text-red-500">*</span>
+                {resolveMessage(
+                  "sysadmin.tenants.form.tenantCode.label",
+                  "テナントコード",
+                )}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -546,7 +607,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
             </div>
             <div>
               <label className="block text-[11px] font-medium text-gray-700">
-                テナント名 <span className="text-red-500">*</span>
+                {resolveMessage(
+                  "sysadmin.tenants.form.tenantName.label",
+                  "テナント名",
+                )}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -558,7 +623,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
             </div>
             <div>
               <label className="block text-[11px] font-medium text-gray-700">
-                タイムゾーン <span className="text-red-500">*</span>
+                {resolveMessage(
+                  "sysadmin.tenants.form.timezone.label",
+                  "タイムゾーン",
+                )}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <select
                 value={timezone}
@@ -578,9 +647,16 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           <div className="mt-4 flex items-center justify-between">
             <div className="text-[11px] text-gray-500">
               {selectedTenantId
-                ? `選択中のテナント: ${tenants.find((t) => t.id === selectedTenantId)?.tenant_name ?? "-"
-                }`
-                : "新規テナントを作成します。"}
+                ? `${resolveMessage(
+                    "sysadmin.tenants.form.selectedTenantLabel",
+                    "選択中のテナント: ",
+                  )}${
+                    tenants.find((t) => t.id === selectedTenantId)?.tenant_name ?? "-"
+                  }`
+                : resolveMessage(
+                    "sysadmin.tenants.form.newTenantPlaceholder",
+                    "新規テナントを作成します。",
+                  )}
             </div>
             <div className="flex space-x-2">
               <button
@@ -588,7 +664,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 onClick={handleNewTenantClick}
                 className="rounded border-2 border-gray-300 bg-white px-4 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
               >
-                クリア
+                {resolveMessage(
+                  "sysadmin.tenants.form.clearButton",
+                  "クリア",
+                )}
               </button>
               <button
                 type="button"
@@ -596,7 +675,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 onClick={handleTenantSave}
                 className="rounded border-2 border-blue-500 bg-white px-4 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300 disabled:bg-gray-50"
               >
-                登録
+                {resolveMessage(
+                  "sysadmin.tenants.form.submitButton",
+                  "登録",
+                )}
               </button>
             </div>
           </div>
@@ -607,10 +689,16 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-gray-900">
-                テナント管理者管理
+                {resolveMessage(
+                  "sysadmin.tenants.adminPanel.title",
+                  "テナント管理者管理",
+                )}
               </h2>
               <p className="mt-1 text-[11px] text-gray-500">
-                選択中テナントの管理者ユーザを登録・編集できます。
+                {resolveMessage(
+                  "sysadmin.tenants.adminPanel.description",
+                  "選択中テナントの管理者ユーザを登録・編集できます。",
+                )}
               </p>
             </div>
           </div>
@@ -623,21 +711,28 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 }`}
             >
               {adminMessage.text.startsWith("sysadmin.")
-                ? t(adminMessage.text)
+                ? resolveMessage(adminMessage.text)
                 : adminMessage.text}
             </div>
           )}
 
           {!selectedTenantId ? (
             <p className="text-xs text-gray-600">
-              管理者を操作するには、下の一覧からテナントを選択してください。
+              {resolveMessage(
+                "sysadmin.tenants.adminPanel.noTenantSelected",
+                "管理者を操作するには、下の一覧からテナントを選択してください。",
+              )}
             </p>
           ) : (
             <>
               <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end">
                 <div className="flex-1">
                   <label className="block text-[11px] font-medium text-gray-700">
-                    メールアドレス <span className="text-red-500">*</span>
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.email.label",
+                      "メールアドレス",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -649,7 +744,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 </div>
                 <div className="flex-1">
                   <label className="block text-[11px] font-medium text-gray-700">
-                    表示名 <span className="text-red-500">*</span>
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.displayName.label",
+                      "表示名",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -662,7 +761,11 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 </div>
                 <div className="flex-1">
                   <label className="block text-[11px] font-medium text-gray-700">
-                    氏名 <span className="text-red-500">*</span>
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.fullName.label",
+                      "氏名",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -676,11 +779,22 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                     type="button"
                     disabled={!isAdminFormValid}
                     onClick={handleAdminSubmit}
-                    className="mt-4 rounded border-2 border-blue-500 bg-blue-600 px-4 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-200"
+                    className={
+                      "mt-4 rounded border-2 px-4 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-200 " +
+                      (adminFormMode === "create"
+                        ? "border-blue-500 bg-blue-600 text-white hover:bg-blue-700"
+                        : "border-blue-500 bg-white text-blue-600 hover:bg-blue-50")
+                    }
                   >
                     {adminFormMode === "create"
-                      ? "管理者ユーザ登録"
-                      : "管理者ユーザ更新"}
+                      ? resolveMessage(
+                          "sysadmin.tenants.adminPanel.createButton",
+                          "管理者ユーザ登録",
+                        )
+                      : resolveMessage(
+                          "sysadmin.tenants.adminPanel.updateButton",
+                          "管理者ユーザ更新",
+                        )}
                   </button>
                 </div>
               </div>
@@ -688,11 +802,17 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
               <div className="mt-3">
                 {adminsLoading ? (
                   <p className="text-xs text-gray-600">
-                    管理者一覧を読み込み中です...
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.loading",
+                      "管理者一覧を読み込み中です...",
+                    )}
                   </p>
                 ) : admins.length === 0 ? (
                   <p className="text-xs text-gray-600">
-                    このテナントの管理者ユーザは登録されていません。
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.empty",
+                      "このテナントの管理者ユーザは登録されていません。",
+                    )}
                   </p>
                 ) : (
                   <div className="overflow-auto rounded border border-gray-100">
@@ -700,16 +820,28 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            メールアドレス
+                            {resolveMessage(
+                              "sysadmin.tenants.adminPanel.table.email",
+                              "メールアドレス",
+                            )}
                           </th>
                           <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            表示名
+                            {resolveMessage(
+                              "sysadmin.tenants.adminPanel.table.displayName",
+                              "表示名",
+                            )}
                           </th>
                           <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            氏名
+                            {resolveMessage(
+                              "sysadmin.tenants.adminPanel.table.fullName",
+                              "氏名",
+                            )}
                           </th>
                           <th className="px-3 py-1.5 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">
-                            操作
+                            {resolveMessage(
+                              "sysadmin.tenants.adminPanel.table.actions",
+                              "操作",
+                            )}
                           </th>
                         </tr>
                       </thead>
@@ -732,14 +864,20 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                                   className="rounded border-2 border-gray-300 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50 whitespace-nowrap"
                                   onClick={() => handleAdminEditClick(admin)}
                                 >
-                                  編集
+                                  {resolveMessage(
+                                    "sysadmin.tenants.adminPanel.editButton",
+                                    "編集",
+                                  )}
                                 </button>
                                 <button
                                   type="button"
                                   className="rounded border-2 border-red-300 bg-white px-2 py-0.5 text-[10px] text-red-600 hover:bg-red-50 whitespace-nowrap"
                                   onClick={() => handleAdminRemoveClick(admin)}
                                 >
-                                  管理者解除
+                                  {resolveMessage(
+                                    "sysadmin.tenants.adminPanel.removeButton",
+                                    "管理者解除",
+                                  )}
                                 </button>
                               </div>
                             </td>
@@ -758,11 +896,19 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
       {/* 下部: テナント一覧 */}
       <section className="order-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">テナント一覧</h2>
+          <h2 className="text-sm font-semibold text-gray-900">
+            {resolveMessage(
+              "sysadmin.tenants.table.title",
+              "テナント一覧",
+            )}
+          </h2>
         </div>
         {tenants.length === 0 ? (
           <p className="text-xs text-gray-600">
-            テナントが登録されていません。
+            {resolveMessage(
+              "sysadmin.tenants.table.empty",
+              "テナントが登録されていません。",
+            )}
           </p>
         ) : (
           <div className="max-h-[28rem] overflow-auto rounded border border-gray-100">
@@ -770,16 +916,28 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-1.5 text-center text-[10px] font-medium text-gray-500 w-16">
-                    削除
+                    {resolveMessage(
+                      "sysadmin.tenants.table.header.delete",
+                      "削除",
+                    )}
                   </th>
                   <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                    テナントコード
+                    {resolveMessage(
+                      "sysadmin.tenants.table.header.tenantCode",
+                      "テナントコード",
+                    )}
                   </th>
                   <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                    テナント名
+                    {resolveMessage(
+                      "sysadmin.tenants.table.header.tenantName",
+                      "テナント名",
+                    )}
                   </th>
                   <th className="px-3 py-1.5 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-28">
-                    操作
+                    {resolveMessage(
+                      "sysadmin.tenants.table.header.actions",
+                      "操作",
+                    )}
                   </th>
                 </tr>
               </thead>
@@ -824,7 +982,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                             setTenantConfirm("delete");
                           }}
                         >
-                          削除
+                          {resolveMessage(
+                            "sysadmin.tenants.table.row.deleteButton",
+                            "削除",
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -844,9 +1005,15 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
           >
             <p className="mb-3 whitespace-pre-line">
               {tenantConfirm === "update" &&
-                "テナント情報を保存してよろしいですか？"}
+                resolveMessage(
+                  "sysadmin.tenants.confirm.update.message",
+                  "テナント情報を保存してよろしいですか？",
+                )}
               {tenantConfirm === "delete" &&
-                "このテナントを削除してよろしいですか？\n削除すると、このテナントの利用者はログインできなくなります。"}
+                resolveMessage(
+                  "sysadmin.tenants.confirm.delete.message",
+                  "このテナントを削除してよろしいですか？\n削除すると、このテナントの利用者はログインできなくなります。",
+                )}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -854,7 +1021,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 onClick={() => setTenantConfirm(null)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                キャンセル
+                {resolveMessage(
+                  "sysadmin.tenants.confirm.cancel",
+                  "キャンセル",
+                )}
               </button>
               <button
                 type="button"
@@ -867,7 +1037,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 }}
                 className="font-semibold text-red-500 hover:text-red-600"
               >
-                OK
+                {resolveMessage(
+                  "sysadmin.tenants.confirm.ok",
+                  "OK",
+                )}
               </button>
             </div>
           </div>
@@ -881,7 +1054,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
             className="w-full max-w-xs rounded-2xl border-2 border-gray-200 bg-white/90 p-4 text-xs text-gray-700 shadow-lg"
           >
             <p className="mb-3 whitespace-pre-line">
-              管理者ロールを解除してよろしいですか？
+              {resolveMessage(
+                "sysadmin.tenants.confirm.removeAdmin.message",
+                "管理者ロールを解除してよろしいですか？",
+              )}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -889,14 +1065,20 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 onClick={handleCancelRemoveAdmin}
                 className="text-gray-400 hover:text-gray-600"
               >
-                キャンセル
+                {resolveMessage(
+                  "sysadmin.tenants.confirm.cancel",
+                  "キャンセル",
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleConfirmRemoveAdmin}
                 className="font-semibold text-red-500 hover:text-red-600"
               >
-                OK
+                {resolveMessage(
+                  "sysadmin.tenants.confirm.ok",
+                  "OK",
+                )}
               </button>
             </div>
           </div>

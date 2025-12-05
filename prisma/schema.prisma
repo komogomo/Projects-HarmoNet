@@ -142,6 +142,7 @@ model tenants {
   facility_settings          facility_settings[]
   facility_slots             facility_slots[]
   facility_reservations      facility_reservations[]
+  cleaning_duties            cleaning_duties[]
   moderation_logs            moderation_logs[]
   board_post_translations    board_post_translations[]
   board_comment_translations board_comment_translations[]
@@ -167,19 +168,21 @@ model tenant_settings {
 
 /// ユーザー認証情報（Supabase auth.users と1:1）
 model users {
-  id             String   @id @default(uuid())
-  tenant_id      String // NOT NULL に変更: 1ユーザ=1テナント
-  email          String   @unique
-  display_name   String   @unique
-  full_name      String // 正式氏名
-  full_name_kana String? // 氏名ヨミ（任意）
-  group_code     String // 街区/棟など (例: "N-A")
-  residence_code String // 住戸番号 (例: "101", "1205A")
-  phone_number   String? // (任意)
-  language       String   @default("JA") // UI表示言語コード ("JA" | "EN" | "ZH")
-  note           String? // 備考（最大200文字相当を想定）
-  created_at     DateTime @default(now())
-  updated_at     DateTime @default(now())
+  id              String   @id @default(uuid())
+  tenant_id       String // NOT NULL に変更: 1ユーザ=1テナント
+  email           String   @unique
+  display_name    String   @unique
+  last_name       String //苗字
+  last_name_kana  String? // 苗字ふりがな（任意）
+  first_name      String //名前
+  first_name_kana String? // 名前ふりがな（任意）
+  group_code      String // 街区/棟など (例: "南-B")
+  residence_code  String // 住戸番号 (例: "13-131", "1202")
+  phone_number    String? // (任意)
+  language        String   @default("JA") // UI表示言語コード ("JA" | "EN" | "ZH")
+  note            String? // 備考（最大200文字相当を想定）
+  created_at      DateTime @default(now())
+  updated_at      DateTime @default(now())
 
   // Relations
   tenant                   tenants                 @relation(fields: [tenant_id], references: [id])
@@ -189,6 +192,7 @@ model users {
   board_comments           board_comments[]
   board_favorites          board_favorites[]
   facility_reservations    facility_reservations[]
+  cleaning_duties          cleaning_duties[]
   moderation_logs_reviewer moderation_logs[]
   boardApprovalLogs        board_approval_logs[]
 
@@ -486,6 +490,30 @@ model reservation_history {
   @@index([tenant_id])
   @@index([reservation_id])
   @@index([facility_id])
+}
+
+// --- 6. Cleaning Duty ---
+
+model cleaning_duties {
+  id             String @id @default(uuid())
+  tenant_id      String
+  group_code     String
+  residence_code String
+  cycle_no       Int
+
+  assignee_id  String
+  is_done      Boolean   @default(false)
+  cleaned_on   DateTime?
+  completed_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant   tenants @relation(fields: [tenant_id], references: [id])
+  assignee users   @relation(fields: [assignee_id], references: [id])
+
+  @@index([tenant_id, group_code, residence_code])
+  @@index([tenant_id, group_code, residence_code, cycle_no])
 }
 
 // --- 7. Audit / Moderation ---

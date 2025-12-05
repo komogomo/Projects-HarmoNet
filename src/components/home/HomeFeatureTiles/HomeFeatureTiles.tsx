@@ -39,8 +39,8 @@ const FEATURE_TILES: HomeFeatureTileDefinition[] = [
   },
   {
     featureKey: 'SURVEY',
-    labelKey: 'home.tiles.survey.label',
-    descriptionKey: 'home.tiles.survey.description',
+    labelKey: 'home.tiles.cleaningDuty.label',
+    descriptionKey: 'home.tiles.cleaningDuty.description',
     icon: ClipboardList,
     isEnabled: false,
   },
@@ -53,7 +53,11 @@ const FEATURE_TILES: HomeFeatureTileDefinition[] = [
   },
 ];
 
-export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmin = false, tenantId }) => {
+export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
+	isTenantAdmin = false,
+	tenantId,
+	hasCleaningDutyGroup = false,
+}) => {
   const { t, currentLocale } = useI18n();
   const router = useRouter();
 
@@ -98,16 +102,21 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
     if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return t(key);
+    // common.json はフォールバックに使わず、キー文字列をそのまま返す
+    return key;
   };
 
-  // Filter tiles based on role
-  const baseTiles = FEATURE_TILES.filter((tile) => {
-    if (tile.featureKey === 'TENANT_ADMIN') {
-      return isTenantAdmin;
-    }
-    return true;
-  });
+  // Filter tiles based on role / availability
+	const baseTiles = FEATURE_TILES.filter((tile) => {
+		if (tile.featureKey === 'TENANT_ADMIN') {
+			return isTenantAdmin;
+		}
+		// Cleaning duty tile (SURVEY スロット) は group_code を持つユーザのみに表示
+		if (tile.featureKey === 'SURVEY' && !hasCleaningDutyGroup) {
+			return false;
+		}
+		return true;
+	});
 
   const effectiveTiles = baseTiles.map((tile) => {
     const baseTile: HomeFeatureTileDefinition = {
@@ -162,6 +171,16 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({ isTenantAdmi
         isEnabled: true,
         onClick: () => {
           router.push('/t-admin/users');
+        },
+      };
+    }
+
+    if (tile.featureKey === 'SURVEY') {
+      return {
+        ...baseTile,
+        isEnabled: true,
+        onClick: () => {
+          router.push('/cleaning-duty');
         },
       };
     }

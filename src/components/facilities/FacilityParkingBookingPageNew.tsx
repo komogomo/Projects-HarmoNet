@@ -337,6 +337,20 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
     facilityNameLabelBase,
   );
 
+  const vehicleNumberLabelBase: string =
+    (labels.vehicle_number as string | undefined) ?? "車両ナンバー（任意）";
+  const vehicleNumberLabel: string = resolveMessage(
+    "labels.vehicle_number",
+    vehicleNumberLabelBase,
+  );
+
+  const vehicleModelLabelBase: string =
+    (labels.vehicle_model as string | undefined) ?? "車種・色（任意）";
+  const vehicleModelLabel: string = resolveMessage(
+    "labels.vehicle_model",
+    vehicleModelLabelBase,
+  );
+
   const isValidTime = (value: string | null | undefined): value is string =>
     !!value && /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
 
@@ -500,6 +514,8 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
             vehicleModel={vehicleModel}
             onChangeVehicleNumber={setVehicleNumber}
             onChangeVehicleModel={setVehicleModel}
+            vehicleNumberLabel={vehicleNumberLabel}
+            vehicleModelLabel={vehicleModelLabel}
           />
 
           <div className="mt-4 flex justify-center gap-3">

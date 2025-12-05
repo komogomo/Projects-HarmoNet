@@ -4,6 +4,7 @@ import type { HomeFeatureTileDefinition } from './HomeFeatureTile.types';
 export type HomeFeatureTilesProps = {
   isTenantAdmin?: boolean;
   tenantId?: string;
+  hasCleaningDutyGroup?: boolean;
 };
 
 export const HOME_FEATURE_TILES: HomeFeatureTileDefinition[] = [
@@ -37,8 +38,8 @@ export const HOME_FEATURE_TILES: HomeFeatureTileDefinition[] = [
   },
   {
     featureKey: 'SURVEY',
-    labelKey: 'home.tiles.survey.label',
-    descriptionKey: 'home.tiles.survey.description',
+    labelKey: 'home.tiles.cleaningDuty.label',
+    descriptionKey: 'home.tiles.cleaningDuty.description',
     icon: ClipboardList,
     isEnabled: false,
   },

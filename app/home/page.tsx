@@ -36,7 +36,7 @@ export default async function HomePage() {
     error: appUserError,
   } = await supabase
     .from('users')
-    .select('id')
+    .select('id, group_code')
     .eq('email', email)
     .maybeSingle();
 
@@ -91,9 +91,13 @@ export default async function HomePage() {
 
   const tenantId = membership.tenant_id as string;
 
+  const groupCode = (appUser as any).group_code as string | null;
+  const hasCleaningDutyGroup = !!groupCode;
+
   logInfo('auth.callback.authorized', {
     userId: appUser.id,
     tenantId,
+    groupCode: groupCode ?? null,
   });
 
   // テナント名の取得（ServiceRole 経由）
@@ -175,7 +179,11 @@ export default async function HomePage() {
         <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
           <div className="flex-1 space-y-6">
             <HomeBoardNoticeContainer tenantId={tenantId} tenantName={tenantName} maxItems={noticeMaxCount} />
-            <HomeFeatureTiles isTenantAdmin={isTenantAdmin} tenantId={tenantId} />
+            <HomeFeatureTiles
+              isTenantAdmin={isTenantAdmin}
+              tenantId={tenantId}
+              hasCleaningDutyGroup={hasCleaningDutyGroup}
+            />
           </div>
         </div>
       </main>

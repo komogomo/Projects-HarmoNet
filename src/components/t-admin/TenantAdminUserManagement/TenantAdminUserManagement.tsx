@@ -6,11 +6,11 @@ import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { TenantAdminUserManagementProps, UserListItem, UserFormData } from './TenantAdminUserManagement.types';
 
 export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps> = ({ tenantId, tenantName }) => {
-    const { t } = useI18n();
+    const { t, currentLocale } = useI18n();
     const [users, setUsers] = useState<UserListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
+    const [messages, setMessages] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState<UserFormData>({
@@ -32,10 +32,10 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 const data = await res.json();
                 setUsers(data);
             } else {
-                setMessage({ type: 'error', text: t('tadmin.users.error.internal') });
+                setMessage({ type: 'error', text: 'tadmin.users.error.internal' });
             }
         } catch (error) {
-            setMessage({ type: 'error', text: t('tadmin.users.error.internal') });
+            setMessage({ type: 'error', text: 'tadmin.users.error.internal' });
         } finally {
             setLoading(false);
         }
@@ -44,6 +44,49 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     useEffect(() => {
         loadUsers();
     }, []);
+
+    useEffect(() => {
+        if (!tenantId) {
+            setMessages({});
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadMessages = async () => {
+            try {
+                const params = new URLSearchParams({ tenantId, lang: currentLocale });
+                const res = await fetch(
+                    `/api/tenant-static-translations/t-admin-users?${params.toString()}`,
+                );
+
+                if (!res.ok) {
+                    if (!cancelled) {
+                        setMessages({});
+                    }
+                    return;
+                }
+
+                const data = (await res.json().catch(() => ({}))) as {
+                    messages?: Record<string, string>;
+                };
+
+                if (!cancelled && data && data.messages && typeof data.messages === 'object') {
+                    setMessages(data.messages);
+                }
+            } catch {
+                if (!cancelled) {
+                    setMessages({});
+                }
+            }
+        };
+
+        void loadMessages();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [tenantId, currentLocale]);
 
     const [initialFormData, setInitialFormData] = useState<UserFormData | null>(null);
 
@@ -141,6 +184,17 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return () => clearTimeout(timer);
     }, [formData.email, editingId, initialFormData]);
 
+    const resolveMessage = (key: string, fallback?: string): string => {
+        const fromDb = messages[key];
+        if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
+            return fromDb;
+        }
+        if (typeof fallback === 'string' && fallback.trim().length > 0) {
+            return fallback;
+        }
+        return t(key);
+    };
+
     const handleSubmit = async (e: React.FormEvent | React.MouseEvent, mode: 'create' | 'update' = 'create') => {
         e.preventDefault();
         setMessage(null);
@@ -152,13 +206,13 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
         // Prevent update if email doesn't exist (User Request)
         if (mode === 'update' && !emailExists) {
-            setMessage({ type: 'error', text: '入力されたメールアドレスは登録されていません。' });
+            setMessage({ type: 'error', text: 'tadmin.users.error.emailNotRegistered' });
             return;
         }
 
         // Validation
         if (!formData.email || !formData.fullName || !formData.fullNameKana || !formData.displayName || !formData.roleKey) {
-            setMessage({ type: 'error', text: t('tadmin.users.error.validation') });
+            setMessage({ type: 'error', text: 'tadmin.users.error.validation' });
             return;
         }
 
@@ -179,14 +233,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             const result = await res.json();
 
             if (res.ok && result.ok) {
-                setMessage({ type: 'success', text: isUpdate ? t('tadmin.users.update.success') : t('tadmin.users.create.success') });
+                setMessage({ type: 'success', text: isUpdate ? 'tadmin.users.update.success' : 'tadmin.users.create.success' });
                 handleCancelEdit(); // Reset form and mode
                 loadUsers();
             } else {
-                setMessage({ type: 'error', text: result.message || t('tadmin.users.error.internal') });
+                setMessage({ type: 'error', text: result.message || 'tadmin.users.error.internal' });
             }
         } catch (error) {
-            setMessage({ type: 'error', text: t('tadmin.users.error.internal') });
+            setMessage({ type: 'error', text: 'tadmin.users.error.internal' });
         }
     };
 
@@ -214,13 +268,13 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
             const result = await res.json();
             if (res.ok && result.ok) {
-                setMessage({ type: 'success', text: t('tadmin.users.delete.success') });
+                setMessage({ type: 'success', text: 'tadmin.users.delete.success' });
                 loadUsers();
             } else {
-                setMessage({ type: 'error', text: result.message || t('tadmin.users.error.internal') });
+                setMessage({ type: 'error', text: result.message || 'tadmin.users.error.internal' });
             }
         } catch (error) {
-            setMessage({ type: 'error', text: t('tadmin.users.error.internal') });
+            setMessage({ type: 'error', text: 'tadmin.users.error.internal' });
         } finally {
             setDeletingUserId(null);
         }
@@ -256,8 +310,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         if (!activeSearchQuery) return true;
         const q = activeSearchQuery.toLowerCase();
 
-        const roleLabel = user.roleKey === 'tenant_admin' ? 'テナント管理者' : '一般ユーザ';
-
+        // 検索は email / displayName / fullName / fullNameKana / groupCode / residenceCode / roleKey で実施
         return (
             user.email.toLowerCase().includes(q) ||
             user.displayName.toLowerCase().includes(q) ||
@@ -265,7 +318,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             (user.fullNameKana && user.fullNameKana.toLowerCase().includes(q)) ||
             (user.groupCode && user.groupCode.toLowerCase().includes(q)) ||
             (user.residenceCode && user.residenceCode.toLowerCase().includes(q)) ||
-            roleLabel.includes(q)
+            user.roleKey.toLowerCase().includes(q)
         );
     });
 
@@ -313,6 +366,53 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         </button>
     );
 
+    const emailLabel = resolveMessage('tadmin.users.form.email.label', 'メールアドレス');
+    const displayNameLabel = resolveMessage('tadmin.users.form.displayName.label', 'ニックネーム');
+    const fullNameLabel = resolveMessage('tadmin.users.form.fullName.label', '氏名');
+    const fullNameKanaLabel = resolveMessage('tadmin.users.form.fullNameKana.label', 'ふりがな');
+    const groupCodeLabel = resolveMessage('tadmin.users.form.groupCode.label', 'グループID');
+    const residenceCodeLabel = resolveMessage('tadmin.users.form.residenceCode.label', '住居番号');
+    const roleLabelText = resolveMessage('tadmin.users.form.role.label', 'ロール');
+    const roleGeneralUserLabel = resolveMessage('tadmin.users.form.role.general', '一般ユーザ');
+    const roleTenantAdminLabel = resolveMessage('tadmin.users.form.role.tenantAdmin', 'テナント管理者');
+    const languageLabel = resolveMessage('tadmin.users.form.language.label', '言語');
+
+    const saveNewButtonLabel = resolveMessage('tadmin.users.form.saveNew', '新規登録');
+    const cancelButtonLabel = resolveMessage('tadmin.users.form.cancel', 'キャンセル');
+    const submitUpdateButtonLabel = resolveMessage('tadmin.users.form.submit.update', '更新');
+    const submitCreateButtonLabel = resolveMessage('tadmin.users.form.submit.create', 'ユーザ登録');
+
+    const listTitleLabel = resolveMessage('tadmin.users.list.title', 'ユーザ一覧');
+    const searchPlaceholderLabel = resolveMessage('tadmin.users.search.placeholder', '検索キーワード...');
+    const searchButtonLabel = resolveMessage('tadmin.users.search.button', '検索');
+    const clearButtonLabel = resolveMessage('tadmin.users.search.clear', 'クリア');
+    const loadingLabel = resolveMessage('tadmin.users.list.loading', '読み込み中...');
+    const emptyFilteredLabel = resolveMessage('tadmin.users.list.empty.filtered', '検索条件に一致するユーザは見つかりませんでした。');
+    const emptyNoDataLabel = resolveMessage('tadmin.users.list.empty.noData', 'ユーザが登録されていません。');
+
+    const tableEmailHeaderLabel = resolveMessage('tadmin.users.table.email', 'メールアドレス');
+    const tableDisplayNameHeaderLabel = resolveMessage('tadmin.users.table.displayName', 'ニックネーム');
+    const tableFullNameHeaderLabel = resolveMessage('tadmin.users.table.fullName', '氏名');
+    const tableFullNameKanaHeaderLabel = resolveMessage('tadmin.users.table.fullNameKana', 'ふりがな');
+    const tableGroupCodeHeaderLabel = resolveMessage('tadmin.users.table.groupCode', 'グループID');
+    const tableResidenceCodeHeaderLabel = resolveMessage('tadmin.users.table.residenceCode', '住居番号');
+    const tableLanguageHeaderLabel = resolveMessage('tadmin.users.table.language', '言語');
+    const tableRoleHeaderLabel = resolveMessage('tadmin.users.table.role', 'ロール');
+    const tableActionsHeaderLabel = resolveMessage('tadmin.users.table.actions', '操作');
+
+    const actionEditLabel = resolveMessage('tadmin.users.actions.edit', '編集');
+    const actionDeleteLabel = resolveMessage('tadmin.users.actions.delete', '削除');
+
+    const paginationPerPageLabel = resolveMessage('tadmin.users.pagination.perPage.label', '表示件数:');
+    const paginationRangeMiddleLabel = resolveMessage('tadmin.users.pagination.range.middle', '件中');
+    const paginationRangeSuffixLabel = resolveMessage('tadmin.users.pagination.range.suffix', '件を表示');
+    const paginationPrevLabel = resolveMessage('tadmin.users.pagination.prev', '前へ');
+    const paginationNextLabel = resolveMessage('tadmin.users.pagination.next', '次へ');
+
+    const deleteCancelButtonLabel = resolveMessage('tadmin.users.delete.cancel', 'キャンセル');
+    const deleteSubmitButtonLabel = resolveMessage('tadmin.users.delete.submit', '削除');
+    const deleteConfirmMessage = resolveMessage('tadmin.users.delete.confirm');
+
     return (
         <div className="w-full max-w-5xl mx-auto px-4 py-6">
             <div className="space-y-4">
@@ -334,7 +434,9 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             : 'border-red-200 bg-red-50 text-red-800'
                             }`}
                     >
-                        {message.text}
+                        {message.text.startsWith('tadmin.')
+                            ? resolveMessage(message.text)
+                            : message.text}
                     </div>
                 )}
 
@@ -345,7 +447,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
                                 <label htmlFor="email" className="block text-xs font-medium text-gray-700">
-                                    メールアドレス <span className="text-red-500">*</span>
+                                    {emailLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="email"
@@ -359,7 +461,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="displayName" className="block text-xs font-medium text-gray-700">
-                                    ニックネーム <span className="text-red-500">*</span>
+                                    {displayNameLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -373,7 +475,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="fullName" className="block text-xs font-medium text-gray-700">
-                                    氏名 <span className="text-red-500">*</span>
+                                    {fullNameLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -387,7 +489,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="fullNameKana" className="block text-xs font-medium text-gray-700">
-                                    ふりがな <span className="text-red-500">*</span>
+                                    {fullNameKanaLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -401,7 +503,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="groupCode" className="block text-xs font-medium text-gray-700">
-                                    グループID
+                                    {groupCodeLabel}
                                 </label>
                                 <input
                                     type="text"
@@ -414,7 +516,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="residenceCode" className="block text-xs font-medium text-gray-700">
-                                    住居番号
+                                    {residenceCodeLabel}
                                 </label>
                                 <input
                                     type="text"
@@ -427,7 +529,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                             <div>
                                 <label htmlFor="roleKey" className="block text-xs font-medium text-gray-700">
-                                    ロール <span className="text-red-500">*</span>
+                                    {roleLabelText} <span className="text-red-500">*</span>
                                 </label>
                                 <select
                                     id="roleKey"
@@ -436,14 +538,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     required
                                 >
-                                    <option value="general_user">一般ユーザ</option>
-                                    <option value="tenant_admin">テナント管理者</option>
+                                    <option value="general_user">{roleGeneralUserLabel}</option>
+                                    <option value="tenant_admin">{roleTenantAdminLabel}</option>
                                 </select>
                             </div>
 
                             <div>
                                 <label htmlFor="language" className="block text-xs font-medium text-gray-700">
-                                    言語
+                                    {languageLabel}
                                 </label>
                                 <select
                                     id="language"
@@ -470,7 +572,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                             : 'border-blue-400 text-blue-600 bg-white hover:bg-blue-50 focus:ring-blue-300'
                                             }`}
                                     >
-                                        新規登録
+                                        {saveNewButtonLabel}
                                     </button>
                                 )}
                             </div>
@@ -481,7 +583,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         onClick={handleCancelEdit}
                                         className="rounded-lg border-2 border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2"
                                     >
-                                        キャンセル
+                                        {cancelButtonLabel}
                                     </button>
                                 )}
                                 <button
@@ -495,7 +597,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         : 'border-blue-400 text-blue-600 hover:bg-blue-50 focus:ring-blue-300'
                                         }`}
                                 >
-                                    {editingId ? '更新' : 'ユーザ登録'}
+                                    {editingId ? submitUpdateButtonLabel : submitCreateButtonLabel}
                                 </button>
                             </div>
                         </div>
@@ -505,13 +607,13 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 {/* SEC-03: ユーザ一覧テーブル */}
                 <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
-                        <h2 className="text-sm font-bold text-gray-900">ユーザ一覧</h2>
+                        <h2 className="text-sm font-bold text-gray-900">{listTitleLabel}</h2>
 
                         {/* 検索フォーム */}
                         <form onSubmit={handleSearch} className="flex w-full md:w-auto space-x-2">
                             <input
                                 type="text"
-                                placeholder="検索キーワード..."
+                                placeholder={searchPlaceholderLabel}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="flex-1 md:w-96 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -520,7 +622,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 type="submit"
                                 className="rounded-md border-2 border-blue-400 bg-white px-4 py-1.5 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
                             >
-                                検索
+                                {searchButtonLabel}
                             </button>
                             <button
                                 type="button"
@@ -535,16 +637,16 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                     : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 focus:ring-gray-500'
                                     }`}
                             >
-                                クリア
+                                {clearButtonLabel}
                             </button>
                         </form>
                     </div>
 
                     {loading ? (
-                        <p className="text-sm text-gray-500">読み込み中...</p>
+                        <p className="text-sm text-gray-500">{loadingLabel}</p>
                     ) : sortedUsers.length === 0 ? (
                         <p className="text-sm text-gray-500">
-                            {activeSearchQuery ? '検索条件に一致するユーザは見つかりませんでした。' : 'ユーザが登録されていません。'}
+                            {activeSearchQuery ? emptyFilteredLabel : emptyNoDataLabel}
                         </p>
                     ) : (
                         <>
@@ -553,30 +655,30 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50">
                                             <th className="w-44">
-                                                <SortableHeader column="email" label="メールアドレス" />
+                                                <SortableHeader column="email" label={tableEmailHeaderLabel} />
                                             </th>
                                             <th className="w-28">
-                                                <SortableHeader column="displayName" label="ニックネーム" />
+                                                <SortableHeader column="displayName" label={tableDisplayNameHeaderLabel} />
                                             </th>
                                             <th className="w-32">
-                                                <SortableHeader column="fullName" label="氏名" />
+                                                <SortableHeader column="fullName" label={tableFullNameHeaderLabel} />
                                             </th>
                                             <th className="w-40">
-                                                <SortableHeader column="fullNameKana" label="ふりがな" />
+                                                <SortableHeader column="fullNameKana" label={tableFullNameKanaHeaderLabel} />
                                             </th>
                                             <th className="w-24 text-center">
-                                                <SortableHeader column="groupCode" label="グループID" />
+                                                <SortableHeader column="groupCode" label={tableGroupCodeHeaderLabel} />
                                             </th>
                                             <th className="w-20 text-center">
-                                                <SortableHeader column="residenceCode" label="住居番号" />
+                                                <SortableHeader column="residenceCode" label={tableResidenceCodeHeaderLabel} />
                                             </th>
                                             <th className="w-16 text-center">
-                                                <SortableHeader column="language" label="言語" />
+                                                <SortableHeader column="language" label={tableLanguageHeaderLabel} />
                                             </th>
                                             <th className="w-28 text-center">
-                                                <SortableHeader column="roleKey" label="ロール" />
+                                                <SortableHeader column="roleKey" label={tableRoleHeaderLabel} />
                                             </th>
-                                            <th className="px-3 py-2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">操作</th>
+                                            <th className="px-3 py-2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">{tableActionsHeaderLabel}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -594,7 +696,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.residenceCode || '-'}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{languageLabel}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">
-                                                        {user.roleKey === 'tenant_admin' ? 'テナント管理者' : '一般ユーザ'}
+                                                        {user.roleKey === 'tenant_admin' ? roleTenantAdminLabel : roleGeneralUserLabel}
                                                     </td>
                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                         <div className="flex space-x-2 justify-center">
@@ -602,13 +704,13 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                                                 onClick={() => handleEdit(user)}
                                                                 className="rounded-lg border-2 border-blue-400 bg-white px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
                                                             >
-                                                                編集
+                                                                {actionEditLabel}
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteClick(user.userId)}
                                                                 className="rounded-lg border-2 border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
                                                             >
-                                                                削除
+                                                                {actionDeleteLabel}
                                                             </button>
                                                         </div>
                                                     </td>
@@ -622,7 +724,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             {/* ページネーション */}
                             <div className="mt-4 flex flex-col md:flex-row justify-between items-center space-y-3 md:space-y-0">
                                 <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                    <span>表示件数:</span>
+                                    <span>{paginationPerPageLabel}</span>
                                     <select
                                         value={itemsPerPage}
                                         onChange={(e) => {
@@ -636,7 +738,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         <option value={100}>100</option>
                                     </select>
                                     <span>
-                                        {sortedUsers.length} 件中 {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedUsers.length)} 件を表示
+                                        {sortedUsers.length} {paginationRangeMiddleLabel} {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sortedUsers.length)} {paginationRangeSuffixLabel}
                                     </span>
                                 </div>
 
@@ -649,7 +751,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                             : 'border-blue-400 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500'
                                             }`}
                                     >
-                                        前へ
+                                        {paginationPrevLabel}
                                     </button>
                                     {/* 簡易的なページ番号表示 (必要に応じて拡張) */}
                                     <span className="px-3 py-1 text-sm text-gray-700">
@@ -663,7 +765,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                             : 'border-blue-400 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500'
                                             }`}
                                     >
-                                        次へ
+                                        {paginationNextLabel}
                                     </button>
                                 </div>
                             </div>
@@ -690,7 +792,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 </span>
                             </div>
                             <p className="whitespace-pre-line">
-                                {t('tadmin.users.delete.confirm')}
+                                {deleteConfirmMessage}
                             </p>
                         </div>
                         <div className="flex justify-end gap-3">
@@ -699,14 +801,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 onClick={handleCancelDelete}
                                 className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50"
                             >
-                                キャンセル
+                                {deleteCancelButtonLabel}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleConfirmDelete}
                                 className="rounded-lg border-2 border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
                             >
-                                削除
+                                {deleteSubmitButtonLabel}
                             </button>
                         </div>
                     </div>

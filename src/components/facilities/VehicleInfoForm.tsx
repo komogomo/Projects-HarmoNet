@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import React from "react";
 
 interface VehicleInfoFormProps {
   vehicleNumber: string;
   vehicleModel: string;
   onChangeVehicleNumber: (value: string) => void;
   onChangeVehicleModel: (value: string) => void;
+  vehicleNumberLabel: string;
+  vehicleModelLabel: string;
 }
 
 const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
@@ -15,67 +16,9 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
   vehicleModel,
   onChangeVehicleNumber,
   onChangeVehicleModel,
+  vehicleNumberLabel,
+  vehicleModelLabel,
 }) => {
-  const { currentLocale } = useI18n();
-
-  const [facilityTranslations, setFacilityTranslations] = React.useState<any | null>(null);
-  const [messages, setMessages] = React.useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch(`/locales/${currentLocale}/facility.json`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) {
-          setFacilityTranslations(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
-    // VehicleInfoForm は tenantId を直接は持たないため、上位コンポーネントで
-    // ラベルをテーブル化したい場合は、今後 props で文字列を渡す形に拡張する想定。
-    // 現状は facility.json ベースのフォールバックのみを維持する。
-    setMessages({});
-  }, []);
-
-  const labels = facilityTranslations?.labels ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return fallback;
-  };
-
-  const vehicleNumberLabelBase: string =
-    (labels.vehicle_number as string | undefined) ?? "車両ナンバー（任意）";
-  const vehicleNumberLabel: string = resolveMessage(
-    "labels.vehicle_number",
-    vehicleNumberLabelBase,
-  );
-
-  const vehicleModelLabelBase: string =
-    (labels.vehicle_model as string | undefined) ?? "車種・色（任意）";
-  const vehicleModelLabel: string = resolveMessage(
-    "labels.vehicle_model",
-    vehicleModelLabelBase,
-  );
 
   return (
     <div className="space-y-3 text-xs text-gray-600">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { SysAdminFooterLogout } from '@/src/components/sys-admin/SysAdminFooterLogout/SysAdminFooterLogout';
 
 export default function SysAdminLayout({
   children,
@@ -10,6 +11,7 @@ export default function SysAdminLayout({
       <div className="mx-auto w-full max-w-5xl px-4">
         {children}
       </div>
+      <SysAdminFooterLogout />
     </div>
   );
 }
