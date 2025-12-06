@@ -58,7 +58,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
 	tenantId,
 	hasCleaningDutyGroup = false,
 }) => {
-  const { t, currentLocale } = useI18n();
+  const { currentLocale } = useI18n();
   const router = useRouter();
 
   const [messages, setMessages] = useState<Record<string, string>>({});
@@ -198,7 +198,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
           aria-hidden="true"
           className="h-5 w-5 text-blue-600"
         />
-        <span>{t('home.features.title')}</span>
+        <span>{resolveMessage('home.features.title')}</span>
       </h2>
       <div className="grid grid-cols-3 gap-3">
         {effectiveTiles.map((tile) => (

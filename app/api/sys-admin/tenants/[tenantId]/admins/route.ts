@@ -133,7 +133,9 @@ export async function GET(request: NextRequest, context: RouteParams) {
 
   const { data: users, error: usersError } = await adminClient
     .from('users')
-    .select('id, email, display_name, full_name')
+    .select(
+      'id, email, display_name, last_name, first_name, last_name_kana, first_name_kana',
+    )
     .in('id', userIds)
     .order('email', { ascending: true });
 
@@ -144,13 +146,29 @@ export async function GET(request: NextRequest, context: RouteParams) {
     );
   }
 
-  const result = (users ?? []).map((user: any) => ({
-    userId: user.id,
-    email: user.email ?? '',
-    displayName: user.display_name ?? '',
-    fullName: user.full_name ?? '',
-    lastLogin: null as string | null,
-  }));
+  const result = (users ?? []).map((user: any) => {
+    const firstName = (user.first_name as string) || '';
+    const lastName = (user.last_name as string) || '';
+    const firstNameKana = (user.first_name_kana as string) || '';
+    const lastNameKana = (user.last_name_kana as string) || '';
+
+    // 表示は常に first_name + last_name の順
+    const fullName = `${firstName} ${lastName}`.trim();
+    const fullNameKana = `${firstNameKana} ${lastNameKana}`.trim();
+
+    return {
+      userId: user.id,
+      email: user.email ?? '',
+      displayName: user.display_name ?? '',
+      lastName,
+      firstName,
+      lastNameKana,
+      firstNameKana,
+      fullName,
+      fullNameKana,
+      lastLogin: null as string | null,
+    };
+  });
 
   return NextResponse.json(result);
 }
@@ -179,9 +197,16 @@ export async function POST(request: NextRequest, context: RouteParams) {
     );
   }
 
-  const { email, displayName, fullName } = payload ?? {};
+  const {
+    email,
+    displayName,
+    lastName,
+    firstName,
+    lastNameKana,
+    firstNameKana,
+  } = payload ?? {};
 
-  if (!email || !displayName || !fullName) {
+  if (!email || !displayName || !lastName || !firstName || !lastNameKana || !firstNameKana) {
     return NextResponse.json(
       { ok: false, message: "入力内容を確認してください。" },
       { status: 400 },
@@ -224,6 +249,31 @@ export async function POST(request: NextRequest, context: RouteParams) {
     }
 
     targetUserId = existingUser.id;
+
+    // 既存ユーザの場合も、表示名・氏名情報を最新の入力内容で更新する
+    const { error: updateUsersError } = await adminClient
+      .from("users")
+      .update({
+        display_name: displayName,
+        last_name: lastName,
+        first_name: firstName,
+        last_name_kana: lastNameKana,
+        first_name_kana: firstNameKana,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingUser.id)
+      .eq("tenant_id", tenantId);
+
+    if (updateUsersError) {
+      console.error("Error updating existing user in public.users:", updateUsersError);
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `管理者ユーザの更新に失敗しました(DB): ${updateUsersError.message}`,
+        },
+        { status: 500 },
+      );
+    }
   } else {
     // 2. Supabase Auth にユーザ作成
     const { data: newUser, error: createError } =
@@ -257,7 +307,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
         tenant_id: tenantId,
         email,
         display_name: displayName,
-        full_name: fullName,
+        last_name: lastName,
+        first_name: firstName,
+        last_name_kana: lastNameKana,
+        first_name_kana: firstNameKana,
         group_code: "SYSADMIN",
         residence_code: "SYSADMIN",
         language: "ja",

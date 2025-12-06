@@ -7,21 +7,25 @@ export type UserListItem = {
     userId: string;
     email: string;
     displayName: string;
-    fullName: string;
-    fullNameKana: string;
+    lastName: string;
+    firstName: string;
+    lastNameKana: string;
+    firstNameKana: string;
     groupCode: string | null;
     residenceCode: string | null;
-    roleKey: string;
+    roleKeys: string[]; // system_admin 以外のロールキー一覧
     language: string;
 };
 
 export type UserFormData = {
     email: string;
-    fullName: string;
-    fullNameKana: string;
     displayName: string;
+    lastName: string;
+    firstName: string;
+    lastNameKana: string;
+    firstNameKana: string;
     groupCode: string;
     residenceCode: string;
-    roleKey: string;
+    roleKeys: string[];
     language: string;
 };

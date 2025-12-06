@@ -23,7 +23,12 @@ interface TenantAdminUser {
   userId: string;
   email: string;
   displayName: string;
+  lastName: string;
+  firstName: string;
+  lastNameKana: string;
+  firstNameKana: string;
   fullName: string;
+  fullNameKana: string;
   lastLogin?: string | null;
 }
 
@@ -69,7 +74,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   );
   const [adminEmail, setAdminEmail] = useState("");
   const [adminDisplayName, setAdminDisplayName] = useState("");
-  const [adminFullName, setAdminFullName] = useState("");
+  const [adminLastName, setAdminLastName] = useState("");
+  const [adminFirstName, setAdminFirstName] = useState("");
+  const [adminLastNameKana, setAdminLastNameKana] = useState("");
+  const [adminFirstNameKana, setAdminFirstNameKana] = useState("");
   const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
   const [confirmRemoveAdminId, setConfirmRemoveAdminId] = useState<string | null>(
     null,
@@ -137,13 +145,29 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
         return;
       }
       const data = (await res.json().catch(() => [])) as any[];
-      const mapped: TenantAdminUser[] = (data || []).map((row: any) => ({
-        userId: row.userId,
-        email: row.email,
-        displayName: row.displayName,
-        fullName: row.fullName,
-        lastLogin: row.lastLogin ?? null,
-      }));
+      const mapped: TenantAdminUser[] = (data || []).map((row: any) => {
+        const firstName = (row.firstName as string) || "";
+        const lastName = (row.lastName as string) || "";
+        const firstNameKana = (row.firstNameKana as string) || "";
+        const lastNameKana = (row.lastNameKana as string) || "";
+
+        // 表示は常に firstName + lastName の順にする（旧 fullName カラムは無視）
+        const fullName = `${firstName} ${lastName}`.trim();
+        const fullNameKana = `${firstNameKana} ${lastNameKana}`.trim();
+
+        return {
+          userId: row.userId,
+          email: row.email,
+          displayName: row.displayName,
+          lastName,
+          firstName,
+          lastNameKana,
+          firstNameKana,
+          fullName,
+          fullNameKana,
+          lastLogin: row.lastLogin ?? null,
+        };
+      });
       setAdmins(mapped);
     } catch {
       setAdminMessage({
@@ -189,17 +213,18 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   const isAdminFormValid =
     adminEmail.trim().length > 0 &&
     adminDisplayName.trim().length > 0 &&
-    adminFullName.trim().length > 0;
+    adminLastName.trim().length > 0 &&
+    adminFirstName.trim().length > 0 &&
+    adminLastNameKana.trim().length > 0 &&
+    adminFirstNameKana.trim().length > 0;
 
-  const resolveMessage = (key: string, fallback?: string): string => {
+  const resolveMessage = (key: string, _fallback?: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    if (typeof fallback === "string" && fallback.trim().length > 0) {
-      return fallback;
-    }
-    return t(key);
+    // 静的翻訳に存在しないキーは、そのままキーを表示してマスタ不備を見える化する
+    return key;
   };
 
   const handleSelectTenant = (tenant: TenantListItem) => {
@@ -214,7 +239,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     setAdminFormMode("create");
     setAdminEmail("");
     setAdminDisplayName("");
-    setAdminFullName("");
+    setAdminLastName("");
+    setAdminFirstName("");
+    setAdminLastNameKana("");
+    setAdminFirstNameKana("");
     setEditingAdminId(null);
     setConfirmRemoveAdminId(null);
     setAdminMessage(null);
@@ -237,7 +265,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     setAdminFormMode("create");
     setAdminEmail("");
     setAdminDisplayName("");
-    setAdminFullName("");
+    setAdminLastName("");
+    setAdminFirstName("");
+    setAdminLastNameKana("");
+    setAdminFirstNameKana("");
     setEditingAdminId(null);
     setConfirmRemoveAdminId(null);
     setAdminMessage(null);
@@ -436,7 +467,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
             body: JSON.stringify({
               email: adminEmail,
               displayName: adminDisplayName,
-              fullName: adminFullName,
+              lastName: adminLastName,
+              firstName: adminFirstName,
+              lastNameKana: adminLastNameKana,
+              firstNameKana: adminFirstNameKana,
             }),
           },
         );
@@ -451,7 +485,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
         setAdminFormMode("create");
         setAdminEmail("");
         setAdminDisplayName("");
-        setAdminFullName("");
+        setAdminLastName("");
+        setAdminFirstName("");
+        setAdminLastNameKana("");
+        setAdminFirstNameKana("");
         setEditingAdminId(null);
         setAdminMessage({
           type: "success",
@@ -465,7 +502,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               displayName: adminDisplayName,
-              fullName: adminFullName,
+              lastName: adminLastName,
+              firstName: adminFirstName,
+              lastNameKana: adminLastNameKana,
+              firstNameKana: adminFirstNameKana,
             }),
           },
         );
@@ -480,7 +520,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
         setAdminFormMode("create");
         setAdminEmail("");
         setAdminDisplayName("");
-        setAdminFullName("");
+        setAdminLastName("");
+        setAdminFirstName("");
+        setAdminLastNameKana("");
+        setAdminFirstNameKana("");
         setEditingAdminId(null);
         setAdminMessage({
           type: "success",
@@ -501,7 +544,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     setEditingAdminId(admin.userId);
     setAdminEmail(admin.email);
     setAdminDisplayName(admin.displayName);
-    setAdminFullName(admin.fullName);
+    setAdminLastName(admin.lastName);
+    setAdminFirstName(admin.firstName);
+    setAdminLastNameKana(admin.lastNameKana);
+    setAdminFirstNameKana(admin.firstNameKana);
     setAdminMessage(null);
   };
 
@@ -530,7 +576,10 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
       setAdminFormMode("create");
       setAdminEmail("");
       setAdminDisplayName("");
-      setAdminFullName("");
+      setAdminLastName("");
+      setAdminFirstName("");
+      setAdminLastNameKana("");
+      setAdminFirstNameKana("");
       setEditingAdminId(null);
       setAdminMessage({
         type: "success",
@@ -554,7 +603,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
   return (
     <div className="flex flex-col gap-4">
       {/* 上部: テナント詳細 + 管理者管理 */}
-      <section className="order-1 space-y-4">
+      <section className="space-y-4">
         {/* テナント詳細フォーム */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
@@ -586,9 +635,8 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 : tenantMessage.text}
             </div>
           )}
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="w-full md:max-w-[12rem]">
               <label className="block text-[11px] font-medium text-gray-700">
                 {resolveMessage(
                   "sysadmin.tenants.form.tenantCode.label",
@@ -605,23 +653,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
               />
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-gray-700">
-                {resolveMessage(
-                  "sysadmin.tenants.form.tenantName.label",
-                  "テナント名",
-                )}{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={tenantName}
-                onChange={(event) => setTenantName(event.target.value)}
-                maxLength={80}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
+            <div className="w-full md:max-w-[12rem]">
               <label className="block text-[11px] font-medium text-gray-700">
                 {resolveMessage(
                   "sysadmin.tenants.form.timezone.label",
@@ -642,91 +674,105 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                 ))}
               </select>
             </div>
+            <div className="w-full md:max-w-[24rem]">
+              <label className="block text-[11px] font-medium text-gray-700">
+                {resolveMessage(
+                  "sysadmin.tenants.form.tenantName.label",
+                  "テナント名",
+                )}{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={tenantName}
+                onChange={(event) => setTenantName(event.target.value)}
+                maxLength={80}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* 管理者一覧は下のカードに表示 */}
           </div>
 
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-[11px] text-gray-500">
-              {selectedTenantId
-                ? `${resolveMessage(
-                    "sysadmin.tenants.form.selectedTenantLabel",
-                    "選択中のテナント: ",
-                  )}${
-                    tenants.find((t) => t.id === selectedTenantId)?.tenant_name ?? "-"
-                  }`
-                : resolveMessage(
-                    "sysadmin.tenants.form.newTenantPlaceholder",
-                    "新規テナントを作成します。",
-                  )}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={handleNewTenantClick}
-                className="rounded border-2 border-gray-300 bg-white px-4 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {resolveMessage(
-                  "sysadmin.tenants.form.clearButton",
-                  "クリア",
-                )}
-              </button>
-              <button
-                type="button"
-                disabled={!isTenantFormValid || tenantSaving || !isTenantDirty}
-                onClick={handleTenantSave}
-                className="rounded border-2 border-blue-500 bg-white px-4 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-300 disabled:bg-gray-50"
-              >
-                {resolveMessage(
-                  "sysadmin.tenants.form.submitButton",
-                  "登録",
-                )}
-              </button>
-            </div>
+          {/* アクションボタン行（クリア / 登録） */}
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleNewTenantClick}
+              disabled={tenantSaving}
+              className="rounded border border-gray-300 bg-white px-4 py-1.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300 disabled:bg-gray-50"
+            >
+              {resolveMessage(
+                "sysadmin.tenants.form.clearButton",
+                "クリア",
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleTenantSave}
+              disabled={
+                tenantSaving ||
+                !isTenantFormValid ||
+                (tenantFormMode === "edit" && !isTenantDirty)
+              }
+              className="rounded border border-blue-500 bg-blue-500 px-4 py-1.5 text-[11px] font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-200 disabled:text-gray-400"
+            >
+              {resolveMessage(
+                "sysadmin.tenants.form.saveButton",
+                "登録",
+              )}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* テナント管理者管理パネル */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">
+              {resolveMessage(
+                "sysadmin.tenants.adminPanel.title",
+                "テナント管理者管理",
+              )}
+            </h2>
+            <p className="mt-1 text-[11px] text-gray-500">
+              {resolveMessage(
+                "sysadmin.tenants.adminPanel.description",
+                "選択中テナントの管理者ユーザを登録・編集できます。",
+              )}
+            </p>
           </div>
         </div>
 
-        {/* テナント管理者管理パネル */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">
-                {resolveMessage(
-                  "sysadmin.tenants.adminPanel.title",
-                  "テナント管理者管理",
-                )}
-              </h2>
-              <p className="mt-1 text-[11px] text-gray-500">
-                {resolveMessage(
-                  "sysadmin.tenants.adminPanel.description",
-                  "選択中テナントの管理者ユーザを登録・編集できます。",
-                )}
-              </p>
-            </div>
-          </div>
-
-          {adminMessage && (
-            <div
-              className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${adminMessage.type === "success"
+        {adminMessage && (
+          <div
+            className={`mb-3 rounded border px-3 py-1.5 text-[11px] ${
+              adminMessage.type === "success"
                 ? "border-green-200 bg-green-50 text-green-800"
                 : "border-red-200 bg-red-50 text-red-800"
-                }`}
-            >
-              {adminMessage.text.startsWith("sysadmin.")
-                ? resolveMessage(adminMessage.text)
-                : adminMessage.text}
-            </div>
-          )}
+              }`}
+          >
+            {adminMessage.text.startsWith("sysadmin.")
+              ? resolveMessage(adminMessage.text)
+              : adminMessage.text}
+          </div>
+        )}
 
-          {!selectedTenantId ? (
-            <p className="text-xs text-gray-600">
-              {resolveMessage(
-                "sysadmin.tenants.adminPanel.noTenantSelected",
-                "管理者を操作するには、下の一覧からテナントを選択してください。",
-              )}
-            </p>
-          ) : (
-            <>
-              <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end">
-                <div className="flex-1">
+        {!selectedTenantId ? (
+          <p className="text-xs text-gray-600">
+            {resolveMessage(
+              "sysadmin.tenants.adminPanel.noTenantSelected",
+              "管理者を操作するには、下の一覧からテナントを選択してください。",
+            )}
+          </p>
+        ) : (
+          <div>
+            <div className="mb-3 space-y-3">
+              {/* 1段目: メールアドレス + 表示名 */}
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                {/* メールアドレス: やや短め（共通幅） */}
+                <div className="w-full md:max-w-[12rem]">
                   <label className="block text-[11px] font-medium text-gray-700">
                     {resolveMessage(
                       "sysadmin.tenants.adminPanel.email.label",
@@ -742,7 +788,8 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                <div className="flex-1">
+                {/* 表示名: やや短め（共通幅） */}
+                <div className="w-full md:max-w-[12rem]">
                   <label className="block text-[11px] font-medium text-gray-700">
                     {resolveMessage(
                       "sysadmin.tenants.adminPanel.displayName.label",
@@ -759,18 +806,71 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
-                <div className="flex-1">
+              </div>
+
+              {/* 2段目: 氏名 + ふりがな + ボタン */}
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                <div className="w-full md:max-w-[12rem]">
                   <label className="block text-[11px] font-medium text-gray-700">
                     {resolveMessage(
-                      "sysadmin.tenants.adminPanel.fullName.label",
-                      "氏名",
+                      "sysadmin.tenants.adminPanel.lastName.label",
+                      "姓",
                     )}{" "}
                     <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    value={adminFullName}
-                    onChange={(event) => setAdminFullName(event.target.value)}
+                    value={adminLastName}
+                    onChange={(event) => setAdminLastName(event.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="w-full md:max-w-xs">
+                  <label className="block text-[11px] font-medium text-gray-700">
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.firstName.label",
+                      "名",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adminFirstName}
+                    onChange={(event) => setAdminFirstName(event.target.value)}
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="w-full md:max-w-xs">
+                  <label className="block text-[11px] font-medium text-gray-700">
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.lastNameKana.label",
+                      "性ふりがな",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adminLastNameKana}
+                    onChange={(event) =>
+                      setAdminLastNameKana(event.target.value)
+                    }
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="w-full md:max-w-xs">
+                  <label className="block text-[11px] font-medium text-gray-700">
+                    {resolveMessage(
+                      "sysadmin.tenants.adminPanel.firstNameKana.label",
+                      "名ふりがな",
+                    )}{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adminFirstNameKana}
+                    onChange={(event) =>
+                      setAdminFirstNameKana(event.target.value)
+                    }
                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -781,9 +881,7 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                     onClick={handleAdminSubmit}
                     className={
                       "mt-4 rounded border-2 px-4 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-200 " +
-                      (adminFormMode === "create"
-                        ? "border-blue-500 bg-blue-600 text-white hover:bg-blue-700"
-                        : "border-blue-500 bg-white text-blue-600 hover:bg-blue-50")
+                      "border-blue-500 bg-white text-blue-600 hover:bg-blue-50"
                     }
                   >
                     {adminFormMode === "create"
@@ -798,103 +896,103 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-3">
-                {adminsLoading ? (
-                  <p className="text-xs text-gray-600">
-                    {resolveMessage(
-                      "sysadmin.tenants.adminPanel.loading",
-                      "管理者一覧を読み込み中です...",
-                    )}
-                  </p>
-                ) : admins.length === 0 ? (
-                  <p className="text-xs text-gray-600">
-                    {resolveMessage(
-                      "sysadmin.tenants.adminPanel.empty",
-                      "このテナントの管理者ユーザは登録されていません。",
-                    )}
-                  </p>
-                ) : (
-                  <div className="overflow-auto rounded border border-gray-100">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            {resolveMessage(
-                              "sysadmin.tenants.adminPanel.table.email",
-                              "メールアドレス",
-                            )}
-                          </th>
-                          <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            {resolveMessage(
-                              "sysadmin.tenants.adminPanel.table.displayName",
-                              "表示名",
-                            )}
-                          </th>
-                          <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
-                            {resolveMessage(
-                              "sysadmin.tenants.adminPanel.table.fullName",
-                              "氏名",
-                            )}
-                          </th>
-                          <th className="px-3 py-1.5 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">
-                            {resolveMessage(
-                              "sysadmin.tenants.adminPanel.table.actions",
-                              "操作",
-                            )}
-                          </th>
+            <div className="mt-3">
+              {adminsLoading ? (
+                <p className="text-xs text-gray-600">
+                  {resolveMessage(
+                    "sysadmin.tenants.adminPanel.loading",
+                    "管理者一覧を読み込み中です...",
+                  )}
+                </p>
+              ) : admins.length === 0 ? (
+                <p className="text-xs text-gray-600">
+                  {resolveMessage(
+                    "sysadmin.tenants.adminPanel.empty",
+                    "このテナントの管理者ユーザは登録されていません。",
+                  )}
+                </p>
+              ) : (
+                <div className="overflow-auto rounded border border-gray-100">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
+                          {resolveMessage(
+                            "sysadmin.tenants.adminPanel.table.email",
+                            "メールアドレス",
+                          )}
+                        </th>
+                        <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
+                          {resolveMessage(
+                            "sysadmin.tenants.adminPanel.table.displayName",
+                            "表示名",
+                          )}
+                        </th>
+                        <th className="px-3 py-1.5 text-left text-[10px] font-medium text-gray-500">
+                          {resolveMessage(
+                            "sysadmin.tenants.adminPanel.table.fullName",
+                            "氏名",
+                          )}
+                        </th>
+                        <th className="px-3 py-1.5 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">
+                          {resolveMessage(
+                            "sysadmin.tenants.adminPanel.table.actions",
+                            "操作",
+                          )}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {admins.map((admin) => (
+                        <tr key={admin.userId} className="text-xs">
+                          <td className="px-3 py-1.5 text-blue-600">
+                            {admin.email}
+                          </td>
+                          <td className="px-3 py-1.5 text-gray-900">
+                            {admin.displayName}
+                          </td>
+                          <td className="px-3 py-1.5 text-gray-900">
+                            {admin.fullName}
+                          </td>
+                          <td className="px-3 py-1.5 text-right">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                className="rounded border-2 border-gray-300 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                                onClick={() => handleAdminEditClick(admin)}
+                              >
+                                {resolveMessage(
+                                  "sysadmin.tenants.adminPanel.editButton",
+                                  "編集",
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded border-2 border-red-300 bg-white px-2 py-0.5 text-[10px] text-red-600 hover:bg-red-50 whitespace-nowrap"
+                                onClick={() => handleAdminRemoveClick(admin)}
+                              >
+                                {resolveMessage(
+                                  "sysadmin.tenants.adminPanel.removeButton",
+                                  "管理者解除",
+                                )}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {admins.map((admin) => (
-                          <tr key={admin.userId} className="text-xs">
-                            <td className="px-3 py-1.5 text-blue-600">
-                              {admin.email}
-                            </td>
-                            <td className="px-3 py-1.5 text-gray-900">
-                              {admin.displayName}
-                            </td>
-                            <td className="px-3 py-1.5 text-gray-900">
-                              {admin.fullName}
-                            </td>
-                            <td className="px-3 py-1.5 text-right">
-                              <div className="flex justify-end space-x-2">
-                                <button
-                                  type="button"
-                                  className="rounded border-2 border-gray-300 bg-white px-2 py-0.5 text-[10px] text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-                                  onClick={() => handleAdminEditClick(admin)}
-                                >
-                                  {resolveMessage(
-                                    "sysadmin.tenants.adminPanel.editButton",
-                                    "編集",
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rounded border-2 border-red-300 bg-white px-2 py-0.5 text-[10px] text-red-600 hover:bg-red-50 whitespace-nowrap"
-                                  onClick={() => handleAdminRemoveClick(admin)}
-                                >
-                                  {resolveMessage(
-                                    "sysadmin.tenants.adminPanel.removeButton",
-                                    "管理者解除",
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 下部: テナント一覧 */}
-      <section className="order-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">
             {resolveMessage(

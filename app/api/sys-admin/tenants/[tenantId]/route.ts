@@ -136,14 +136,6 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
     if (categoriesError) console.error("Error deleting board_categories:", categoriesError);
 
-    // Announcement Data
-    // announcements deletion will cascade to reads, targets
-    const { error: announcementsError } = await adminClient
-      .from("announcements")
-      .delete()
-      .eq("tenant_id", tenantId);
-    if (announcementsError) console.error("Error deleting announcements:", announcementsError);
-
     // Facility Data
     // Delete from child to parent just in case
     await adminClient.from("facility_reservations").delete().eq("tenant_id", tenantId);
@@ -159,14 +151,16 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     await adminClient.from("moderation_logs").delete().eq("tenant_id", tenantId);
     await adminClient.from("tenant_settings").delete().eq("tenant_id", tenantId);
     await adminClient.from("tenant_shortcut_menu").delete().eq("tenant_id", tenantId);
+    await adminClient.from("cleaning_duties").delete().eq("tenant_id", tenantId);
 
-    // Cache & Notifications
+    // Cache & Notifications & Static Translations
     await adminClient.from("board_favorites").delete().eq("tenant_id", tenantId);
 
     await adminClient.from("translation_cache").delete().eq("tenant_id", tenantId);
     await adminClient.from("tts_cache").delete().eq("tenant_id", tenantId);
     await adminClient.from("notifications").delete().eq("tenant_id", tenantId);
     await adminClient.from("user_notification_settings").delete().eq("tenant_id", tenantId);
+    await adminClient.from("tenant_static_translations").delete().eq("tenant_id", tenantId);
 
     // --- 1. Delete User Relations ---
 
@@ -248,6 +242,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("id", tenantId);
 
     if (error) {
+      console.error("Error deleting tenant record:", error);
       return NextResponse.json(
         {
           ok: false,

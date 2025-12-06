@@ -13,16 +13,14 @@ export async function GET(request: NextRequest) {
     // Use supabaseAdmin to bypass RLS policies that might restrict viewing other users
     const { data: usersData, error: usersError } = await supabaseAdmin
       .from('users')
-      .select('id, email, display_name, full_name, full_name_kana, group_code, residence_code, language')
+      .select(
+        'id, email, display_name, last_name, first_name, last_name_kana, first_name_kana, group_code, residence_code, language',
+      )
       .eq('tenant_id', tenantId);
 
     if (usersError) {
       console.error('Users fetch error:', usersError);
       return NextResponse.json({ error: usersError.message }, { status: 500 });
-    }
-
-    if (!usersData || usersData.length === 0) {
-      return NextResponse.json([]);
     }
 
     const userIds = usersData.map((u: any) => u.id);
@@ -39,36 +37,63 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: rolesError.message }, { status: 500 });
     }
 
-    // Create lookup maps
-    const roleMap = new Map();
+    // Create lookup map: user_id -> roleKeys[] (system_admin は除外)
+    const roleMap = new Map<string, string[]>();
     rolesData?.forEach((r: any) => {
-      roleMap.set(r.user_id, r.roles?.role_key);
+      const userId = r.user_id as string;
+      const roleKey = (r.roles as any)?.role_key as string | undefined;
+      if (!roleKey || roleKey === 'system_admin') return;
+      const current = roleMap.get(userId) ?? [];
+      if (!current.includes(roleKey)) {
+        current.push(roleKey);
+      }
+      roleMap.set(userId, current);
     });
 
     // Combine data
-    const result = usersData.map((user: any) => {
+    const result = (usersData as any[]).reduce((acc: any[], user: any) => {
       // Filter by query if present
       if (query) {
         const q = query.toLowerCase();
-        const match =
-          user.email?.toLowerCase().includes(q) ||
-          user.display_name?.toLowerCase().includes(q) ||
-          user.full_name?.toLowerCase().includes(q);
-        if (!match) return null;
+        const targetStrings = [
+          user.email,
+          user.display_name,
+          user.last_name,
+          user.first_name,
+          user.last_name_kana,
+          user.first_name_kana,
+          user.group_code,
+          user.residence_code,
+        ];
+        const match = targetStrings.some(
+          (v) => typeof v === 'string' && v.toLowerCase().includes(q),
+        );
+        if (!match) {
+          return acc;
+        }
       }
 
-      return {
-        userId: user.id,
-        email: user.email || '',
-        displayName: user.display_name || '',
-        fullName: user.full_name || '',
-        fullNameKana: user.full_name_kana || '',
-        groupCode: user.group_code || null,
-        residenceCode: user.residence_code || null,
-        roleKey: roleMap.get(user.id) || 'general_user',
-        language: user.language || 'ja',
-      };
-    }).filter(Boolean);
+      const roleKeys = roleMap.get(user.id as string) ?? ['general_user'];
+      const langRaw = user.language as string | null;
+      const langLower = typeof langRaw === 'string' ? langRaw.toLowerCase() : 'ja';
+      const language = langLower === 'en' || langLower === 'zh' ? langLower : 'ja';
+
+      acc.push({
+        userId: user.id as string,
+        email: (user.email as string) || '',
+        displayName: (user.display_name as string) || '',
+        lastName: (user.last_name as string) || '',
+        firstName: (user.first_name as string) || '',
+        lastNameKana: (user.last_name_kana as string) || '',
+        firstNameKana: (user.first_name_kana as string) || '',
+        groupCode: (user.group_code as string) || null,
+        residenceCode: (user.residence_code as string) || null,
+        roleKeys,
+        language,
+      });
+
+      return acc;
+    }, [] as any[]);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -93,11 +118,45 @@ export async function POST(request: NextRequest) {
     const { tenantId, supabase, supabaseAdmin } = await getTenantAdminApiContext();
 
     const body = await request.json();
-    const { email, fullName, fullNameKana, displayName, groupCode, residenceCode, roleKey, language } = body;
+    const {
+      email,
+      lastName,
+      firstName,
+      lastNameKana,
+      firstNameKana,
+      displayName,
+      groupCode,
+      residenceCode,
+      roleKeys,
+      language,
+    } = body as {
+      email: string;
+      lastName: string;
+      firstName: string;
+      lastNameKana: string;
+      firstNameKana: string;
+      displayName: string;
+      groupCode?: string | null;
+      residenceCode?: string | null;
+      roleKeys?: string[];
+      language?: string;
+    };
 
     // Validation
-    if (!email || !fullName || !fullNameKana || !displayName || !roleKey) {
-      return NextResponse.json({ ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' }, { status: 400 });
+    if (
+      !email ||
+      !lastName ||
+      !firstName ||
+      !lastNameKana ||
+      !firstNameKana ||
+      !displayName ||
+      !Array.isArray(roleKeys) ||
+      roleKeys.length === 0
+    ) {
+      return NextResponse.json(
+        { ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' },
+        { status: 400 },
+      );
     }
 
     let targetUserId: string;
@@ -168,14 +227,16 @@ export async function POST(request: NextRequest) {
       .upsert({
         id: targetUserId,
         tenant_id: tenantId, // Required now
-        email: email,
+        email,
         display_name: displayName,
-        full_name: fullName,
-        full_name_kana: fullNameKana,
-        group_code: groupCode,
-        residence_code: residenceCode,
+        last_name: lastName,
+        first_name: firstName,
+        last_name_kana: lastNameKana,
+        first_name_kana: firstNameKana,
+        group_code: groupCode ?? '',
+        residence_code: residenceCode ?? '',
         language: language || 'ja',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       });
 
     if (usersError) {
@@ -183,34 +244,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'usersテーブルの更新に失敗しました。' }, { status: 500 });
     }
 
-    // 3. Upsert user_roles
-    const { data: roleData, error: roleFetchError } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('role_key', roleKey)
-      .single();
+    // 3. Upsert user_roles (複数ロール対応, system_admin は除外)
+    const normalizedRoleKeys = Array.from(
+      new Set(
+        (roleKeys as string[])
+          .filter((key) => typeof key === 'string')
+          .map((key) => key.trim())
+          .filter((key) => key && key !== 'system_admin'),
+      ),
+    );
 
-    if (roleFetchError || !roleData) {
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' }, { status: 500 });
+    const { data: roleRows, error: rolesFetchError } = await supabase
+      .from('roles')
+      .select('id, role_key')
+      .in('role_key', normalizedRoleKeys);
+
+    if (rolesFetchError || !roleRows || roleRows.length === 0) {
+      return NextResponse.json(
+        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' },
+        { status: 500 },
+      );
     }
+
+    const insertUserRoles = roleRows.map((row: any) => ({
+      user_id: targetUserId,
+      tenant_id: tenantId,
+      role_id: row.id,
+    }));
 
     const { error: userRolesError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: targetUserId,
-        tenant_id: tenantId,
-        role_id: roleData.id
-      });
+      .insert(insertUserRoles);
 
     if (userRolesError) {
-      const isDuplicateKeyError =
-        typeof (userRolesError as any).code === 'string' &&
-        (userRolesError as any).code === '23505';
-
-      if (!isDuplicateKeyError) {
-        console.error("User roles insert error:", userRolesError);
-        return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール設定に失敗しました。' }, { status: 500 });
-      }
+      console.error("User roles insert error:", userRolesError);
+      return NextResponse.json(
+        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール設定に失敗しました。' },
+        { status: 500 },
+      );
     }
 
     // 4. Upsert user_tenants
@@ -248,11 +319,48 @@ export async function PUT(request: NextRequest) {
     const { tenantId, supabase, supabaseAdmin } = await getTenantAdminApiContext();
 
     const body = await request.json();
-    const { userId, email, fullName, fullNameKana, displayName, groupCode, residenceCode, roleKey, language } = body;
+    const {
+      userId,
+      email,
+      lastName,
+      firstName,
+      lastNameKana,
+      firstNameKana,
+      displayName,
+      groupCode,
+      residenceCode,
+      roleKeys,
+      language,
+    } = body as {
+      userId: string;
+      email: string;
+      lastName: string;
+      firstName: string;
+      lastNameKana: string;
+      firstNameKana: string;
+      displayName: string;
+      groupCode?: string | null;
+      residenceCode?: string | null;
+      roleKeys?: string[];
+      language?: string;
+    };
 
     // Validation
-    if (!userId || !email || !fullName || !fullNameKana || !displayName || !roleKey) {
-      return NextResponse.json({ ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' }, { status: 400 });
+    if (
+      !userId ||
+      !email ||
+      !lastName ||
+      !firstName ||
+      !lastNameKana ||
+      !firstNameKana ||
+      !displayName ||
+      !Array.isArray(roleKeys) ||
+      roleKeys.length === 0
+    ) {
+      return NextResponse.json(
+        { ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' },
+        { status: 400 },
+      );
     }
 
     // Check for email duplication (Public DB)
@@ -319,14 +427,16 @@ export async function PUT(request: NextRequest) {
     const { error: usersError } = await supabaseAdmin
       .from('users')
       .update({
-        email: email,
+        email,
         display_name: displayName,
-        full_name: fullName,
-        full_name_kana: fullNameKana,
-        group_code: groupCode,
-        residence_code: residenceCode,
+        last_name: lastName,
+        first_name: firstName,
+        last_name_kana: lastNameKana,
+        first_name_kana: firstNameKana,
+        group_code: groupCode ?? '',
+        residence_code: residenceCode ?? '',
         language: language || 'ja',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
       .eq('tenant_id', tenantId); // Ensure user belongs to this tenant
@@ -336,39 +446,70 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'usersテーブルの更新に失敗しました。' }, { status: 500 });
     }
 
-    // 2. Update user_roles
-    const { data: roleData, error: roleFetchError } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('role_key', roleKey)
-      .single();
+    // 2. Update user_roles (複数ロール対応, system_admin は除外)
+    const normalizedRoleKeys = Array.from(
+      new Set(
+        (roleKeys as string[])
+          .filter((key) => typeof key === 'string')
+          .map((key) => key.trim())
+          .filter((key) => key && key !== 'system_admin'),
+      ),
+    );
 
-    if (roleFetchError || !roleData) {
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' }, { status: 500 });
+    // 既存のロール割り当てから、system_admin 以外だけを削除する
+    const { data: existingUserRoles, error: existingUserRolesError } = await supabaseAdmin
+      .from('user_roles')
+      .select('id, roles(role_key)')
+      .eq('user_id', userId)
+      .eq('tenant_id', tenantId);
+
+    if (existingUserRolesError) {
+      console.error('Existing user_roles fetch error:', existingUserRolesError);
+      return NextResponse.json(
+        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール情報の取得に失敗しました。' },
+        { status: 500 },
+      );
     }
 
-    // Check current role
-    const { data: currentRole } = await supabaseAdmin
-      .from('user_roles')
-      .select('role_id')
-      .eq('user_id', userId)
-      .eq('tenant_id', tenantId)
-      .maybeSingle();
+    const deletableRoleIds = (existingUserRoles ?? [])
+      .filter((ur: any) => {
+        const roleKey = (ur.roles as any)?.role_key as string | undefined;
+        return roleKey && roleKey !== 'system_admin';
+      })
+      .map((ur: any) => ur.id as string);
 
-    // Only update if role changed
-    if (!currentRole || currentRole.role_id !== roleData.id) {
-      await supabaseAdmin.from('user_roles').delete().eq('user_id', userId).eq('tenant_id', tenantId);
+    if (deletableRoleIds.length > 0) {
+      await supabaseAdmin.from('user_roles').delete().in('id', deletableRoleIds);
+    }
+
+    if (normalizedRoleKeys.length > 0) {
+      const { data: roleRows, error: rolesFetchError } = await supabase
+        .from('roles')
+        .select('id, role_key')
+        .in('role_key', normalizedRoleKeys);
+
+      if (rolesFetchError || !roleRows || roleRows.length === 0) {
+        return NextResponse.json(
+          { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' },
+          { status: 500 },
+        );
+      }
+
+      const insertUserRoles = roleRows.map((row: any) => ({
+        user_id: userId,
+        tenant_id: tenantId,
+        role_id: row.id,
+      }));
 
       const { error: userRolesError } = await supabaseAdmin
         .from('user_roles')
-        .insert({
-          user_id: userId,
-          tenant_id: tenantId,
-          role_id: roleData.id
-        });
+        .insert(insertUserRoles);
 
       if (userRolesError) {
-        return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール更新に失敗しました。' }, { status: 500 });
+        return NextResponse.json(
+          { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール更新に失敗しました。' },
+          { status: 500 },
+        );
       }
     }
 

@@ -154,7 +154,14 @@ export const HomeBoardNoticeContainer: React.FC<HomeBoardNoticeContainerProps> =
   }, [rawPosts, currentLocale]);
 
   // isLoading / isError は現状特別扱いせず、items が空のときは空表示を HomeNoticeSection に任せる
-  return <HomeNoticeSection items={items} maxItems={maxItems} tenantName={tenantName} />;
+  return (
+    <HomeNoticeSection
+      items={items}
+      maxItems={maxItems}
+      tenantName={tenantName}
+      tenantId={tenantId}
+    />
+  );
 };
 
 HomeBoardNoticeContainer.displayName = "HomeBoardNoticeContainer";

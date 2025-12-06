@@ -192,9 +192,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: 'cannot_delete_completed' }, { status: 400 });
     }
 
-    await prisma.cleaning_duties.delete({
+    // 同一サイクル・同一住居の行が重複して存在しているケースでも
+    // 一括で削除できるよう、キー情報で deleteMany する
+    await prisma.cleaning_duties.deleteMany({
       where: {
-        id: duty.id,
+        tenant_id: tenantId,
+        group_code: groupCode,
+        cycle_no: duty.cycle_no,
+        residence_code: duty.residence_code,
       },
     } as any);
 

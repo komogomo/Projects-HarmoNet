@@ -9,6 +9,7 @@ export type HomeNoticeSectionProps = {
   items: HomeNoticeItem[];
   maxItems?: number;
   tenantName?: string;
+  tenantId: string;
 };
 
 export const DEFAULT_HOME_NOTICE_COUNT = 2;

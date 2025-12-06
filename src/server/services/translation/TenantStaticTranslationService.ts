@@ -68,9 +68,10 @@ export class TenantStaticTranslationService {
 
       // JA はそのまま or キーをフォールバック
       result.ja[key] = textJa || key;
-      // EN/ZH は、未入力なら JA にフォールバック、それも無ければキー
-      result.en[key] = textEn || textJa || key;
-      result.zh[key] = textZh || textJa || key;
+      // EN/ZH は、それぞれの言語が未入力ならキーをそのまま表示し、
+      // 別言語のテキストにはフォールバックしない（マスタ不備を隠さない）
+      result.en[key] = textEn || key;
+      result.zh[key] = textZh || key;
     }
 
     return result;

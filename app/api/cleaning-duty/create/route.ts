@@ -184,39 +184,10 @@ export async function POST(req: Request) {
       },
     } as any)) as { cycle_no: number } | null;
 
-    const currentCycleNo = latestCycleRow && typeof latestCycleRow.cycle_no === 'number'
-      ? latestCycleRow.cycle_no
-      : 1;
-
-    // 同一サイクル・同一住居番号の重複行を防止
-    const existing = (await prisma.cleaning_duties.findFirst({
-      where: {
-        tenant_id: tenantId,
-        group_code: groupCode,
-        residence_code: residenceCode,
-        cycle_no: currentCycleNo,
-      },
-      select: { id: true },
-    } as any)) as { id: string } | null;
-
-    if (existing) {
-      return NextResponse.json({ errorCode: 'duplicate_residence' }, { status: 409 });
-    }
-
-	    // 同一サイクル内で同じ assignee_id の重複登録も禁止
-	    const existingAssignee = (await prisma.cleaning_duties.findFirst({
-	      where: {
-	        tenant_id: tenantId,
-	        group_code: groupCode,
-	        cycle_no: currentCycleNo,
-	        assignee_id: assigneeId,
-	      },
-	      select: { id: true },
-	    } as any)) as { id: string } | null;
-
-	    if (existingAssignee) {
-	      return NextResponse.json({ errorCode: 'duplicate_assignee' }, { status: 409 });
-	    }
+    const currentCycleNo =
+      latestCycleRow && typeof latestCycleRow.cycle_no === 'number'
+        ? latestCycleRow.cycle_no
+        : 1;
 
     await prisma.cleaning_duties.create({
       data: {

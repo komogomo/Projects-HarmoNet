@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 import { MagicLinkForm } from '@/src/components/auth/MagicLinkForm/MagicLinkForm';
+import { logInfo } from '@/src/lib/logging/log.util';
 
 type SysAdminLoginMessages = {
   page_title: string;
@@ -90,6 +91,12 @@ export default async function SysAdminLoginPage() {
   const showNoPermissionMessage = !!user && !isSystemAdmin;
 
   const messages = await fetchSysAdminLoginMessages();
+
+  logInfo('sys-admin.login.page.view', {
+    hasSession: !!user,
+    isSystemAdmin,
+    userId: user?.id ?? null,
+  });
 
   return (
     <main className="min-h-screen flex flex-col bg-white">

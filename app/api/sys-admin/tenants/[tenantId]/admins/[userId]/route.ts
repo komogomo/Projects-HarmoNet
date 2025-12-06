@@ -96,9 +96,21 @@ export async function PUT(request: NextRequest, context: RouteParams) {
     );
   }
 
-  const { displayName, fullName } = payload ?? {};
+  const {
+    displayName,
+    lastName,
+    firstName,
+    lastNameKana,
+    firstNameKana,
+  } = payload ?? {};
 
-  if (!displayName || !fullName) {
+  if (
+    !displayName ||
+    !lastName ||
+    !firstName ||
+    !lastNameKana ||
+    !firstNameKana
+  ) {
     return NextResponse.json(
       { ok: false, message: "入力内容を確認してください。" },
       { status: 400 },
@@ -125,7 +137,10 @@ export async function PUT(request: NextRequest, context: RouteParams) {
     .from("users")
     .update({
       display_name: displayName,
-      full_name: fullName,
+      last_name: lastName,
+      first_name: firstName,
+      last_name_kana: lastNameKana,
+      first_name_kana: firstNameKana,
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId)

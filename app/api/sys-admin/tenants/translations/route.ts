@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
       const textZh = (row.text_zh ?? "").trim();
 
       if (lang === "en") {
-        messages[key] = textEn || textJa || key;
+        messages[key] = textEn || key;
       } else if (lang === "zh") {
-        messages[key] = textZh || textJa || key;
+        messages[key] = textZh || key;
       } else {
         messages[key] = textJa || key;
       }

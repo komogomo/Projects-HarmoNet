@@ -47,7 +47,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
   residenceCode,
   isGroupLeader,
 }) => {
-  const { t, currentLocale } = useStaticI18n();
+  const { currentLocale } = useStaticI18n();
 
   const [messages, setMessages] = useState<MessagesMap>({});
   const [duties, setDuties] = useState<CleaningDutyRow[]>([]);
@@ -81,9 +81,9 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
       if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
         return fromDb;
       }
-      return t(key);
+      return key;
     },
-    [messages, t],
+    [messages],
   );
 
   useEffect(() => {

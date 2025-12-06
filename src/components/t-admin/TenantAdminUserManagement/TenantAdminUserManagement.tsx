@@ -15,12 +15,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const [formData, setFormData] = useState<UserFormData>({
         email: '',
-        fullName: '',
-        fullNameKana: '',
         displayName: '',
+        lastName: '',
+        firstName: '',
+        lastNameKana: '',
+        firstNameKana: '',
         groupCode: '',
         residenceCode: '',
-        roleKey: 'general_user',
+        roleKeys: ['general_user'],
         language: 'ja',
     });
 
@@ -94,12 +96,16 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         setEditingId(user.userId);
         const newFormData: UserFormData = {
             email: user.email,
-            fullName: user.fullName,
-            fullNameKana: user.fullNameKana,
             displayName: user.displayName,
+            // 既存データでは DB 上の first_name / first_name_kana 側に「性」が入っているため、
+            // フォーム上では lastName を user.firstName, firstName を user.lastName として扱う。
+            lastName: user.firstName,
+            firstName: user.lastName,
+            lastNameKana: user.firstNameKana,
+            firstNameKana: user.lastNameKana,
             groupCode: user.groupCode || '',
             residenceCode: user.residenceCode || '',
-            roleKey: user.roleKey,
+            roleKeys: user.roleKeys && user.roleKeys.length > 0 ? user.roleKeys : ['general_user'],
             language: user.language,
         };
         setFormData(newFormData);
@@ -114,12 +120,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         setInitialFormData(null);
         setFormData({
             email: '',
-            fullName: '',
-            fullNameKana: '',
             displayName: '',
+            lastName: '',
+            firstName: '',
+            lastNameKana: '',
+            firstNameKana: '',
             groupCode: '',
             residenceCode: '',
-            roleKey: 'general_user',
+            roleKeys: ['general_user'],
             language: 'ja',
         });
         setMessage(null);
@@ -127,20 +135,29 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const isDirty = () => {
         if (!initialFormData) return true; // Not editing or just started
+
+        const normalizeRoles = (keys: string[]) => Array.from(new Set(keys)).sort();
+
         return (
             formData.email !== initialFormData.email ||
             formData.displayName !== initialFormData.displayName ||
-            formData.fullName !== initialFormData.fullName ||
-            formData.fullNameKana !== initialFormData.fullNameKana ||
+            formData.lastName !== initialFormData.lastName ||
+            formData.firstName !== initialFormData.firstName ||
+            formData.lastNameKana !== initialFormData.lastNameKana ||
+            formData.firstNameKana !== initialFormData.firstNameKana ||
             formData.groupCode !== initialFormData.groupCode ||
             formData.residenceCode !== initialFormData.residenceCode ||
-            formData.roleKey !== initialFormData.roleKey ||
-            formData.language !== initialFormData.language
+            formData.language !== initialFormData.language ||
+            JSON.stringify(normalizeRoles(formData.roleKeys)) !==
+                JSON.stringify(normalizeRoles(initialFormData.roleKeys))
         );
     };
 
     const [emailExists, setEmailExists] = useState(true);
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+
+    const [selectedAvailableRoleKeys, setSelectedAvailableRoleKeys] = useState<string[]>([]);
+    const [selectedAssignedRoleKeys, setSelectedAssignedRoleKeys] = useState<string[]>([]);
 
     useEffect(() => {
         const checkEmail = async () => {
@@ -184,15 +201,13 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return () => clearTimeout(timer);
     }, [formData.email, editingId, initialFormData]);
 
-    const resolveMessage = (key: string, fallback?: string): string => {
+    const resolveMessage = (key: string, _fallback?: string): string => {
         const fromDb = messages[key];
         if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
             return fromDb;
         }
-        if (typeof fallback === 'string' && fallback.trim().length > 0) {
-            return fallback;
-        }
-        return t(key);
+        // テナント静的翻訳に存在しないキーは、そのままキーを表示してマスタ不備を見える化する
+        return key;
     };
 
     const handleSubmit = async (e: React.FormEvent | React.MouseEvent, mode: 'create' | 'update' = 'create') => {
@@ -211,7 +226,16 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         }
 
         // Validation
-        if (!formData.email || !formData.fullName || !formData.fullNameKana || !formData.displayName || !formData.roleKey) {
+        if (
+            !formData.email ||
+            !formData.displayName ||
+            !formData.lastName ||
+            !formData.firstName ||
+            !formData.lastNameKana ||
+            !formData.firstNameKana ||
+            !Array.isArray(formData.roleKeys) ||
+            formData.roleKeys.length === 0
+        ) {
             setMessage({ type: 'error', text: 'tadmin.users.error.validation' });
             return;
         }
@@ -222,7 +246,18 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             // Note: When 'create' is forced (Save as New), we use POST even if editingId exists.
             const isUpdate = mode === 'update';
             const method = isUpdate ? 'PUT' : 'POST';
-            const body = isUpdate ? { ...formData, userId: editingId } : formData;
+
+            // 画面上では lastName を「性」、firstName を「名」として扱っているが、
+            // 既存データとの互換性のため、API には従来の lastName/firstName 方向で送る。
+            const apiPayload = {
+                ...formData,
+                lastName: formData.firstName,
+                firstName: formData.lastName,
+                lastNameKana: formData.firstNameKana,
+                firstNameKana: formData.lastNameKana,
+            };
+
+            const body = isUpdate ? { ...apiPayload, userId: editingId } : apiPayload;
 
             const res = await fetch(url, {
                 method: method,
@@ -306,27 +341,50 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     };
 
     // Filter
-    const filteredUsers = users.filter(user => {
+    const filteredUsers = users.filter((user) => {
         if (!activeSearchQuery) return true;
         const q = activeSearchQuery.toLowerCase();
 
-        // 検索は email / displayName / fullName / fullNameKana / groupCode / residenceCode / roleKey で実施
+        // 検索は email / displayName / 姓名 / ふりがな / groupCode / residenceCode で実施
+        const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+        const fullNameKana = `${user.firstNameKana ?? ''} ${user.lastNameKana ?? ''}`.trim();
+
         return (
             user.email.toLowerCase().includes(q) ||
             user.displayName.toLowerCase().includes(q) ||
-            user.fullName.toLowerCase().includes(q) ||
-            (user.fullNameKana && user.fullNameKana.toLowerCase().includes(q)) ||
+            fullName.toLowerCase().includes(q) ||
+            fullNameKana.toLowerCase().includes(q) ||
             (user.groupCode && user.groupCode.toLowerCase().includes(q)) ||
-            (user.residenceCode && user.residenceCode.toLowerCase().includes(q)) ||
-            user.roleKey.toLowerCase().includes(q)
+            (user.residenceCode && user.residenceCode.toLowerCase().includes(q))
         );
     });
 
     // Sort
     const sortedUsers = [...filteredUsers].sort((a, b) => {
         if (!sortColumn) return 0;
-        const aVal = a[sortColumn] || '';
-        const bVal = b[sortColumn] || '';
+
+        const getComparableValue = (user: UserListItem): string => {
+            switch (sortColumn) {
+                case 'email':
+                case 'displayName':
+                case 'lastName':
+                case 'firstName':
+                case 'lastNameKana':
+                case 'firstNameKana':
+                case 'groupCode':
+                case 'residenceCode':
+                case 'language':
+                    return (user[sortColumn] || '') as string;
+                case 'roleKeys':
+                    return user.roleKeys && user.roleKeys.length > 0 ? user.roleKeys.join(',') : '';
+                case 'userId':
+                default:
+                    return '';
+            }
+        };
+
+        const aVal = getComparableValue(a).toLowerCase();
+        const bVal = getComparableValue(b).toLowerCase();
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
@@ -368,14 +426,59 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const emailLabel = resolveMessage('tadmin.users.form.email.label', 'メールアドレス');
     const displayNameLabel = resolveMessage('tadmin.users.form.displayName.label', 'ニックネーム');
-    const fullNameLabel = resolveMessage('tadmin.users.form.fullName.label', '氏名');
-    const fullNameKanaLabel = resolveMessage('tadmin.users.form.fullNameKana.label', 'ふりがな');
+    const lastNameLabel = resolveMessage('tadmin.users.form.lastName.label', '性');
+    const firstNameLabel = resolveMessage('tadmin.users.form.firstName.label', '名');
+    const lastNameKanaLabel = resolveMessage('tadmin.users.form.lastNameKana.label', '性：ふりがな');
+    const firstNameKanaLabel = resolveMessage('tadmin.users.form.firstNameKana.label', '名：ふりがな');
     const groupCodeLabel = resolveMessage('tadmin.users.form.groupCode.label', 'グループID');
     const residenceCodeLabel = resolveMessage('tadmin.users.form.residenceCode.label', '住居番号');
     const roleLabelText = resolveMessage('tadmin.users.form.role.label', 'ロール');
     const roleGeneralUserLabel = resolveMessage('tadmin.users.form.role.general', '一般ユーザ');
     const roleTenantAdminLabel = resolveMessage('tadmin.users.form.role.tenantAdmin', 'テナント管理者');
+    const roleGroupLeaderLabel = resolveMessage('tadmin.users.form.role.groupLeader', '班長');
     const languageLabel = resolveMessage('tadmin.users.form.language.label', '言語');
+
+    const allRoleKeys: string[] = ['general_user', 'tenant_admin', 'group_leader'];
+
+    const availableRoleKeys = allRoleKeys.filter((key) => !formData.roleKeys.includes(key));
+
+    const roleLabelFromKey = (key: string): string => {
+        if (key === 'tenant_admin') return roleTenantAdminLabel;
+        if (key === 'group_leader') return roleGroupLeaderLabel;
+        return roleGeneralUserLabel;
+    };
+
+    const handleAssignSelectedRoles = () => {
+        setFormData((prev) => {
+            const current = prev.roleKeys ?? [];
+            const merged = [...current];
+            selectedAvailableRoleKeys.forEach((key) => {
+                if (!merged.includes(key)) {
+                    merged.push(key);
+                }
+            });
+            return { ...prev, roleKeys: merged };
+        });
+        setSelectedAvailableRoleKeys([]);
+    };
+
+    const handleAssignAllRoles = () => {
+        setFormData((prev) => ({ ...prev, roleKeys: [...allRoleKeys] }));
+        setSelectedAvailableRoleKeys([]);
+    };
+
+    const handleRemoveSelectedRoles = () => {
+        setFormData((prev) => ({
+            ...prev,
+            roleKeys: prev.roleKeys.filter((key) => !selectedAssignedRoleKeys.includes(key)),
+        }));
+        setSelectedAssignedRoleKeys([]);
+    };
+
+    const handleRemoveAllRoles = () => {
+        setFormData((prev) => ({ ...prev, roleKeys: [] }));
+        setSelectedAssignedRoleKeys([]);
+    };
 
     const saveNewButtonLabel = resolveMessage('tadmin.users.form.saveNew', '新規登録');
     const cancelButtonLabel = resolveMessage('tadmin.users.form.cancel', 'キャンセル');
@@ -443,8 +546,8 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 {/* SEC-02: ユーザ登録フォーム */}
                 <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
 
-                    <form onSubmit={(e) => handleSubmit(e, editingId ? 'update' : 'create')} className="space-y-3">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <form onSubmit={(e) => handleSubmit(e, editingId ? 'update' : 'create')} className="space-y-4">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <div>
                                 <label htmlFor="email" className="block text-xs font-medium text-gray-700">
                                     {emailLabel} <span className="text-red-500">*</span>
@@ -474,43 +577,46 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             </div>
 
                             <div>
-                                <label htmlFor="fullName" className="block text-xs font-medium text-gray-700">
-                                    {fullNameLabel} <span className="text-red-500">*</span>
+                                <label htmlFor="language" className="block text-xs font-medium text-gray-700">
+                                    {languageLabel}
+                                </label>
+                                <select
+                                    id="language"
+                                    value={formData.language}
+                                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                    <option value="ja">JA</option>
+                                    <option value="en">EN</option>
+                                    <option value="zh">ZH</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="lastName" className="block text-xs font-medium text-gray-700">
+                                    {lastNameLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="fullName"
-                                    value={formData.fullName}
-                                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                    id="lastName"
+                                    value={formData.lastName}
+                                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="fullNameKana" className="block text-xs font-medium text-gray-700">
-                                    {fullNameKanaLabel} <span className="text-red-500">*</span>
+                                <label htmlFor="firstName" className="block text-xs font-medium text-gray-700">
+                                    {firstNameLabel} <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
-                                    id="fullNameKana"
-                                    value={formData.fullNameKana}
-                                    onChange={(e) => setFormData({ ...formData, fullNameKana: e.target.value })}
+                                    id="firstName"
+                                    value={formData.firstName}
+                                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="groupCode" className="block text-xs font-medium text-gray-700">
-                                    {groupCodeLabel}
-                                </label>
-                                <input
-                                    type="text"
-                                    id="groupCode"
-                                    value={formData.groupCode}
-                                    onChange={(e) => setFormData({ ...formData, groupCode: e.target.value })}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
 
@@ -528,35 +634,129 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             </div>
 
                             <div>
-                                <label htmlFor="roleKey" className="block text-xs font-medium text-gray-700">
-                                    {roleLabelText} <span className="text-red-500">*</span>
+                                <label htmlFor="lastNameKana" className="block text-xs font-medium text-gray-700">
+                                    {lastNameKanaLabel} <span className="text-red-500">*</span>
                                 </label>
-                                <select
-                                    id="roleKey"
-                                    value={formData.roleKey}
-                                    onChange={(e) => setFormData({ ...formData, roleKey: e.target.value })}
+                                <input
+                                    type="text"
+                                    id="lastNameKana"
+                                    value={formData.lastNameKana}
+                                    onChange={(e) => setFormData({ ...formData, lastNameKana: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     required
-                                >
-                                    <option value="general_user">{roleGeneralUserLabel}</option>
-                                    <option value="tenant_admin">{roleTenantAdminLabel}</option>
-                                </select>
+                                />
                             </div>
 
                             <div>
-                                <label htmlFor="language" className="block text-xs font-medium text-gray-700">
-                                    {languageLabel}
+                                <label htmlFor="firstNameKana" className="block text-xs font-medium text-gray-700">
+                                    {firstNameKanaLabel} <span className="text-red-500">*</span>
                                 </label>
-                                <select
-                                    id="language"
-                                    value={formData.language}
-                                    onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                                <input
+                                    type="text"
+                                    id="firstNameKana"
+                                    value={formData.firstNameKana}
+                                    onChange={(e) => setFormData({ ...formData, firstNameKana: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
-                                    <option value="ja">JA</option>
-                                    <option value="en">EN</option>
-                                    <option value="zh">ZH</option>
-                                </select>
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="groupCode" className="block text-xs font-medium text-gray-700">
+                                    {groupCodeLabel}
+                                </label>
+                                <input
+                                    type="text"
+                                    id="groupCode"
+                                    value={formData.groupCode}
+                                    onChange={(e) => setFormData({ ...formData, groupCode: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-gray-700">
+                                {roleLabelText} <span className="text-red-500">*</span>
+                            </label>
+                            <div className="mt-1 flex items-start gap-4">
+                                <div>
+                                    <div className="mb-1 text-[11px] font-semibold text-gray-600">
+                                        {resolveMessage('tadmin.users.form.role.available', '未割り当て')}
+                                    </div>
+                                    <select
+                                        multiple
+                                        className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        value={selectedAvailableRoleKeys}
+                                        onChange={(e) =>
+                                            setSelectedAvailableRoleKeys(
+                                                Array.from(e.target.selectedOptions).map((opt) => opt.value),
+                                            )
+                                        }
+                                    >
+                                        {availableRoleKeys.map((key) => (
+                                            <option key={key} value={key}>
+                                                {roleLabelFromKey(key)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="mt-5 flex h-32 flex-col items-center justify-between">
+                                    <button
+                                        type="button"
+                                        onClick={handleAssignSelectedRoles}
+                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        &gt;
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAssignAllRoles}
+                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        &gt;&gt;
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveSelectedRoles}
+                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        &lt;
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveAllRoles}
+                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        &lt;&lt;
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <div className="mb-1 text-[11px] font-semibold text-gray-600">
+                                        {resolveMessage('tadmin.users.form.role.assigned', '割り当て済み')}
+                                    </div>
+                                    <select
+                                        multiple
+                                        className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        value={selectedAssignedRoleKeys}
+                                        onChange={(e) =>
+                                            setSelectedAssignedRoleKeys(
+                                                Array.from(e.target.selectedOptions).map((opt) => opt.value),
+                                            )
+                                        }
+                                    >
+                                        {(formData.roleKeys && formData.roleKeys.length > 0
+                                            ? formData.roleKeys
+                                            : ['general_user']
+                                        ).map((key) => (
+                                            <option key={key} value={key}>
+                                                {roleLabelFromKey(key)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -661,10 +861,10 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                                 <SortableHeader column="displayName" label={tableDisplayNameHeaderLabel} />
                                             </th>
                                             <th className="w-32">
-                                                <SortableHeader column="fullName" label={tableFullNameHeaderLabel} />
+                                                <SortableHeader column="lastName" label={tableFullNameHeaderLabel} />
                                             </th>
                                             <th className="w-40">
-                                                <SortableHeader column="fullNameKana" label={tableFullNameKanaHeaderLabel} />
+                                                <SortableHeader column="lastNameKana" label={tableFullNameKanaHeaderLabel} />
                                             </th>
                                             <th className="w-24 text-center">
                                                 <SortableHeader column="groupCode" label={tableGroupCodeHeaderLabel} />
@@ -676,28 +876,39 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                                 <SortableHeader column="language" label={tableLanguageHeaderLabel} />
                                             </th>
                                             <th className="w-28 text-center">
-                                                <SortableHeader column="roleKey" label={tableRoleHeaderLabel} />
+                                                <SortableHeader column="roleKeys" label={tableRoleHeaderLabel} />
                                             </th>
                                             <th className="px-3 py-2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">{tableActionsHeaderLabel}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {paginatedUsers.map((user) => {
-                                            const languageLabel =
+                                            const languageShortLabel =
                                                 user.language === 'en' ? 'EN' : user.language === 'zh' ? 'ZH' : 'JA';
+
+                                            const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+                                            const fullNameKana = `${user.firstNameKana ?? ''} ${user.lastNameKana ?? ''}`.trim();
+
+                                            const rolesForDisplay = (user.roleKeys && user.roleKeys.length > 0
+                                                ? user.roleKeys
+                                                : ['general_user'])
+                                                .map((key) => {
+                                                    if (key === 'tenant_admin') return roleTenantAdminLabel;
+                                                    if (key === 'group_leader') return roleGroupLeaderLabel;
+                                                    return roleGeneralUserLabel;
+                                                })
+                                                .join(' / ');
 
                                             return (
                                                 <tr key={user.userId} className="border-b border-gray-100 hover:bg-gray-50">
                                                     <td className="px-3 py-2 text-xs text-gray-900 max-w-[11rem] truncate" title={user.email}>{user.email}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={user.displayName}>{user.displayName}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={user.fullName}>{user.fullName}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600 max-w-[10rem] truncate" title={user.fullNameKana}>{user.fullNameKana}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={fullName}>{fullName}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 max-w-[10rem] truncate" title={fullNameKana}>{fullNameKana}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.groupCode || '-'}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.residenceCode || '-'}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{languageLabel}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">
-                                                        {user.roleKey === 'tenant_admin' ? roleTenantAdminLabel : roleGeneralUserLabel}
-                                                    </td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{languageShortLabel}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{rolesForDisplay}</td>
                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                         <div className="flex space-x-2 justify-center">
                                                             <button

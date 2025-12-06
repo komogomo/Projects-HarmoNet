@@ -6,16 +6,28 @@ import { DEFAULT_HOME_NOTICE_COUNT, HOME_NOTICE_MAX_COUNT, clampNoticeCount } fr
 import { StaticI18nProvider } from '@/src/components/common/StaticI18nProvider';
 
 function renderWithProvider(ui: React.ReactElement) {
-  (globalThis as any).fetch = jest.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      home: {
-        noticeSection: {
-          title: '最新のお知らせ',
-          emptyMessage: '現在表示するお知らせはありません。',
-        },
-      },
-    }),
+  (globalThis as any).fetch = jest.fn().mockImplementation((input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+
+    // HomeNoticeSection 用のテナント静的翻訳 API
+    if (url.includes('/api/tenant-static-translations/home-notice')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          messages: {
+            'home.noticeSection.title': '最新のお知らせ',
+            'home.noticeSection.emptyMessage': '現在表示するお知らせはありません。',
+            'home.noticeSection.badge': 'お知らせ',
+          },
+        }),
+      });
+    }
+
+    // StaticI18nProvider 用（common.json）のフェッチは空オブジェクトで十分
+    return Promise.resolve({
+      ok: true,
+      json: async () => ({}),
+    });
   });
 
   return render(<StaticI18nProvider>{ui}</StaticI18nProvider>);
@@ -29,7 +41,13 @@ const BASE_ITEMS: HomeNoticeItem[] = [
 
 describe('HomeNoticeSection', () => {
   test('items が 0 件のとき、タイトルと空メッセージのみ表示されカードは 0 件', () => {
-    renderWithProvider(<HomeNoticeSection items={[]} maxItems={2} />);
+    renderWithProvider(
+      <HomeNoticeSection
+        items={[]}
+        maxItems={2}
+        tenantId="test-tenant"
+      />,
+    );
 
     expect(screen.getByText('最新のお知らせ')).toBeInTheDocument();
     expect(screen.getByText('現在表示するお知らせはありません。')).toBeInTheDocument();
@@ -37,19 +55,36 @@ describe('HomeNoticeSection', () => {
   });
 
   test('items が 1 件のとき、カードは 1 件だけ表示される', () => {
-    renderWithProvider(<HomeNoticeSection items={BASE_ITEMS.slice(0, 1)} maxItems={2} />);
+    renderWithProvider(
+      <HomeNoticeSection
+        items={BASE_ITEMS.slice(0, 1)}
+        maxItems={2}
+        tenantId="test-tenant"
+      />,
+    );
 
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   test('items が 3 件、maxItems=2 のとき、カードは 2 件だけ表示される', () => {
-    renderWithProvider(<HomeNoticeSection items={BASE_ITEMS} maxItems={2} />);
+    renderWithProvider(
+      <HomeNoticeSection
+        items={BASE_ITEMS}
+        maxItems={2}
+        tenantId="test-tenant"
+      />,
+    );
 
     expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 
   test('maxItems 未指定のとき、DEFAULT_HOME_NOTICE_COUNT 件まで表示される', () => {
-    renderWithProvider(<HomeNoticeSection items={BASE_ITEMS} />);
+    renderWithProvider(
+      <HomeNoticeSection
+        items={BASE_ITEMS}
+        tenantId="test-tenant"
+      />,
+    );
 
     expect(screen.getAllByRole('button')).toHaveLength(DEFAULT_HOME_NOTICE_COUNT);
   });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 import { getSystemAdminContext } from '@/src/lib/auth/systemAdminAuth';
+import { logInfo, logError } from '@/src/lib/logging/log.util';
 import { SysAdminTenantsConsole } from '@/src/components/sys-admin/SysAdminTenantsConsole/SysAdminTenantsConsole';
 
 type SysAdminTenantsPageMessages = {
@@ -53,7 +54,7 @@ async function fetchSysAdminTenantsPageMessages(): Promise<SysAdminTenantsPageMe
 }
 
 export default async function SysAdminTenantsPage() {
-  const { adminClient } = await getSystemAdminContext();
+  const { user, adminClient } = await getSystemAdminContext();
   const messages = await fetchSysAdminTenantsPageMessages();
 
   const { data: tenants, error: tenantsError } = await adminClient
@@ -63,6 +64,10 @@ export default async function SysAdminTenantsPage() {
     .order('created_at', { ascending: false });
 
   if (tenantsError) {
+    logError('sys-admin.tenants.load_failed', {
+      userId: user.id,
+      errorMessage: tenantsError.message,
+    });
     return (
       <main className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center space-y-2">
@@ -76,6 +81,11 @@ export default async function SysAdminTenantsPage() {
       </main>
     );
   }
+
+  logInfo('sys-admin.tenants.page.view', {
+    userId: user.id,
+    tenantCount: tenants?.length ?? 0,
+  });
 
   return (
     <main className="w-full">
