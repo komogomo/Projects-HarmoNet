@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -9,7 +9,46 @@ import { logInfo, logError } from "@/src/lib/logging/log.util";
 
 export const SysAdminFooterLogout: React.FC = () => {
   const router = useRouter();
-  const { t } = useI18n();
+  const { currentLocale } = useI18n();
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ lang: currentLocale });
+        const res = await fetch(`/api/static-translations/nav?${params.toString()}`);
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocale]);
+
+  const resolveNavMessage = (key: string): string => {
+    const value = messages[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+    return key;
+  };
 
   const handleLogout = async () => {
     logInfo("sysadmin.footer.logout.start");
@@ -30,7 +69,7 @@ export const SysAdminFooterLogout: React.FC = () => {
   return (
     <nav
       role="navigation"
-      aria-label={t("common.shortcut_navigation")}
+      aria-label={resolveNavMessage("common.shortcut_navigation")}
       data-testid="sysadmin-footer-logout"
       className="fixed bottom-5 left-0 right-0 h-16 bg-white border-t border-gray-200 z-[950] flex items-center"
     >
@@ -40,11 +79,11 @@ export const SysAdminFooterLogout: React.FC = () => {
           onClick={() => {
             void handleLogout();
           }}
-          aria-label={t("nav.logout")}
+          aria-label={resolveNavMessage("nav.logout")}
           className="flex flex-col items-center justify-center gap-1 text-xs text-gray-500"
         >
           <LogOut aria-hidden="true" className="h-5 w-5" />
-          <span>{t("nav.logout")}</span>
+          <span>{resolveNavMessage("nav.logout")}</span>
         </button>
       </div>
     </nav>

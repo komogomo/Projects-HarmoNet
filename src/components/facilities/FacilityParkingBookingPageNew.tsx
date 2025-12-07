@@ -208,6 +208,16 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
           setEndTime(reservation.endTime as string);
         }
 
+        // 連泊などで「終日」扱いの予約（開始時刻と終了時刻が同一）の場合、
+        // 終日チェックを自動的に ON にする。
+        if (
+          typeof reservation.startTime === "string" &&
+          typeof reservation.endTime === "string" &&
+          reservation.startTime === reservation.endTime
+        ) {
+          setIsAllDay(true);
+        }
+
         if (typeof reservation.vehicleNumber === "string") {
           setVehicleNumber(reservation.vehicleNumber as string);
         }
@@ -231,7 +241,9 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   useEffect(() => {
     if (!isAllDay) return;
 
-    if (availableFromTime && availableToTime) {
+    // 新規入力で「終日」にチェックしたときだけ、施設の利用可能時間で自動入力する。
+    // 既存予約から読み込んだ startTime/endTime が既に入っている場合は、その値を優先する。
+    if (availableFromTime && availableToTime && !startTime && !endTime) {
       setStartTime(availableFromTime);
       setEndTime(availableToTime);
     }

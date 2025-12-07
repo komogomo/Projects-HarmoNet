@@ -89,14 +89,40 @@ export async function GET(req: Request, props: RouteParams) {
       where: {
         id: attachment.post_id,
         tenant_id: tenantId,
-        status: 'published',
       },
       select: {
         id: true,
+        author_id: true,
+        status: true,
       },
     });
 
     if (!post) {
+      return NextResponse.json({ errorCode: 'not_found' }, { status: 404 });
+    }
+
+    // 権限制御: BoardDetail と同様に、
+    // - 一般利用者: 公開済み投稿のみ
+    // - 管理ロール or 投稿者本人: pending 等も含めて閲覧可能
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('roles(role_key)')
+      .eq('user_id', appUser.id)
+      .eq('tenant_id', tenantId);
+
+    const hasAdminRole =
+      userRoles?.some(
+        (r: any) => r.roles?.role_key === 'tenant_admin' || r.roles?.role_key === 'system_admin',
+      ) ?? false;
+
+    const isAuthor = post.author_id === appUser.id;
+    const rawStatus = (post as any).status as string | null;
+    const normalizedStatus =
+      rawStatus === 'draft' || rawStatus === 'pending' || rawStatus === 'archived'
+        ? rawStatus
+        : 'published';
+
+    if (normalizedStatus !== 'published' && !isAuthor && !hasAdminRole) {
       return NextResponse.json({ errorCode: 'forbidden' }, { status: 403 });
     }
 

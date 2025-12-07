@@ -106,7 +106,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   usageNotes,
   maxReservableDays,
 }) => {
-  const { t, currentLocale } = useI18n();
+  const { currentLocale } = useI18n();
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
@@ -503,7 +503,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <section className="flex-1 flex items-center justify-center">
               <p className="text-sm text-gray-600">
-                {t("board.detail.section.content")}
+                {tf("top.noFacilities")}
               </p>
             </section>
           </div>
@@ -596,9 +596,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                       >
                         <Languages className="h-4 w-4" aria-hidden="true" />
                         <span>
-                          {hasTranslation
-                            ? t("board.detail.i18n.translate")
-                            : t("board.detail.i18n.translate")}
+                          {tf("top.translateButton")}
                         </span>
                       </button>
                     </div>

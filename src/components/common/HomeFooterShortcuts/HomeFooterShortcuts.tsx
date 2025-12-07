@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Home, MessageSquare, Calendar, User, LogOut } from "lucide-react";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -60,7 +60,46 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { currentLocale } = useI18n();
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ lang: currentLocale });
+        const res = await fetch(`/api/static-translations/nav?${params.toString()}`);
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocale]);
+
+  const resolveNavMessage = (key: string): string => {
+    const value = messages[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+    return key;
+  };
 
   const handleClick = async (item: ShortcutItem) => {
     if (item.key !== "logout") return;
@@ -89,7 +128,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
   return (
     <nav
       role="navigation"
-      aria-label={t("common.shortcut_navigation")}
+      aria-label={resolveNavMessage("common.shortcut_navigation")}
       data-testid={testId}
       className={`
         fixed bottom-5 left-0 right-0 h-16
@@ -108,7 +147,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
           `;
 
           const commonProps = {
-            "aria-label": t(item.labelKey),
+            "aria-label": resolveNavMessage(item.labelKey),
             "data-testid": `${testId}-item-${item.key}`,
             className: baseClasses,
           } as const;
@@ -124,7 +163,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
                 }}
               >
                 <Icon aria-hidden="true" className="h-5 w-5" />
-                <span>{t(item.labelKey)}</span>
+                <span>{resolveNavMessage(item.labelKey)}</span>
               </button>
             );
           }
@@ -141,7 +180,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
               }}
             >
               <Icon aria-hidden="true" className="h-5 w-5" />
-              <span>{t(item.labelKey)}</span>
+              <span>{resolveNavMessage(item.labelKey)}</span>
             </button>
           );
         })}

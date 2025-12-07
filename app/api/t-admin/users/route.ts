@@ -459,7 +459,9 @@ export async function PUT(request: NextRequest) {
     // 既存のロール割り当てから、system_admin 以外だけを削除する
     const { data: existingUserRoles, error: existingUserRolesError } = await supabaseAdmin
       .from('user_roles')
-      .select('id, roles(role_key)')
+      // user_roles には単一の id カラムはなく、(user_id, tenant_id, role_id) の複合キー構成なので
+      // role_id と紐づく roles.role_key を取得して削除対象を決定する。
+      .select('role_id, roles(role_key)')
       .eq('user_id', userId)
       .eq('tenant_id', tenantId);
 
@@ -476,10 +478,16 @@ export async function PUT(request: NextRequest) {
         const roleKey = (ur.roles as any)?.role_key as string | undefined;
         return roleKey && roleKey !== 'system_admin';
       })
-      .map((ur: any) => ur.id as string);
+      .map((ur: any) => ur.role_id as string)
+      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
 
     if (deletableRoleIds.length > 0) {
-      await supabaseAdmin.from('user_roles').delete().in('id', deletableRoleIds);
+      await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('tenant_id', tenantId)
+        .in('role_id', deletableRoleIds);
     }
 
     if (normalizedRoleKeys.length > 0) {

@@ -110,13 +110,16 @@ export async function GET(req: Request) {
       .eq('user_id', appUser.id)
       .eq('tenant_id', tenantId);
 
-    const isAdmin = userRoles?.some((r: any) =>
-      r.roles?.role_key === 'tenant_admin' || r.roles?.role_key === 'system_admin'
-    ) ?? false;
+    const isAdmin =
+      userRoles?.some(
+        (r: any) => r.roles?.role_key === 'tenant_admin' || r.roles?.role_key === 'system_admin',
+      ) ?? false;
 
     const whereCondition: any = {
       tenant_id: tenantId,
-      status: 'published',
+      // 一般利用者には公開済み(post_status = 'published') のみ返し、
+      // 管理組合メンバーには承認待ち(pending)と公開済み(published)の両方を返す。
+      status: isAdmin ? { in: ['pending', 'published'] } : 'published',
     };
 
     // Apply group filtering if not admin
@@ -570,7 +573,8 @@ export async function POST(req: Request) {
     }
 
     const effectiveTitle = decision === 'mask' && forceMasked ? maskedTitle ?? title : title;
-    const effectiveContent = decision === 'mask' && forceMasked ? maskedContent ?? content : content;
+    const effectiveContent =
+      decision === 'mask' && forceMasked ? maskedContent ?? content : content;
 
     let authorDisplayNameOverride: string | null = null;
     // 管理組合として投稿する場合は常に「管理組合」を表示名として扱う。
@@ -580,6 +584,9 @@ export async function POST(req: Request) {
       // 一般利用者で「匿名」を選択した場合のみ、固定文言を上書きする。
       authorDisplayNameOverride = '匿名';
     }
+
+    const isManagementPost = authorRole === 'admin';
+    const initialStatus: 'pending' | 'published' = isManagementPost ? 'pending' : 'published';
 
     let postId: string;
 
@@ -591,7 +598,9 @@ export async function POST(req: Request) {
           author_id: authorId,
           title: effectiveTitle,
           content: effectiveContent,
-          status: 'published',
+          // 管理組合投稿は承認フローを経るため、初期状態は pending とし、
+          // 一般投稿のみ即時 published とする。
+          status: initialStatus,
           author_display_name: authorDisplayNameOverride,
           author_role: authorRole === 'admin' ? 'management' : 'general',
         } as any,
@@ -718,17 +727,22 @@ export async function POST(req: Request) {
       });
     }
 
-    try {
-      await sendBoardNotificationEmailsForPost({
-        tenantId,
-        postId,
-      });
-    } catch (error) {
-      logError('board.post.api.notification_error', {
-        tenantId,
-        postId,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+    // 通知メールは「公開済み」となったタイミングで送る。
+    // 一般投稿は作成時点で published となるためここで送信し、
+    // 管理組合投稿は承認フロー完了後の publish API 側で送信する。
+    if (initialStatus === 'published') {
+      try {
+        await sendBoardNotificationEmailsForPost({
+          tenantId,
+          postId,
+        });
+      } catch (error) {
+        logError('board.post.api.notification_error', {
+          tenantId,
+          postId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     logInfo('board.post.create_success', {

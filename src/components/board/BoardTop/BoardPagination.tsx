@@ -9,6 +9,10 @@ interface BoardPaginationProps {
   onChangePage: (page: number) => void;
   onChangePageSize: (pageSize: number) => void;
   pageSizeOptions?: number[];
+  labelPageSize?: string;
+  labelRangeTemplate?: string; // placeholders: {total}, {start}, {end}
+  labelPrev?: string;
+  labelNext?: string;
 }
 
 export const BoardPagination: React.FC<BoardPaginationProps> = ({
@@ -18,6 +22,10 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
   onChangePage,
   onChangePageSize,
   pageSizeOptions = [10, 25, 50],
+  labelPageSize,
+  labelRangeTemplate,
+  labelPrev,
+  labelNext,
 }) => {
   const safePageSize = pageSize > 0 ? pageSize : pageSizeOptions[0] ?? 10;
   const safeTotalItems = totalItems < 0 ? 0 : totalItems;
@@ -30,6 +38,17 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
   const startIndex = safeTotalItems === 0 ? 0 : (safeCurrentPage - 1) * safePageSize;
   const startItem = safeTotalItems === 0 ? 0 : startIndex + 1;
   const endItem = safeTotalItems === 0 ? 0 : Math.min(startIndex + safePageSize, safeTotalItems);
+
+  const pageSizeLabel = labelPageSize ?? "表示件数";
+  const rangeTemplate =
+    labelRangeTemplate ?? "{total} 件中 {start} - {end} 件を表示";
+  const prevLabel = labelPrev ?? "前へ";
+  const nextLabel = labelNext ?? "次へ";
+
+  const rangeText = rangeTemplate
+    .replace("{total}", String(safeTotalItems))
+    .replace("{start}", String(startItem))
+    .replace("{end}", String(endItem));
 
   const handlePrev = () => {
     if (!canPrev) return;
@@ -53,7 +72,7 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
       data-testid="board-top-pagination"
     >
       <div className="flex items-center space-x-2">
-        <span>表示件数:</span>
+        <span>{pageSizeLabel}:</span>
         <select
           value={safePageSize}
           onChange={handleChangePageSize}
@@ -65,9 +84,7 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
             </option>
           ))}
         </select>
-        <span>
-          {safeTotalItems} 件中 {startItem} - {endItem} 件を表示
-        </span>
+        <span>{rangeText}</span>
       </div>
 
       <div className="flex space-x-1">
@@ -81,7 +98,7 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
               : "border-gray-300 bg-white text-gray-700 hover:border-blue-600 hover:text-blue-600"
           }`}
         >
-          前へ
+          {prevLabel}
         </button>
         <span className="px-3 py-1 text-xs md:text-sm text-gray-700">
           {safeCurrentPage} / {totalPages}
@@ -96,7 +113,7 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
               : "border-blue-400 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-500"
           }`}
         >
-          次へ
+          {nextLabel}
         </button>
       </div>
     </div>

@@ -51,6 +51,12 @@ export interface BoardPostDetailDto {
   comments: BoardCommentDto[];
   isFavorite: boolean;
   isDeletable: boolean;
+  status: 'draft' | 'pending' | 'published' | 'archived';
+  authorRole: 'management' | 'general';
+  viewerRole: 'admin' | 'user';
+  isAuthor: boolean;
+  approvalCount: number;
+  hasApprovedByCurrentUser: boolean;
 }
 
 export interface GetBoardPostByIdParams {
@@ -68,7 +74,6 @@ export async function getBoardPostById(
     where: {
       id: postId,
       tenant_id: tenantId,
-      status: 'published',
     },
     include: {
       category: {
@@ -159,6 +164,36 @@ export async function getBoardPostById(
     }),
   );
 
+  // 承認数と本人承認済みフラグを集計
+  let approvalCount = 0;
+  let hasApprovedByCurrentUser = false;
+  try {
+    const approvals = await (prisma as any).board_approval_logs.findMany({
+      where: {
+        tenant_id: tenantId,
+        post_id: postId,
+        action: 'approve',
+      },
+      select: {
+        approver_id: true,
+      },
+    });
+
+    const uniqueApproverIds = Array.from(
+      new Set(
+        approvals
+          .map((row: any) => row.approver_id)
+          .filter((id: unknown): id is string => typeof id === 'string'),
+      ),
+    );
+
+    approvalCount = uniqueApproverIds.length;
+    hasApprovedByCurrentUser = uniqueApproverIds.includes(currentUserId);
+  } catch {
+    approvalCount = 0;
+    hasApprovedByCurrentUser = false;
+  }
+
   const authorDisplayName =
     (post as any).author_display_name && typeof (post as any).author_display_name === 'string'
       ? ((post as any).author_display_name as string)
@@ -208,6 +243,22 @@ export async function getBoardPostById(
   }
 
   const isAuthor = (post as any).author_id === currentUserId;
+
+  const rawStatus = (post as any).status as string | null;
+  const normalizedStatus: 'draft' | 'pending' | 'published' | 'archived' =
+    rawStatus === 'draft' || rawStatus === 'pending' || rawStatus === 'archived'
+      ? rawStatus
+      : 'published';
+
+  // 一般利用者は公開済み以外の投稿を閲覧できない。
+  // 管理組合メンバーまたは投稿者本人のみ、pending 等も閲覧を許可する。
+  if (normalizedStatus !== 'published' && !isAuthor && !hasAdminRole) {
+    return null;
+  }
+
+  const rawAuthorRole = (post as any).author_role as string | null;
+  const authorRole: 'management' | 'general' =
+    rawAuthorRole === 'management' ? 'management' : 'general';
 
   const comments: BoardCommentDto[] = post.comments.map(
     (comment: {
@@ -276,7 +327,7 @@ export async function getBoardPostById(
     originalTitle: post.title,
     originalContent: post.content,
     authorDisplayName,
-    authorDisplayType: 'user',
+    authorDisplayType: authorRole === 'management' ? 'management' : 'user',
     createdAt: post.created_at.toISOString(),
     hasAttachment: attachments.length > 0,
     translations,
@@ -284,5 +335,11 @@ export async function getBoardPostById(
     comments,
     isFavorite,
     isDeletable: isAuthor || hasAdminRole,
+    status: normalizedStatus,
+    authorRole,
+    viewerRole: hasAdminRole ? 'admin' : 'user',
+    isAuthor,
+    approvalCount,
+    hasApprovedByCurrentUser,
   };
 }

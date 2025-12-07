@@ -94,7 +94,7 @@ type AttachmentPreviewState = {
 } | null;
 
 const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, tenantId }) => {
-  const { t, currentLocale } = useI18n();
+  const { currentLocale } = useI18n();
   const router = useRouter();
   const [preview, setPreview] = useState<AttachmentPreviewState>(null);
   const [postData, setPostData] = useState(data);
@@ -122,6 +122,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationErrorKey, setTranslationErrorKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalErrorKey, setApprovalErrorKey] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishErrorKey, setPublishErrorKey] = useState<string | null>(null);
 
   const {
     categoryKey,
@@ -152,6 +156,28 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
       createdAtLabel: createdAt,
     };
   }, [postData, currentLocale]);
+
+  const isManagementPost = useMemo(() => postData.authorRole === "management", [postData.authorRole]);
+  const isPending = useMemo(() => postData.status === "pending", [postData.status]);
+  const isAdminViewer = postData.viewerRole === "admin";
+  const isAuthor = postData.isAuthor;
+  const approvalCount = postData.approvalCount;
+  const hasApprovedByCurrentUser = postData.hasApprovedByCurrentUser;
+  const approvalRequiredCount = 2;
+
+  const canApprove =
+    isManagementPost &&
+    isPending &&
+    isAdminViewer &&
+    !hasApprovedByCurrentUser &&
+    !isApproving;
+
+  const canPublish =
+    isManagementPost &&
+    isPending &&
+    isAuthor &&
+    approvalCount >= approvalRequiredCount &&
+    !isPublishing;
 
   const canReply = useMemo(() => {
     const forbidden: BoardCategoryKey[] = ["important", "circular", "event", "rules"];
@@ -227,7 +253,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return t(key);
+    return key;
   };
 
   // 通知の既読更新: 詳細画面（特定の投稿）を開いた時点で mark-seen API を呼び出す
@@ -272,6 +298,82 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
 
   const handleReplyClick = () => {
     router.push(`/board/new?replyTo=${data.id}`);
+  };
+
+  const handleApproveClick = async () => {
+    if (!canApprove) return;
+
+    setIsApproving(true);
+    setApprovalErrorKey(null);
+
+    try {
+      const res = await fetch(`/api/board/posts/${data.id}/approve`, {
+        method: "POST",
+      });
+
+      const json = (await res.json().catch(() => ({}))) as {
+        approvalCount?: number;
+        hasApprovedByCurrentUser?: boolean;
+        errorCode?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(json.errorCode ?? "board.detail.approval.error");
+      }
+
+      setPostData((prev) => ({
+        ...prev,
+        approvalCount:
+          typeof json.approvalCount === "number" ? json.approvalCount : prev.approvalCount,
+        hasApprovedByCurrentUser:
+          typeof json.hasApprovedByCurrentUser === "boolean"
+            ? json.hasApprovedByCurrentUser
+            : true,
+      }));
+    } catch {
+      setApprovalErrorKey("board.detail.approval.error");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handlePublishClick = async () => {
+    if (!canPublish) return;
+
+    setIsPublishing(true);
+    setPublishErrorKey(null);
+
+    try {
+      const res = await fetch(`/api/board/posts/${data.id}/publish`, {
+        method: "POST",
+      });
+
+      const json = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        errorCode?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(json.errorCode ?? "board.detail.publish.error");
+      }
+
+      const nextStatus =
+        json.status === "draft" ||
+        json.status === "pending" ||
+        json.status === "archived" ||
+        json.status === "published"
+          ? (json.status as "draft" | "pending" | "published" | "archived")
+          : "published";
+
+      setPostData((prev) => ({
+        ...prev,
+        status: nextStatus,
+      }));
+    } catch {
+      setPublishErrorKey("board.detail.publish.error");
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const [isPostDeleteConfirmOpen, setIsPostDeleteConfirmOpen] = useState(false);
@@ -701,7 +803,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
         <main className="min-h-screen bg-white pb-24">
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <div className="flex-1 flex items-center justify-center text-sm text-gray-600">
-              {t("common.loading")}
+              {resolveMessage("board.detail.loading")}
             </div>
           </div>
         </main>
@@ -770,6 +872,12 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
               {postDeleteErrorKey && (
                 <p className="text-[11px] text-red-600">{resolveMessage(postDeleteErrorKey)}</p>
               )}
+              {approvalErrorKey && (
+                <p className="text-[11px] text-red-600">{resolveMessage(approvalErrorKey)}</p>
+              )}
+              {publishErrorKey && (
+                <p className="text-[11px] text-red-600">{resolveMessage(publishErrorKey)}</p>
+              )}
             </header>
 
             {/* 本文エリア */}
@@ -796,6 +904,36 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                     >
                       {resolveMessage("board.detail.post.delete")}
                     </button>
+                  )}
+
+                  {isManagementPost && isAdminViewer && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleApproveClick}
+                        disabled={!canApprove}
+                        className="inline-flex items-center rounded-md border-2 border-gray-800 bg-white px-3 py-1 text-[11px] text-gray-800 hover:bg-gray-50 disabled:opacity-40"
+                      >
+                        {resolveMessage("board.detail.post.approve")}
+                      </button>
+                      <span className="text-[11px] text-gray-600">
+                        {isPending
+                          ? approvalCount >= approvalRequiredCount
+                            ? resolveMessage("board.detail.post.approvalCompleted")
+                            : resolveMessage("board.detail.post.approvalPending")
+                          : resolveMessage("board.detail.post.published")}
+                      </span>
+                      {canPublish && (
+                        <button
+                          type="button"
+                          onClick={handlePublishClick}
+                          disabled={!canPublish}
+                          className="inline-flex items-center rounded-md border-2 border-blue-600 bg-white px-3 py-1 text-[11px] text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                        >
+                          {resolveMessage("board.detail.post.publish")}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -897,8 +1035,8 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                                 className="inline-flex cursor-pointer items-center rounded-md border-2 border-blue-200 bg-white px-2.5 py-1 text-[11px] text-blue-600 hover:border-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed"
                               >
                                 {isUploadingAttachments
-                                  ? t("board.postForm.button.submitting")
-                                  : resolveMessage("board.postForm.button.attachFile")}
+                                  ? resolveMessage("board.detail.attachments.uploading")
+                                  : resolveMessage("board.detail.attachments.attachFile")}
                               </label>
                               <input
                                 id="board-detail-attachment-input"

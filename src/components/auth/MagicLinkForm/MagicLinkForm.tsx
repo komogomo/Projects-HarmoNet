@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Mail as MailIcon, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
@@ -40,16 +40,55 @@ const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
 };
 
 export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError, redirectTo }) => {
-  const { t } = useStaticI18n();
+  const { currentLocale } = useStaticI18n();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
   const [banner, setBanner] = useState<BannerState>(null);
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  const resolveMessage = (key: string): string => {
+    const value = messages[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value;
+    }
+    return key;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ lang: currentLocale });
+        const res = await fetch(`/api/static-translations/login?${params.toString()}`);
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocale]);
 
   const handleLogin = useCallback(async () => {
     if (!validateEmail(email)) {
       const error: MagicLinkError = {
         code: 'INVALID_EMAIL',
-        message: t('auth.login.error.email_invalid'),
+        message: resolveMessage('auth.login.error.email_invalid'),
         type: 'error_input',
       };
 
@@ -93,7 +132,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       if (!exists) {
         const error: MagicLinkError = {
           code: 'EMAIL_NOT_FOUND',
-          message: t('auth.login.error.email_not_found') || 'メールアドレスが登録されていません',
+          message: resolveMessage('auth.login.error.email_not_found') || 'メールアドレスが登録されていません',
           type: 'error_input',
         };
 
@@ -128,7 +167,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
 
         const magicError: MagicLinkError = {
           code: error.code ?? 'SUPABASE_ERROR',
-          message: t(messageKey),
+          message: resolveMessage(messageKey),
           type: errorType,
         };
 
@@ -162,7 +201,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
     } catch (err: any) {
       const magicError: MagicLinkError = {
         code: err?.code ?? 'UNEXPECTED',
-        message: t('auth.login.error.unexpected'),
+        message: resolveMessage('auth.login.error.unexpected'),
         type: 'error_unexpected',
       };
 
@@ -177,7 +216,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
 
       onError?.(magicError);
     }
-  }, [email, t, onSent, onError]);
+  }, [email, messages, onSent, onError, resolveMessage]);
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -197,10 +236,10 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         <MailIcon className="w-7 h-7 text-gray-500" aria-hidden="true" />
         <div className="flex-1">
           <h2 className="text-base font-medium text-gray-900">
-            {t('auth.login.magiclink.title')}
+            {resolveMessage('auth.login.magiclink.title')}
           </h2>
           <p className="mt-1 text-sm text-gray-600">
-            {t('auth.login.magiclink.description')}
+            {resolveMessage('auth.login.magiclink.description')}
           </p>
         </div>
       </div>
@@ -208,7 +247,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       <form className="mt-4 space-y-3" onSubmit={handleSubmit} noValidate>
         <div>
           <label className="sr-only" htmlFor="email">
-            {t('auth.login.email.label')}
+            {resolveMessage('auth.login.email.label')}
           </label>
           <input
             id="email"
@@ -224,12 +263,17 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
 
         <button type="submit" className={loginButtonClassName} disabled={state === 'sending'}>
           {state === 'sending'
-            ? t('auth.login.magiclink.button_sending')
-            : t('auth.login.magiclink.button_login')}
+            ? resolveMessage('auth.login.magiclink.button_sending')
+            : resolveMessage('auth.login.magiclink.button_login')}
         </button>
 
         <div className="mt-3 min-h-[44px] flex items-start w-full justify-center">
-          {banner && <AuthErrorBanner kind={banner.kind} message={t(banner.messageKey)} />}
+          {banner && (
+            <AuthErrorBanner
+              kind={banner.kind}
+              message={resolveMessage(banner.messageKey)}
+            />
+          )}
         </div>
       </form>
     </div>

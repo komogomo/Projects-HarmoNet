@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { HomeFeatureTileProps } from './HomeFeatureTile.types';
 
 export const HomeFeatureTile: React.FC<HomeFeatureTileProps> = ({
@@ -14,8 +13,6 @@ export const HomeFeatureTile: React.FC<HomeFeatureTileProps> = ({
   labelOverride,
   descriptionOverride,
 }) => {
-  const { t } = useI18n();
-
   const handleClick = () => {
     if (!isEnabled || !onClick) return;
     onClick();
@@ -37,10 +34,10 @@ export const HomeFeatureTile: React.FC<HomeFeatureTileProps> = ({
     >
       <Icon aria-hidden="true" className={`mb-1 h-5 w-5 ${iconColorClassName}`} />
       <span className="text-xs text-gray-600">
-        {labelOverride ?? t(labelKey)}
+        {labelOverride ?? labelKey}
       </span>
       <span className="text-[11px] leading-snug text-gray-600">
-        {descriptionOverride ?? t(descriptionKey)}
+        {descriptionOverride ?? descriptionKey}
       </span>
     </button>
   );

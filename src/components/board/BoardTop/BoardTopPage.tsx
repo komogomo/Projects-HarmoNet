@@ -52,7 +52,7 @@ interface BoardTopPageProps {
 }
 
 const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => {
-  const { t, currentLocale } = useI18n();
+  const { currentLocale } = useI18n();
   const router = useRouter();
 
   const searchParams = useSearchParams();
@@ -294,7 +294,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return t(key);
+    return key;
   };
 
   useEffect(() => {
@@ -448,6 +448,10 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
                   totalItems={totalItems}
                   onChangePage={handleChangePage}
                   onChangePageSize={handleChangePageSize}
+                  labelPageSize={resolveMessage("board.top.pagination.pageSize.label")}
+                  labelRangeTemplate={resolveMessage("board.top.pagination.range.template")}
+                  labelPrev={resolveMessage("board.top.pagination.prev")}
+                  labelNext={resolveMessage("board.top.pagination.next")}
                 />
               </>
             )}

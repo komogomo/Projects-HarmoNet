@@ -1,21 +1,60 @@
-'use client';
-import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
-import { Bell } from 'lucide-react';
-import { LanguageSwitch } from '@/src/components/common/LanguageSwitch';
-import { useStaticI18n as useI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
-import type { AppHeaderProps } from './AppHeader.types';
+"use client";
+import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
+import { Bell } from "lucide-react";
+import { LanguageSwitch } from "@/src/components/common/LanguageSwitch";
+import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import type { AppHeaderProps } from "./AppHeader.types";
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   variant = 'login',
   className = '',
   testId = 'app-header',
 }) => {
-  const { t } = useI18n();
+  const { currentLocale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [hasUnread, setHasUnread] = useState<boolean>(false);
+  const [messages, setMessages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ lang: currentLocale });
+        const res = await fetch(`/api/static-translations/nav?${params.toString()}`);
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === "object") {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocale]);
+
+  const resolveNavMessage = (key: string): string => {
+    const value = messages[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+    return key;
+  };
 
   // ログイン画面では常に「login」バリアントとして扱う（通知ベル非表示など）
   const effectiveVariant: 'login' | 'authenticated' = pathname === '/login' ? 'login' : variant;
@@ -103,7 +142,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 rounded-lg
                 transition-colors
               "
-              aria-label={t('home.noticeSection.title')}
+              aria-label={resolveNavMessage("home.noticeSection.title")}
               data-testid={`${testId}-notification`}
               type="button"
               onClick={() => {
