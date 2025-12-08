@@ -118,11 +118,20 @@ export default async function HomePage() {
   }
 
   // Check if user is tenant_admin (allow multiple roles per tenant)
-  const { data: userRoles, error: roleError } = await supabase
+  // RLS の影響を避けるため、user_roles の参照には ServiceRole クライアントを使用する
+  const supabaseAdminForRoles = createSupabaseServiceRoleClient();
+  const { data: userRoles, error: roleError } = await supabaseAdminForRoles
     .from('user_roles')
     .select('roles(role_key)')
     .eq('user_id', appUser.id)
     .eq('tenant_id', tenantId);
+
+  logInfo('home.debug.user_roles', {
+    userId: appUser.id,
+    tenantId,
+    userRoles,
+    roleError,
+  });
 
   const isTenantAdmin =
     !roleError
