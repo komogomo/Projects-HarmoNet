@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
 import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { logInfo } from "@/src/lib/logging/log.util";
 
 type LoginMessages = {
   app_title: string;
@@ -50,6 +51,10 @@ const LoginPage = async () => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  logInfo("login.debug.auth_user", {
+    userId: user?.id ?? null,
+  });
 
   // 既にログイン済みなら、エラークエリの有無に関わらずホームへリダイレクト
   if (user) {

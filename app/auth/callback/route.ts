@@ -11,23 +11,34 @@ export async function GET(request: Request) {
 
     const supabase = await createSupabaseServerClient();
 
+    // 0. 既に有効なセッションがある場合は、トークン検証をスキップしてそのままアプリ側認可へ進む
+    const {
+        data: { user: existingUser },
+        error: existingError,
+    } = await supabase.auth.getUser();
+
     let authError: unknown = null;
 
-    // 1. PKCE / token_hash フローを優先 (Supabase 公式推奨パターン)
-    if (tokenHash) {
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any });
-        authError = error;
-    } else if (code) {
-        // 2. 既存の code ベースフローも後方互換として残す
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        authError = error;
-    } else {
-        // code も token_hash も無い場合は即座にログイン画面へ
-        return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
-    }
+    if (!existingUser || existingError) {
+        // 1. セッションが無い場合のみ、PKCE / token_hash フローを実行
+        if (tokenHash) {
+            const { error } = await supabase.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: type as any,
+            });
+            authError = error;
+        } else if (code) {
+            // 2. 既存の code ベースフローも後方互換として残す
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            authError = error;
+        } else {
+            // code も token_hash も無い場合は即座にログイン画面へ
+            return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+        }
 
-    if (authError) {
-        return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+        if (authError) {
+            return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+        }
     }
 
     // ここから下は、既存のテナント判定・リダイレクトロジックを維持
