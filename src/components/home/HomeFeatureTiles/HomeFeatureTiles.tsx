@@ -64,15 +64,17 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
     let cancelled = false;
 
     const load = async () => {
       try {
+        if (!tenantId) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
         const params = new URLSearchParams({ tenantId, lang: currentLocale });
         const res = await fetch(`/api/tenant-static-translations/home?${params.toString()}`);
 

@@ -25,41 +25,21 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
   tenantId,
 }) => {
   const { currentLocale } = useI18n();
-  const [facilityTranslations, setFacilityTranslations] = React.useState<any | null>(null);
+  const facilityTranslations: any | null = null;
   const [messages, setMessages] = React.useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
     const loadMessages = async () => {
       try {
+        if (!tenantId) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
         const params = new URLSearchParams({ tenantId, lang: currentLocale });
         const res = await fetch(
           `/api/tenant-static-translations/facility?${params.toString()}`,

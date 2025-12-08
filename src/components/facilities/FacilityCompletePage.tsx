@@ -11,19 +11,21 @@ export interface FacilityCompletePageProps {
 
 const FacilityCompletePage: React.FC<FacilityCompletePageProps> = ({ tenantId }) => {
   const { currentLocale } = useI18n();
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
     let cancelled = false;
 
     const loadMessages = async () => {
       try {
+        if (!tenantId) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
         const params = new URLSearchParams({ tenantId, lang: currentLocale });
         const res = await fetch(
           `/api/tenant-static-translations/facility?${params.toString()}`,

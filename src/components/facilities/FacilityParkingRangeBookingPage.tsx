@@ -28,7 +28,7 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   const { currentLocale } = useI18n();
   const router = useRouter();
 
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -38,35 +38,15 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
     const loadMessages = async () => {
       try {
+        if (!tenantId) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
         const params = new URLSearchParams({ tenantId, lang: currentLocale });
         const res = await fetch(
           `/api/tenant-static-translations/facility?${params.toString()}`,
@@ -101,16 +81,18 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   }, [tenantId, currentLocale]);
 
   useEffect(() => {
-    if (!rangeStart || !rangeEnd) {
-      setSlots([]);
-      setSelectedSlotId(null);
-      return;
-    }
-
     let cancelled = false;
 
     const loadSlots = async () => {
       try {
+        if (!rangeStart || !rangeEnd) {
+          if (!cancelled) {
+            setSlots([]);
+            setSelectedSlotId(null);
+          }
+          return;
+        }
+
         const params = new URLSearchParams();
         params.set("start", rangeStart);
         params.set("end", rangeEnd);

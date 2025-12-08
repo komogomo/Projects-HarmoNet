@@ -61,41 +61,21 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   const { currentLocale } = useI18n();
   const [rangeStartIndex, setRangeStartIndex] = useState<number | null>(null);
   const [rangeEndIndex, setRangeEndIndex] = useState<number | null>(null);
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
+  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
     const loadMessages = async () => {
       try {
+        if (!tenantId) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
         const params = new URLSearchParams({ tenantId, lang: currentLocale });
         const res = await fetch(
           `/api/tenant-static-translations/facility?${params.toString()}`,
