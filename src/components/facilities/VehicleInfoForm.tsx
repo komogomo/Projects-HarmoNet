@@ -3,21 +3,21 @@
 import React from "react";
 
 interface VehicleInfoFormProps {
-  vehicleNumber: string;
-  vehicleModel: string;
-  onChangeVehicleNumber: (value: string) => void;
-  onChangeVehicleModel: (value: string) => void;
-  vehicleNumberLabel: string;
-  vehicleModelLabel: string;
+  vehicleNumber?: string;
+  vehicleModel?: string;
+  onChangeVehicleNumber?: (value: string) => void;
+  onChangeVehicleModel?: (value: string) => void;
+  vehicleNumberLabel?: string;
+  vehicleModelLabel?: string;
 }
 
 const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
-  vehicleNumber,
-  vehicleModel,
+  vehicleNumber = "",
+  vehicleModel = "",
   onChangeVehicleNumber,
   onChangeVehicleModel,
-  vehicleNumberLabel,
-  vehicleModelLabel,
+  vehicleNumberLabel = "",
+  vehicleModelLabel = "",
 }) => {
 
   return (
@@ -28,7 +28,9 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
           type="text"
           className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={vehicleNumber}
-          onChange={(event) => onChangeVehicleNumber(event.target.value)}
+          onChange={(event) =>
+            onChangeVehicleNumber ? onChangeVehicleNumber(event.target.value) : undefined
+          }
         />
       </div>
 
@@ -38,7 +40,9 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
           type="text"
           className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={vehicleModel}
-          onChange={(event) => onChangeVehicleModel(event.target.value)}
+          onChange={(event) =>
+            onChangeVehicleModel ? onChangeVehicleModel(event.target.value) : undefined
+          }
         />
       </div>
     </div>

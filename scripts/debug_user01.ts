@@ -42,8 +42,13 @@ async function debugUser01() {
 
     // 3. Check for exact email duplication in Public
     const { data: allPublic } = await supabaseAdmin.from('users').select('email, id');
-    const emailCounts = {};
-    allPublic?.forEach(u => {
+    if (!allPublic) {
+        console.log('\nNo duplicate emails found in Public.');
+        return;
+    }
+
+    const emailCounts: Record<string, number> = {};
+    allPublic.forEach(u => {
         const e = u.email?.toLowerCase();
         if (e) emailCounts[e] = (emailCounts[e] || 0) + 1;
     });

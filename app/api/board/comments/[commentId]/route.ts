@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
 import { logError, logInfo } from "@/src/lib/logging/log.util";
 import { prisma } from "@/src/server/db/prisma";
 import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantIdsForUser";
 
 interface DeleteCommentRouteContext {
-  params?: {
-    commentId?: string;
-  };
+  params: Promise<{
+    commentId: string;
+  }>;
 }
 
-export async function DELETE(req: Request, context: DeleteCommentRouteContext) {
+export async function DELETE(req: NextRequest, context: DeleteCommentRouteContext) {
   const supabase = await createSupabaseServerClient();
 
   try {
@@ -28,7 +28,8 @@ export async function DELETE(req: Request, context: DeleteCommentRouteContext) {
 
     const email = user.email;
 
-    let commentId = context.params?.commentId;
+    const params = await context.params;
+    let commentId: string | undefined = params.commentId;
     if (!commentId) {
       // App Router の params 解決に失敗した場合に備え、URL パスから commentId を再取得するフォールバック
       try {

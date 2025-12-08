@@ -12,15 +12,15 @@ export type ParkingSlot = {
 };
 
 interface ParkingSlotSelectorProps {
-  slots: ParkingSlot[];
-  selectedSlotId: string | null;
+  slots?: ParkingSlot[];
+  selectedSlotId?: string | null;
   onSelectSlot?: (slotId: string | null) => void;
-  tenantId: string;
+  tenantId?: string;
 }
 
 const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
-  slots,
-  selectedSlotId,
+  slots = [],
+  selectedSlotId = null,
   onSelectSlot,
   tenantId,
 }) => {

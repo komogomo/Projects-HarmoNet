@@ -7,7 +7,25 @@ interface FavoriteRequestBody {
   postId?: string;
 }
 
-async function resolveAuthContext() {
+type AuthErrorBody = { errorCode: "auth_error" | "unauthorized" };
+
+type AuthErrorResult = {
+  error: {
+    status: 401 | 403;
+    body: AuthErrorBody;
+  };
+};
+
+type AuthSuccessResult = {
+  context: {
+    tenantId: string;
+    userId: string;
+  };
+};
+
+type AuthResult = AuthErrorResult | AuthSuccessResult;
+
+async function resolveAuthContext(): Promise<AuthResult> {
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -64,10 +82,14 @@ async function resolveAuthContext() {
   };
 }
 
+function isAuthError(result: AuthResult): result is AuthErrorResult {
+  return "error" in result;
+}
+
 export async function POST(req: Request) {
   try {
     const auth = await resolveAuthContext();
-    if ("error" in auth) {
+    if (isAuthError(auth)) {
       return NextResponse.json(auth.error.body, { status: auth.error.status });
     }
 
@@ -139,7 +161,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const auth = await resolveAuthContext();
-    if ("error" in auth) {
+    if (isAuthError(auth)) {
       return NextResponse.json(auth.error.body, { status: auth.error.status });
     }
 
