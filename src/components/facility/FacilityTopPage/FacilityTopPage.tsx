@@ -117,11 +117,8 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
 
     const load = async () => {
       try {
-        const res = await fetch(`/locales/${currentLocale}/facility.json`);
-        if (!res.ok) return;
-        const data = await res.json();
         if (!cancelled) {
-          setFacilityTranslations(data);
+          setFacilityTranslations(null);
         }
       } catch {
         if (!cancelled) {

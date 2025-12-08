@@ -15,31 +15,6 @@ const FacilityCompletePage: React.FC<FacilityCompletePageProps> = ({ tenantId })
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch(`/locales/${currentLocale}/facility.json`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) {
-          setFacilityTranslations(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
     if (!tenantId) {
       setMessages({});
       return;

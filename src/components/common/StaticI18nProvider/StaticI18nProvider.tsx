@@ -11,11 +11,7 @@ const LOCALES: Locale[] = ['ja', 'en', 'zh'];
 const buildDictionaryPath = (locale: Locale): string => `/locales/${locale}/common.json`;
 
 async function fetchTranslations(locale: Locale): Promise<Translations> {
-  const res = await fetch(buildDictionaryPath(locale));
-  if (!res.ok) {
-    throw new Error('LOAD_FAIL');
-  }
-  return res.json();
+  return {};
 }
 
 function resolveKey(obj: Translations, key: string): string | undefined {
