@@ -17,6 +17,19 @@ export async function GET(req: Request) {
       .eq('screen_key', 'login');
 
     if (error || !Array.isArray(data)) {
+      if (error) {
+        console.error('[static-translations][login] Supabase error', {
+          message: (error as any).message,
+          details: (error as any).details,
+          hint: (error as any).hint,
+          code: (error as any).code,
+        });
+      } else {
+        console.error('[static-translations][login] Supabase returned non-array data', {
+          dataType: Array.isArray(data) ? 'array' : typeof data,
+        });
+      }
+
       return NextResponse.json({ messages: {} });
     }
 
