@@ -18,19 +18,25 @@ export async function GET(req: Request) {
 
     if (error || !Array.isArray(data)) {
       if (error) {
-        console.error('[static-translations][login] Supabase error', {
+        const debug = {
           message: (error as any).message,
           details: (error as any).details,
           hint: (error as any).hint,
           code: (error as any).code,
-        });
-      } else {
-        console.error('[static-translations][login] Supabase returned non-array data', {
-          dataType: Array.isArray(data) ? 'array' : typeof data,
-        });
+        };
+
+        console.error('[static-translations][login] Supabase error', debug);
+
+        return NextResponse.json({ messages: {}, debug }, { status: 200 });
       }
 
-      return NextResponse.json({ messages: {} });
+      const debug = {
+        dataType: Array.isArray(data) ? 'array' : typeof data,
+      };
+
+      console.error('[static-translations][login] Supabase returned non-array data', debug);
+
+      return NextResponse.json({ messages: {}, debug }, { status: 200 });
     }
 
     const messages: Record<string, string> = {};
