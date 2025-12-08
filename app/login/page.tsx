@@ -1,6 +1,8 @@
 import React from "react";
+import { redirect } from "next/navigation";
 import { MagicLinkForm } from "@/src/components/auth/MagicLinkForm/MagicLinkForm";
 import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
+import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
 
 type LoginMessages = {
   app_title: string;
@@ -44,6 +46,16 @@ async function fetchLoginMessages(): Promise<LoginMessages> {
 }
 
 const LoginPage = async () => {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 既にログイン済みなら、エラークエリの有無に関わらずホームへリダイレクト
+  if (user) {
+    redirect("/home");
+  }
+
   const messages = await fetchLoginMessages();
 
   return (
