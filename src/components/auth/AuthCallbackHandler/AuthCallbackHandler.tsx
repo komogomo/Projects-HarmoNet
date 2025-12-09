@@ -37,6 +37,30 @@ export const AuthCallbackHandler: React.FC = () => {
       href,
     });
 
+    const url = new URL(window.location.href);
+    const searchParams = url.searchParams;
+    const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
+    const hashParams = new URLSearchParams(hash);
+
+    const code = searchParams.get('code');
+    const errorDescription = searchParams.get('error_description') ?? searchParams.get('error');
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+
+    logInfo('auth.callback.debug.url_params', {
+      search: url.search,
+      hash: url.hash,
+      hasCode: !!code,
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      error: errorDescription ?? null,
+    });
+
+    if (errorDescription) {
+      completeFailure(errorDescription);
+      return;
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -49,6 +73,54 @@ export const AuthCallbackHandler: React.FC = () => {
         completeSuccess();
       }
     });
+
+    const exchangeFromUrl = async () => {
+      try {
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+          logInfo('auth.callback.debug.exchange_code', {
+            hasSession: !!data?.session,
+            error: error?.message ?? null,
+          });
+
+          if (error) {
+            return;
+          }
+
+          if (data?.session) {
+            completeSuccess();
+            return;
+          }
+        } else if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          logInfo('auth.callback.debug.set_session', {
+            hasSession: !!data?.session,
+            error: error?.message ?? null,
+          });
+
+          if (error) {
+            return;
+          }
+
+          if (data?.session) {
+            completeSuccess();
+            return;
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logError('auth.callback.debug.exchange_exception', {
+          message,
+        });
+      }
+    };
+
+    void exchangeFromUrl();
 
     const checkInitialSession = async () => {
       const { data, error } = await supabase.auth.getSession();
