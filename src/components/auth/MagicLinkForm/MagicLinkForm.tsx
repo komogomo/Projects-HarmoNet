@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Mail as MailIcon, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
@@ -41,6 +42,7 @@ const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
 
 export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError, redirectTo }) => {
   const { currentLocale } = useStaticI18n();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
   const [banner, setBanner] = useState<BannerState>(null);
@@ -83,6 +85,58 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       cancelled = true;
     };
   }, [currentLocale]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkSessionAndRedirect = async (source: string) => {
+      const { data, error } = await supabase.auth.getSession();
+
+      logInfo('login.debug.session_check', {
+        source,
+        hasSession: !!data?.session,
+        error: error?.message ?? null,
+      });
+
+      if (!cancelled && data?.session) {
+        router.replace('/home');
+      }
+    };
+
+    void checkSessionAndRedirect('mount');
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void checkSessionAndRedirect('visibilitychange');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [router]);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      logInfo('login.onAuthStateChange', {
+        event,
+        hasSession: !!session,
+      });
+
+      if (event === 'SIGNED_IN' && session) {
+        router.replace('/home');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleLogin = useCallback(async () => {
     if (!validateEmail(email)) {

@@ -19,8 +19,12 @@ export const AuthCallbackHandler: React.FC = () => {
       if (!mounted || handled) return;
       handled = true;
       logInfo('auth.callback.success');
-      logInfo('auth.callback.redirect.home');
-      router.replace('/home');
+
+      try {
+        window.close();
+      } catch {
+        // ignore
+      }
     };
 
     const completeFailure = (reason: string) => {
