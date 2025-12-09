@@ -26,7 +26,7 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
         <label className="block text-xs text-gray-600">{vehicleNumberLabel}</label>
         <input
           type="text"
-          className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-2/3 rounded-md border-2 border-gray-300 px-3 py-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={vehicleNumber}
           onChange={(event) =>
             onChangeVehicleNumber ? onChangeVehicleNumber(event.target.value) : undefined
@@ -38,7 +38,7 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
         <label className="block text-xs text-gray-600">{vehicleModelLabel}</label>
         <input
           type="text"
-          className="mt-1 block w-full rounded-md border-2 border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-2/3 rounded-md border-2 border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={vehicleModel}
           onChange={(event) =>
             onChangeVehicleModel ? onChangeVehicleModel(event.target.value) : undefined
