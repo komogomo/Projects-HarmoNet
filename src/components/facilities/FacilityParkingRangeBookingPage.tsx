@@ -246,14 +246,17 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
         </div>
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           {/* 日付レンジモードなので時刻セレクトは表示しない */}
-          <VehicleInfoForm
-            vehicleNumber={vehicleNumber}
-            vehicleModel={vehicleModel}
-            onChangeVehicleNumber={setVehicleNumber}
-            onChangeVehicleModel={setVehicleModel}
-            vehicleNumberLabel={vehicleNumberLabel}
-            vehicleModelLabel={vehicleModelLabel}
-          />
+          {/* 車両情報フォームは現在 UI 上は非表示。将来再利用できるようコードは残しておく */}
+          {false && (
+            <VehicleInfoForm
+              vehicleNumber={vehicleNumber}
+              vehicleModel={vehicleModel}
+              onChangeVehicleNumber={setVehicleNumber}
+              onChangeVehicleModel={setVehicleModel}
+              vehicleNumberLabel={vehicleNumberLabel}
+              vehicleModelLabel={vehicleModelLabel}
+            />
+          )}
           <div className="mt-4 flex justify-end">
             <button
               type="button"

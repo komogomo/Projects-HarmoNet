@@ -545,15 +545,17 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
             </div>
           </div>
 
-          {/* 車両情報 */}
-          <VehicleInfoForm
-            vehicleNumber={vehicleNumber}
-            vehicleModel={vehicleModel}
-            onChangeVehicleNumber={setVehicleNumber}
-            onChangeVehicleModel={setVehicleModel}
-            vehicleNumberLabel={vehicleNumberLabel}
-            vehicleModelLabel={vehicleModelLabel}
-          />
+          {/* 車両情報（現在はUI上は非表示。将来再利用できるようコードは残しておく） */}
+          {false && (
+            <VehicleInfoForm
+              vehicleNumber={vehicleNumber}
+              vehicleModel={vehicleModel}
+              onChangeVehicleNumber={setVehicleNumber}
+              onChangeVehicleModel={setVehicleModel}
+              vehicleNumberLabel={vehicleNumberLabel}
+              vehicleModelLabel={vehicleModelLabel}
+            />
+          )}
 
           <div className="mt-4 flex justify-center gap-3">
             {existingReservationId && (
