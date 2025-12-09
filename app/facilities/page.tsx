@@ -173,7 +173,8 @@ export default async function FacilitiesPage() {
   }
 
   // tenant_settings から facility usageNotes を取得
-  const { data: tenantSettingsRows } = await supabase
+  // RLS の影響を避けるため、他の施設系テーブルと同様に ServiceRole クライアントを使用する
+  const { data: tenantSettingsRows } = await supabaseAdmin
     .from("tenant_settings")
     .select("config_json")
     .eq("tenant_id", tenantId)

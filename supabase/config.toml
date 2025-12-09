@@ -193,14 +193,14 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-[auth.email.smtp]
-enabled = true
-host = "email-smtp.ap-northeast-1.amazonaws.com"
-port = 587
-user = "AKIA3AAD56YUJP6RNNMS"
-pass = "BGDaYmxNJGW3hwbQdv/R8a3vt/gwULhr2fBXSFjOL5UT"
-admin_email = "no-reply@harmonet-stg.com"
-sender_name = "HarmoNet"
+# [auth.email.smtp]
+# enabled = true
+# host = "email-smtp.ap-northeast-1.amazonaws.com"
+# port = 587
+# user = "AKIA3AAD56YUJP6RNNMS"
+# pass = "BGDaYmxNJGW3hwbQdv/R8a3vt/gwULhr2fBXSFjOL5UT"
+# admin_email = "no-reply@harmonet-stg.com"
+# sender_name = "HarmoNet"
 
 
 # Uncomment to customize email template
