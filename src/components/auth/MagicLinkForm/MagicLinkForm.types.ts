@@ -21,6 +21,9 @@ export interface MagicLinkFormProps {
   onError?: (error: MagicLinkError) => void;
 
   redirectTo?: string;
+
+  /** サインイン完了後にクライアント側で遷移させたいパス（任意） */
+  signedInRedirectTo?: string;
 }
 
 export type MagicLinkFormState =

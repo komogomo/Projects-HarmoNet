@@ -114,6 +114,7 @@ export default async function SysAdminLoginPage() {
           )}
           <MagicLinkForm
             className="h-full"
+            signedInRedirectTo="/sys-admin/login"
           />
         </section>
       </div>

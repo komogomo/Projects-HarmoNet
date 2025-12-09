@@ -40,13 +40,21 @@ const AuthErrorBanner: React.FC<AuthErrorBannerProps> = ({ kind, message }) => {
   );
 };
 
-export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent, onError, redirectTo }) => {
+export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
+  className,
+  onSent,
+  onError,
+  redirectTo,
+  signedInRedirectTo,
+}) => {
   const { currentLocale } = useStaticI18n();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
   const [banner, setBanner] = useState<BannerState>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+
+  const postSignInRedirectTo = signedInRedirectTo ?? '/home';
 
   const resolveMessage = (key: string): string => {
     const value = messages[key];
@@ -99,7 +107,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       });
 
       if (!cancelled && data?.session) {
-        router.replace('/home');
+        router.replace(postSignInRedirectTo);
       }
     };
 
@@ -129,7 +137,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
       });
 
       if (event === 'SIGNED_IN' && session) {
-        router.replace('/home');
+        router.replace(postSignInRedirectTo);
       }
     });
 
