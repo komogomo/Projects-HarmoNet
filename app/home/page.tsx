@@ -141,7 +141,9 @@ export default async function HomePage() {
     );
 
   // テナント設定から Home のお知らせ表示件数を取得（将来的に管理画面から変更可能にする想定）。
-  const { data: tenantSettingsRows } = await supabase
+  // RLS の影響を避けるため、tenant_settings は ServiceRole クライアントで取得する
+  const supabaseAdminForSettings = createSupabaseServiceRoleClient();
+  const { data: tenantSettingsRows } = await supabaseAdminForSettings
     .from('tenant_settings')
     .select('config_json')
     .eq('tenant_id', tenantId)

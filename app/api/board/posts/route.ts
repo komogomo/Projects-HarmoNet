@@ -451,7 +451,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: 'invalid_category' }, { status: 400 });
     }
 
-    const { data: tenantSettingsRows } = await supabase
+    const { data: tenantSettingsRows } = await supabaseAdminForCategories
       .from('tenant_settings')
       .select('config_json')
       .eq('tenant_id', tenantId)
