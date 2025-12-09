@@ -496,12 +496,12 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           {/* 時刻セレクト */}
           <div className="mb-4 space-y-2" aria-label={timeSlotSectionTitle}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600">
+            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
               <div className="space-y-1">
                 <label className="block text-xs text-gray-600">{startTimeLabel}</label>
                 <input
                   type="time"
-                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 inline-block w-auto max-w-[7rem] rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={startTime}
                   onChange={(event) => {
                     const snapped = snapTo30Minutes(event.target.value);
@@ -518,7 +518,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
                 <label className="block text-xs text-gray-600">{endTimeLabel}</label>
                 <input
                   type="time"
-                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 inline-block w-auto max-w-[7rem] rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={endTime}
                   onChange={(event) => {
                     const snapped = snapTo30Minutes(event.target.value);

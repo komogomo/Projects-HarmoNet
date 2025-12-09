@@ -21,7 +21,7 @@ const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({
 }) => {
 
   return (
-    <div className="space-y-3 text-xs text-gray-600">
+    <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
       <div className="space-y-1">
         <label className="block text-xs text-gray-600">{vehicleNumberLabel}</label>
         <input
