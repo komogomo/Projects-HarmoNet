@@ -363,6 +363,28 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const isValidTime = (value: string | null | undefined): value is string =>
     !!value && /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
 
+  const snapTo30Minutes = (value: string): string => {
+    const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(value);
+    if (!match) return value;
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+
+    let snappedMinutes: number;
+    if (minutes < 15) {
+      snappedMinutes = 0;
+    } else if (minutes < 45) {
+      snappedMinutes = 30;
+    } else {
+      snappedMinutes = 0;
+      hours = (hours + 1) % 24;
+    }
+
+    const hh = hours.toString().padStart(2, "0");
+    const mm = snappedMinutes.toString().padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
   const minTime: string = isValidTime(availableFromTime) ? availableFromTime : "00:00";
   const maxTime: string = isValidTime(availableToTime) ? availableToTime : "23:30";
 
@@ -474,14 +496,17 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
         <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
           {/* 時刻セレクト */}
           <div className="mb-4 space-y-2" aria-label={timeSlotSectionTitle}>
-            <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600">
               <div className="space-y-1">
                 <label className="block text-xs text-gray-600">{startTimeLabel}</label>
                 <input
                   type="time"
                   className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
+                  onChange={(event) => {
+                    const snapped = snapTo30Minutes(event.target.value);
+                    setStartTime(snapped);
+                  }}
                   disabled={isAllDay}
                   min={minTime}
                   max={maxTime}
@@ -493,9 +518,12 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
                 <label className="block text-xs text-gray-600">{endTimeLabel}</label>
                 <input
                   type="time"
-                  className="mt1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 block w-full rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
+                  onChange={(event) => {
+                    const snapped = snapTo30Minutes(event.target.value);
+                    setEndTime(snapped);
+                  }}
                   disabled={isAllDay}
                   min={minTime}
                   max={maxTime}
