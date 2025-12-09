@@ -83,64 +83,30 @@ export async function fetchCurrentDuties(
   const { tenantId, groupCode } = params;
 
   try {
-    // まず最新サイクル番号を取得する
-    const { data: latestCycleRows, error: latestCycleError } = await supabase
-      .from('cleaning_duties')
-      .select('cycle_no')
-      .eq('tenant_id', tenantId)
-      .eq('group_code', groupCode)
-      .order('cycle_no', { ascending: false })
-      .limit(1);
+    const response = await fetch('/api/cleaning-duty/current', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    if (latestCycleError) {
-      throw latestCycleError;
-    }
+    const data = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      rows?: CleaningDutyRow[];
+      errorCode?: string;
+    };
 
-    const latestCycleNo =
-      Array.isArray(latestCycleRows) && latestCycleRows.length > 0
-        ? (latestCycleRows[0] as any).cycle_no
-        : undefined;
-
-    if (typeof latestCycleNo !== 'number') {
-      // まだ清掃当番データがない場合
+    if (!response.ok || data.ok !== true || !Array.isArray(data.rows)) {
+      logError('cleaningDuty.error', {
+        tenantId,
+        groupCode,
+        operation: 'fetchCurrent',
+        errorCode: data?.errorCode,
+      });
       return [];
     }
 
-    const { data, error } = await supabase
-      .from('cleaning_duties')
-      .select(
-        'id, tenant_id, group_code, residence_code, cycle_no, assignee_id, is_done, cleaned_on, completed_at, created_at',
-      )
-      .eq('tenant_id', tenantId)
-      .eq('group_code', groupCode)
-      .eq('cycle_no', latestCycleNo)
-      // 班長が登録した順番どおりに表示したいので、作成日時の昇順で取得する
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      throw error;
-    }
-
-    const seenResidences = new Set<string>();
-    const currentRows: CleaningDutyRow[] = [];
-
-    for (const row of data ?? []) {
-      const residenceCode = (row as any).residence_code as string | undefined;
-      if (!residenceCode || seenResidences.has(residenceCode)) continue;
-      seenResidences.add(residenceCode);
-
-      currentRows.push({
-        id: (row as any).id as string,
-        residenceCode,
-        cycleNo: (row as any).cycle_no as number,
-        assigneeId: (row as any).assignee_id as string,
-        isDone: Boolean((row as any).is_done),
-        cleanedOn: (row as any).cleaned_on ? String((row as any).cleaned_on) : null,
-        completedAt: (row as any).completed_at ? String((row as any).completed_at) : null,
-      });
-    }
-
-    return currentRows;
+    return data.rows;
   } catch (error) {
     logError('cleaningDuty.error', {
       tenantId,
