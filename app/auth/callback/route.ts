@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
-import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
+import { logInfo, logError } from "@/src/lib/logging/log.util";
 
 export async function GET(request: Request) {
     const requestUrl = new URL(request.url);
@@ -11,11 +11,18 @@ export async function GET(request: Request) {
 
     const supabase = await createSupabaseServerClient();
 
-    // 0. 既に有効なセッションがある場合は、トークン検証をスキップしてそのままアプリ側認可へ進む
+    // 0. 既に有効なセッションがある場合は、トークン検証をスキップしてそのまま next へ進む
     const {
         data: { user: existingUser },
         error: existingError,
     } = await supabase.auth.getUser();
+
+    logInfo("auth.callback.route.start", {
+        hasExistingUser: !!existingUser,
+        hasTokenHash: !!tokenHash,
+        hasCode: !!code,
+        next,
+    });
 
     let authError: unknown = null;
 
@@ -33,78 +40,33 @@ export async function GET(request: Request) {
             authError = error;
         } else {
             // code も token_hash も無い場合は即座にログイン画面へ
-            return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+            logError("auth.callback.route.missing_token", {});
+            return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
         }
 
         if (authError) {
-            return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+            logError("auth.callback.route.auth_error", {
+                message: (authError as any)?.message ?? String(authError),
+            });
+            return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
         }
     }
 
-    // ここから下は、既存のテナント判定・リダイレクトロジックを維持
+    // 2. 最終的にユーザが存在するかだけ確認
     const {
         data: { user },
     } = await supabase.auth.getUser();
 
-    if (user?.email) {
-        // Use Service Role Client for DB operations to bypass RLS
-        const adminClient = createSupabaseServiceRoleClient();
-
-        // 2. Find app user in public.users
-        const { data: dbUser } = await adminClient
-            .from("users")
-            .select("id")
-            .eq("email", user.email)
-            .maybeSingle();
-
-        if (dbUser) {
-            // 2.5. Check if redirecting to system admin pages
-            if (next.startsWith("/sys-admin")) {
-                // Check system admin role
-                const { data: roles } = await adminClient
-                    .from("user_roles")
-                    .select("roles(scope, role_key)")
-                    .eq("user_id", dbUser.id);
-
-                const isSystemAdmin =
-                    Array.isArray(roles) &&
-                    roles.some(
-                        (row: any) =>
-                            row.roles?.scope === "system_admin" &&
-                            row.roles?.role_key === "system_admin",
-                    );
-
-                if (isSystemAdmin) {
-                    return NextResponse.redirect(`${requestUrl.origin}${next}`);
-                }
-                // If not system admin, fall through to normal tenant check or fail
-            }
-
-            // 3. Get tenant memberships from user_tenants
-            // Assuming single tenant for now as per instruction
-            const { data: membership } = await adminClient
-                .from("user_tenants")
-                .select("tenant_id")
-                .eq("user_id", dbUser.id)
-                .maybeSingle();
-
-            if (membership) {
-                // 4. Get tenant details and check status
-                const { data: tenant } = await adminClient
-                    .from("tenants")
-                    .select("status")
-                    .eq("id", membership.tenant_id)
-                    .single();
-
-                // 5. Check tenant status
-                if (tenant && tenant.status === 'active') {
-                    // 6. Login Success
-                    return NextResponse.redirect(`${requestUrl.origin}${next}`);
-                }
-            }
-        }
+    if (!user) {
+        logError("auth.callback.route.no_user_after_verify", {});
+        return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
     }
 
-    // Auth failed, no user, no membership, or inactive tenant
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=unauthorized`);
+    logInfo("auth.callback.route.success", {
+        userId: user.id,
+        next,
+    });
+
+    // 3. 認可チェックは /home 側に任せ、ここでは next にだけリダイレクトする
+    return NextResponse.redirect(`${requestUrl.origin}${next}`);
 }
