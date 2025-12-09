@@ -4,12 +4,24 @@ import { logInfo, logError } from "@/src/lib/logging/log.util";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  const userAgent = request.headers.get("user-agent") ?? "unknown";
+  const expectedUserAgent = requestUrl.searchParams.get("expected_ua");
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type") ?? "email";
   const nextPath = requestUrl.searchParams.get("next") ?? "/home";
 
   const supabase = await createSupabaseServerClient();
+
+  if (expectedUserAgent && expectedUserAgent !== userAgent) {
+    logInfo("auth.callback.route.skip_ua_mismatch", {
+      userAgent,
+      expectedUserAgent,
+      next: nextPath,
+    });
+
+    return NextResponse.redirect(`${requestUrl.origin}/login`);
+  }
 
   // 0. 既に有効なセッションがある場合は、トークン検証をスキップしてそのまま next へ進む
   const {
@@ -18,6 +30,8 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   logInfo("auth.callback.route.start", {
+    userAgent,
+    expectedUserAgent,
     hasExistingUser: !!existingUser,
     hasTokenHash: !!tokenHash,
     hasCode: !!code,

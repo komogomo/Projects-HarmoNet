@@ -114,7 +114,23 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         email,
       });
 
-      const targetRedirectTo = redirectTo ?? '/auth/callback';
+      const baseRedirectTo = redirectTo ?? '/auth/callback';
+
+      let emailRedirectTo = `${window.location.origin}${baseRedirectTo}`;
+
+      try {
+        const url = new URL(baseRedirectTo, window.location.origin);
+        const currentUserAgent = window.navigator.userAgent ?? '';
+
+        if (currentUserAgent && !url.searchParams.has('expected_ua')) {
+          url.searchParams.set('expected_ua', currentUserAgent);
+        }
+
+        emailRedirectTo = url.toString();
+      } catch {
+        // URL の組み立てに失敗した場合は、従来通りのパスベース URL を使う
+        emailRedirectTo = `${window.location.origin}${baseRedirectTo}`;
+      }
 
       // メールアドレスの存在チェック
       const checkRes = await fetch('/api/auth/check-email', {
@@ -153,7 +169,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({ className, onSent,
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}${targetRedirectTo}`,
+          emailRedirectTo,
         },
       });
 
