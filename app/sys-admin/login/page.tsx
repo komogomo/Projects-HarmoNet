@@ -114,7 +114,6 @@ export default async function SysAdminLoginPage() {
           )}
           <MagicLinkForm
             className="h-full"
-            redirectTo="/auth/callback?next=/sys-admin/login"
           />
         </section>
       </div>
