@@ -501,7 +501,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
                 <label className="block text-xs text-gray-600">{startTimeLabel}</label>
                 <input
                   type="time"
-                  className="mt-1 block w-2/3 rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 block w-2/3 h-9 rounded-md border-2 border-gray-300 px-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={startTime}
                   onChange={(event) => {
                     const snapped = snapTo30Minutes(event.target.value);
@@ -518,7 +518,7 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
                 <label className="block text-xs text-gray-600">{endTimeLabel}</label>
                 <input
                   type="time"
-                  className="mt-1 block w-2/3 rounded-md border-2 border-gray-300 px-2 py-1.5 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 block w-2/3 h-9 rounded-md border-2 border-gray-300 px-2 text-xs text-gray-600 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={endTime}
                   onChange={(event) => {
                     const snapped = snapTo30Minutes(event.target.value);
