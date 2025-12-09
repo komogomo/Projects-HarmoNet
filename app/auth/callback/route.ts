@@ -1,15 +1,35 @@
-import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { logInfo, logError } from "@/src/lib/logging/log.util";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get("code");
     const tokenHash = requestUrl.searchParams.get("token_hash");
     const type = requestUrl.searchParams.get("type") ?? "email";
-    const next = requestUrl.searchParams.get("next") ?? "/home";
+    const nextPath = requestUrl.searchParams.get("next") ?? "/home";
 
-    const supabase = await createSupabaseServerClient();
+    // 成功時のリダイレクト先をあらかじめ設定したレスポンスを作成しておき、
+    // Supabase の cookie 書き込みはこのレスポンスに対して行う。
+    const nextUrl = new URL(nextPath, requestUrl.origin);
+    const response = NextResponse.redirect(nextUrl);
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        response.cookies.set(name, value, options);
+                    });
+                },
+            },
+        },
+    );
 
     // 0. 既に有効なセッションがある場合は、トークン検証をスキップしてそのまま next へ進む
     const {
@@ -21,7 +41,7 @@ export async function GET(request: Request) {
         hasExistingUser: !!existingUser,
         hasTokenHash: !!tokenHash,
         hasCode: !!code,
-        next,
+        next: nextPath,
     });
 
     let authError: unknown = null;
@@ -41,14 +61,16 @@ export async function GET(request: Request) {
         } else {
             // code も token_hash も無い場合は即座にログイン画面へ
             logError("auth.callback.route.missing_token", {});
-            return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
+            response.headers.set("Location", `${requestUrl.origin}/login?error=auth_failed`);
+            return response;
         }
 
         if (authError) {
             logError("auth.callback.route.auth_error", {
                 message: (authError as any)?.message ?? String(authError),
             });
-            return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
+            response.headers.set("Location", `${requestUrl.origin}/login?error=auth_failed`);
+            return response;
         }
     }
 
@@ -59,14 +81,15 @@ export async function GET(request: Request) {
 
     if (!user) {
         logError("auth.callback.route.no_user_after_verify", {});
-        return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
+        response.headers.set("Location", `${requestUrl.origin}/login?error=auth_failed`);
+        return response;
     }
 
     logInfo("auth.callback.route.success", {
         userId: user.id,
-        next,
+        next: nextPath,
     });
 
     // 3. 認可チェックは /home 側に任せ、ここでは next にだけリダイレクトする
-    return NextResponse.redirect(`${requestUrl.origin}${next}`);
+    return response;
 }
