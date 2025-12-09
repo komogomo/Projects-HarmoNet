@@ -175,18 +175,19 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
     isManagementMember,
   });
 
+  const supabaseAdminForCategories = createSupabaseServiceRoleClient();
+
   const {
     data: rawCategories,
     error: categoryError,
-  } = await supabase
+  } = await supabaseAdminForCategories
     .from("board_categories")
     .select("tenant_id, category_key, category_name, display_order, status")
+    .eq("tenant_id", tenantId)
     .eq("status", "active")
     .order("display_order", { ascending: true });
 
-  const categories = (rawCategories ?? []).filter(
-    (category: any) => category.tenant_id === tenantId,
-  );
+  const categories = rawCategories ?? [];
 
   logInfo("board.post.form.categories_fetched", {
     tenantId,

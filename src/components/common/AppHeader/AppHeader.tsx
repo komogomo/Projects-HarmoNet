@@ -18,6 +18,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const [hasUnread, setHasUnread] = useState<boolean>(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
 
+  const isLoginPath = pathname === '/login';
+
   useEffect(() => {
     let cancelled = false;
 
@@ -56,9 +58,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     return key;
   };
 
-  // ログイン画面では常に「login」バリアントとして扱う（通知ベル非表示など）
-  const effectiveVariant: 'login' | 'authenticated' = pathname === '/login' ? 'login' : variant;
-
   useEffect(() => {
     let isCancelled = false;
 
@@ -78,7 +77,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       }
     };
 
-    if (effectiveVariant === 'authenticated') {
+    if (!isLoginPath) {
       fetchUnread();
 
       if (typeof window !== 'undefined') {
@@ -98,7 +97,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [effectiveVariant, pathname]);
+  }, [isLoginPath, pathname]);
   return (
     <header
       className={`
@@ -113,7 +112,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       role="banner"
     >
       {/* ★ ここをフレーム化 */}
-      <div className={`w-full ${effectiveVariant === 'login' ? 'max-w-[500px]' : 'max-w-5xl'} mx-auto px-4 h-full flex items-center justify-between`}>
+      <div className={`w-full ${isLoginPath ? 'max-w-[500px]' : 'max-w-5xl'} mx-auto px-4 h-full flex items-center justify-between`}>
 
         {/* ロゴ */}
         <div className="flex items-center">
@@ -131,7 +130,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* 右側要素 */}
         <div className="flex items-center gap-4">
 
-          {effectiveVariant === 'authenticated' && (
+          {!isLoginPath && (
             <button
               className="
                 relative
