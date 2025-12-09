@@ -429,7 +429,11 @@ export async function POST(req: Request) {
       }
     }
 
-    const { data: categories, error: categoryError } = await supabase
+    // カテゴリマスタはテナント固定の参照データであり、/board/new と同様に
+    // RLS の影響を受けずに取得するため ServiceRole クライアントを使用する。
+    const supabaseAdminForCategories = createSupabaseServiceRoleClient();
+
+    const { data: categories, error: categoryError } = await supabaseAdminForCategories
       .from('board_categories')
       .select('id, category_key')
       .eq('tenant_id', tenantId)
