@@ -39,20 +39,14 @@ export const AuthCallbackHandler: React.FC = () => {
 
     const url = new URL(window.location.href);
     const searchParams = url.searchParams;
-    const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
-    const hashParams = new URLSearchParams(hash);
 
-    const code = searchParams.get('code');
+    const tokenHash = searchParams.get('token_hash');
     const errorDescription = searchParams.get('error_description') ?? searchParams.get('error');
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
 
     logInfo('auth.callback.debug.url_params', {
       search: url.search,
       hash: url.hash,
-      hasCode: !!code,
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
+      hasTokenHash: !!tokenHash,
       error: errorDescription ?? null,
     });
 
@@ -74,53 +68,34 @@ export const AuthCallbackHandler: React.FC = () => {
       }
     });
 
-    const exchangeFromUrl = async () => {
+    const verifyFromUrl = async () => {
+      if (!tokenHash) {
+        return;
+      }
+
       try {
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'email',
+        });
 
-          logInfo('auth.callback.debug.exchange_code', {
-            hasSession: !!data?.session,
-            error: error?.message ?? null,
-          });
+        logInfo('auth.callback.debug.verify_token_hash', {
+          hasSession: !!data?.session,
+          error: error?.message ?? null,
+        });
 
-          if (error) {
-            return;
-          }
-
-          if (data?.session) {
-            completeSuccess();
-            return;
-          }
-        } else if (accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          logInfo('auth.callback.debug.set_session', {
-            hasSession: !!data?.session,
-            error: error?.message ?? null,
-          });
-
-          if (error) {
-            return;
-          }
-
-          if (data?.session) {
-            completeSuccess();
-            return;
-          }
+        if (error) {
+          completeFailure(error.message ?? 'verify_otp_failed');
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logError('auth.callback.debug.exchange_exception', {
+        logError('auth.callback.debug.verify_exception', {
           message,
         });
       }
     };
 
-    void exchangeFromUrl();
+    void verifyFromUrl();
 
     const checkInitialSession = async () => {
       const { data, error } = await supabase.auth.getSession();
