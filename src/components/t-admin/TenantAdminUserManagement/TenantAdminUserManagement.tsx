@@ -442,6 +442,17 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const availableRoleKeys = allRoleKeys.filter((key) => !formData.roleKeys.includes(key));
 
+    const assignedRoleKeysForDisplay =
+        formData.roleKeys && formData.roleKeys.length > 0 ? formData.roleKeys : ['general_user'];
+
+    const availableRoleSummary = availableRoleKeys
+        .map((key) => roleLabelFromKey(key))
+        .join(' / ');
+
+    const assignedRoleSummary = assignedRoleKeysForDisplay
+        .map((key) => roleLabelFromKey(key))
+        .join(' / ');
+
     const roleLabelFromKey = (key: string): string => {
         if (key === 'tenant_admin') return roleTenantAdminLabel;
         if (key === 'group_leader') return roleGroupLeaderLabel;
@@ -681,9 +692,12 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             </label>
                             <div className="mt-1 flex items-start gap-4">
                                 <div>
-                                    <div className="mb-1 text-[11px] font-semibold text-gray-600">
+                                    <div className="mb-0 text-[11px] font-semibold text-gray-600">
                                         {resolveMessage('tadmin.users.form.role.available', '未割り当て')}
                                     </div>
+                                    <p className="mb-1 text-[11px] text-gray-500">
+                                        {availableRoleSummary || '-'}
+                                    </p>
                                     <select
                                         multiple
                                         className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -734,9 +748,12 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 </div>
 
                                 <div>
-                                    <div className="mb-1 text-[11px] font-semibold text-gray-600">
+                                    <div className="mb-0 text-[11px] font-semibold text-gray-600">
                                         {resolveMessage('tadmin.users.form.role.assigned', '割り当て済み')}
                                     </div>
+                                    <p className="mb-1 text-[11px] text-gray-500">
+                                        {assignedRoleSummary || '-'}
+                                    </p>
                                     <select
                                         multiple
                                         className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -747,10 +764,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                             )
                                         }
                                     >
-                                        {(formData.roleKeys && formData.roleKeys.length > 0
-                                            ? formData.roleKeys
-                                            : ['general_user']
-                                        ).map((key) => (
+                                        {assignedRoleKeysForDisplay.map((key) => (
                                             <option key={key} value={key}>
                                                 {roleLabelFromKey(key)}
                                             </option>
