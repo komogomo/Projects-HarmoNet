@@ -475,13 +475,21 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
     }
 
     const { file, isPdf, isImage } = selectedPreviewableAttachment;
+    if (isPdf) {
+      if (typeof window !== "undefined") {
+        window.open(file.fileUrl, "_blank", "noreferrer");
+      }
+      return;
+    }
 
-    setPreview({
-      url: file.fileUrl,
-      fileName: file.fileName,
-      isPdf,
-      isImage,
-    });
+    if (isImage) {
+      setPreview({
+        url: file.fileUrl,
+        fileName: file.fileName,
+        isPdf: false,
+        isImage: true,
+      });
+    }
   };
 
   const handleDownloadSelectedAttachments = () => {
