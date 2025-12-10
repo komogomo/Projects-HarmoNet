@@ -20,11 +20,7 @@ export const AuthCallbackHandler: React.FC = () => {
       handled = true;
       logInfo('auth.callback.success');
 
-      try {
-        window.close();
-      } catch {
-        // ignore
-      }
+      router.replace('/home');
     };
 
     const completeFailure = (reason: string) => {
