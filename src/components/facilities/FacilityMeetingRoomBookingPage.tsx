@@ -30,7 +30,6 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   const { currentLocale } = useI18n();
   const router = useRouter();
 
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [rangeStartTime, setRangeStartTime] = useState<string | null>(null);
   const [rangeEndTime, setRangeEndTime] = useState<string | null>(null);
@@ -39,28 +38,6 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   const [existingReservationId, setExistingReservationId] = useState<string | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -168,80 +145,24 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
     };
   }, [facilityId, selectedDate]);
 
-  const labels = facilityTranslations?.labels ?? {};
-  const topTexts = facilityTranslations?.top ?? {};
-  const bookingTexts = facilityTranslations?.booking ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const reservationDateLabelBase: string =
-    (labels.reservation_date as string | undefined) ?? "予約日：";
-  const reservationDateLabel: string = resolveMessage(
-    "labels.reservation_date",
-    reservationDateLabelBase,
-  );
-
-  const purposeLabelBase: string = (labels.purpose as string | undefined) ?? "利用目的";
-  const purposeLabel: string = resolveMessage("labels.purpose", purposeLabelBase);
-
-  const participantCountLabelBase: string =
-    (labels.participant_count as string | undefined) ?? "参加人数";
-  const participantCountLabel: string = resolveMessage(
-    "labels.participant_count",
-    participantCountLabelBase,
-  );
-
-  const facilityNameLabelBase: string =
-    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
-  const facilityNameLabel: string = resolveMessage(
-    "top.facilityName.room",
-    facilityNameLabelBase,
-  );
-
-  const reservationSectionTitleBase: string =
-    (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const reservationSectionTitle: string = resolveMessage(
-    "booking.reservationSectionTitle",
-    reservationSectionTitleBase,
-  );
-
-  const confirmButtonLabelBase: string =
-    (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const confirmButtonLabel: string = resolveMessage(
-    "booking.confirmButton",
-    confirmButtonLabelBase,
-  );
-
-  const cancelButtonLabelBase: string =
-    (bookingTexts.cancelButton as string | undefined) ?? "キャンセル";
-  const cancelButtonLabel: string = resolveMessage("booking.cancelButton", cancelButtonLabelBase);
-
-  const cancelConfirmMessageBase: string =
-    (bookingTexts.cancelConfirmMessage as string | undefined) ?? "この予約をキャンセルしますか？";
-  const cancelConfirmMessage: string = resolveMessage(
-    "booking.cancelConfirmMessage",
-    cancelConfirmMessageBase,
-  );
-
-  const cancelConfirmNoLabelBase: string =
-    (bookingTexts.cancelConfirmNo as string | undefined) ?? "いいえ";
-  const cancelConfirmNoLabel: string = resolveMessage(
-    "booking.cancelConfirmNo",
-    cancelConfirmNoLabelBase,
-  );
-
-  const cancelConfirmYesLabelBase: string =
-    (bookingTexts.cancelConfirmYes as string | undefined) ?? "はい";
-  const cancelConfirmYesLabel: string = resolveMessage(
-    "booking.cancelConfirmYes",
-    cancelConfirmYesLabelBase,
-  );
+  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
+  const purposeLabel: string = resolveMessage("labels.purpose");
+  const participantCountLabel: string = resolveMessage("labels.participant_count");
+  const facilityNameLabel: string = resolveMessage("top.facilityName.room");
+  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
+  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
+  const cancelButtonLabel: string = resolveMessage("booking.cancelButton");
+  const cancelConfirmMessage: string = resolveMessage("booking.cancelConfirmMessage");
+  const cancelConfirmNoLabel: string = resolveMessage("booking.cancelConfirmNo");
+  const cancelConfirmYesLabel: string = resolveMessage("booking.cancelConfirmYes");
 
   const handleRequestCancel = () => {
     if (!existingReservationId || isSubmittingCancel) return;

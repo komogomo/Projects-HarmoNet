@@ -28,7 +28,6 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   const { currentLocale } = useI18n();
   const router = useRouter();
 
-  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -133,62 +132,21 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
     };
   }, [facilityId, rangeStart, rangeEnd]);
 
-  const bookingTexts = facilityTranslations?.booking ?? {};
-  const labels = facilityTranslations?.labels ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const parkingLayoutTitleBase: string =
-    (bookingTexts.parkingLayoutTitle as string | undefined) ?? "駐車場配置図";
-  const parkingLayoutTitle: string = resolveMessage(
-    "booking.parkingLayoutTitle",
-    parkingLayoutTitleBase,
-  );
-
-  const slotSectionTitleBase: string =
-    (bookingTexts.slotSectionTitle as string | undefined) ?? "区画を選択";
-  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle", slotSectionTitleBase);
-
-  const reservationSectionTitleBase: string =
-    (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const reservationSectionTitle: string = resolveMessage(
-    "booking.reservationSectionTitle",
-    reservationSectionTitleBase,
-  );
-
-  const confirmButtonLabelBase: string =
-    (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const confirmButtonLabel: string = resolveMessage(
-    "booking.confirmButton",
-    confirmButtonLabelBase,
-  );
-
-  const reservationDateLabelBase: string =
-    (labels.reservation_date as string | undefined) ?? "予約日：";
-  const reservationDateLabel: string = resolveMessage(
-    "labels.reservation_date",
-    reservationDateLabelBase,
-  );
-
-  const vehicleNumberLabelBase: string =
-    (labels.vehicle_number as string | undefined) ?? "車両ナンバー（任意）";
-  const vehicleNumberLabel: string = resolveMessage(
-    "labels.vehicle_number",
-    vehicleNumberLabelBase,
-  );
-
-  const vehicleModelLabelBase: string =
-    (labels.vehicle_model as string | undefined) ?? "車種・色（任意）";
-  const vehicleModelLabel: string = resolveMessage(
-    "labels.vehicle_model",
-    vehicleModelLabelBase,
-  );
+  const parkingLayoutTitle: string = resolveMessage("booking.parkingLayoutTitle");
+  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle");
+  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
+  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
+  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
+  const vehicleNumberLabel: string = resolveMessage("labels.vehicle_number");
+  const vehicleModelLabel: string = resolveMessage("labels.vehicle_model");
 
   const hasRange = !!rangeStart && !!rangeEnd;
   const canSubmit = hasRange && !!selectedSlotId;

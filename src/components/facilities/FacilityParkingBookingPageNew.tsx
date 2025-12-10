@@ -30,7 +30,6 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const { currentLocale } = useI18n();
   const router = useRouter();
 
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -42,28 +41,6 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const [existingReservationId, setExistingReservationId] = useState<string | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -246,119 +223,31 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
     }
   }, [isAllDay, availableFromTime, availableToTime]);
 
-  const bookingTexts = facilityTranslations?.booking ?? {};
-  const labels = facilityTranslations?.labels ?? {};
-  const topTexts = facilityTranslations?.top ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const parkingLayoutTitleBase: string =
-    (bookingTexts.parkingLayoutTitle as string | undefined) ?? "駐車場配置図";
-  const parkingLayoutTitle: string = resolveMessage(
-    "booking.parkingLayoutTitle",
-    parkingLayoutTitleBase,
-  );
-
-  const slotSectionTitleBase: string =
-    (bookingTexts.slotSectionTitle as string | undefined) ?? "区画を選択";
-  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle", slotSectionTitleBase);
-
-  const timeSlotSectionTitleBase: string =
-    (bookingTexts.timeSlotSectionTitle as string | undefined) ?? "空き状況";
-  const timeSlotSectionTitle: string = resolveMessage(
-    "booking.timeSlotSectionTitle",
-    timeSlotSectionTitleBase,
-  );
-
-  const reservationSectionTitleBase: string =
-    (bookingTexts.reservationSectionTitle as string | undefined) ?? "予約詳細";
-  const reservationSectionTitle: string = resolveMessage(
-    "booking.reservationSectionTitle",
-    reservationSectionTitleBase,
-  );
-
-  const startTimeLabelBase: string =
-    (bookingTexts.startTime as string | undefined) ?? "開始時刻";
-  const startTimeLabel: string = resolveMessage("booking.startTime", startTimeLabelBase);
-
-  const endTimeLabelBase: string = (bookingTexts.endTime as string | undefined) ?? "終了時刻";
-  const endTimeLabel: string = resolveMessage("booking.endTime", endTimeLabelBase);
-
-  const allDayLabelBase: string = (bookingTexts.allDay as string | undefined) ?? "終日";
-  const allDayLabel: string = resolveMessage("booking.allDay", allDayLabelBase);
-
-  const timeSelectPlaceholderBase: string =
-    (bookingTexts.selectTimePlaceholder as string | undefined) ?? "選択してください";
-  const timeSelectPlaceholder: string = resolveMessage(
-    "booking.selectTimePlaceholder",
-    timeSelectPlaceholderBase,
-  );
-
-  const confirmButtonLabelBase: string =
-    (bookingTexts.confirmButton as string | undefined) ?? "確認画面";
-  const confirmButtonLabel: string = resolveMessage(
-    "booking.confirmButton",
-    confirmButtonLabelBase,
-  );
-
-  const cancelButtonLabelBase: string =
-    (bookingTexts.cancelButton as string | undefined) ?? "キャンセル";
-  const cancelButtonLabel: string = resolveMessage("booking.cancelButton", cancelButtonLabelBase);
-
-  const cancelConfirmMessageBase: string =
-    (bookingTexts.cancelConfirmMessage as string | undefined) ?? "この予約をキャンセルしますか？";
-  const cancelConfirmMessage: string = resolveMessage(
-    "booking.cancelConfirmMessage",
-    cancelConfirmMessageBase,
-  );
-
-  const cancelConfirmNoLabelBase: string =
-    (bookingTexts.cancelConfirmNo as string | undefined) ?? "いいえ";
-  const cancelConfirmNoLabel: string = resolveMessage(
-    "booking.cancelConfirmNo",
-    cancelConfirmNoLabelBase,
-  );
-
-  const cancelConfirmYesLabelBase: string =
-    (bookingTexts.cancelConfirmYes as string | undefined) ?? "はい";
-  const cancelConfirmYesLabel: string = resolveMessage(
-    "booking.cancelConfirmYes",
-    cancelConfirmYesLabelBase,
-  );
-
-  const reservationDateLabelBase: string =
-    (labels.reservation_date as string | undefined) ?? "予約日：";
-  const reservationDateLabel: string = resolveMessage(
-    "labels.reservation_date",
-    reservationDateLabelBase,
-  );
-
-  const facilityNameLabelBase: string =
-    (topTexts.facilityName?.parking as string | undefined) ?? facilityName;
-  const facilityNameLabel: string = resolveMessage(
-    "top.facilityName.parking",
-    facilityNameLabelBase,
-  );
-
-  const vehicleNumberLabelBase: string =
-    (labels.vehicle_number as string | undefined) ?? "車両ナンバー（任意）";
-  const vehicleNumberLabel: string = resolveMessage(
-    "labels.vehicle_number",
-    vehicleNumberLabelBase,
-  );
-
-  const vehicleModelLabelBase: string =
-    (labels.vehicle_model as string | undefined) ?? "車種・色（任意）";
-  const vehicleModelLabel: string = resolveMessage(
-    "labels.vehicle_model",
-    vehicleModelLabelBase,
-  );
+  const parkingLayoutTitle: string = resolveMessage("booking.parkingLayoutTitle");
+  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle");
+  const timeSlotSectionTitle: string = resolveMessage("booking.timeSlotSectionTitle");
+  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
+  const startTimeLabel: string = resolveMessage("booking.startTime");
+  const endTimeLabel: string = resolveMessage("booking.endTime");
+  const allDayLabel: string = resolveMessage("booking.allDay");
+  const timeSelectPlaceholder: string = resolveMessage("booking.selectTimePlaceholder");
+  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
+  const cancelButtonLabel: string = resolveMessage("booking.cancelButton");
+  const cancelConfirmMessage: string = resolveMessage("booking.cancelConfirmMessage");
+  const cancelConfirmNoLabel: string = resolveMessage("booking.cancelConfirmNo");
+  const cancelConfirmYesLabel: string = resolveMessage("booking.cancelConfirmYes");
+  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
+  const facilityNameLabel: string = resolveMessage("top.facilityName.parking");
+  const vehicleNumberLabel: string = resolveMessage("labels.vehicle_number");
+  const vehicleModelLabel: string = resolveMessage("labels.vehicle_model");
 
   const isValidTime = (value: string | null | undefined): value is string =>
     !!value && /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);

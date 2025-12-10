@@ -11,7 +11,6 @@ export interface FacilityCompletePageProps {
 
 const FacilityCompletePage: React.FC<FacilityCompletePageProps> = ({ tenantId }) => {
   const { currentLocale } = useI18n();
-  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -59,28 +58,17 @@ const FacilityCompletePage: React.FC<FacilityCompletePageProps> = ({ tenantId })
     };
   }, [tenantId, currentLocale]);
 
-  const confirmTexts = facilityTranslations?.confirm ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const completeTitleBase: string =
-    (confirmTexts.completeTitle as string | undefined) ?? "予約が完了しました";
-  const completeTitle: string = resolveMessage("confirm.completeTitle", completeTitleBase);
-
-  const completeBodyBase: string =
-    (confirmTexts.completeBody as string | undefined) ??
-    "予約内容は施設予約トップやマイページからご確認いただけます。";
-  const completeBody: string = resolveMessage("confirm.completeBody", completeBodyBase);
-
-  const backLabelBase: string =
-    (confirmTexts.completeBackButton as string | undefined) ?? "施設予約トップへ";
-  const backLabel: string = resolveMessage("confirm.completeBackButton", backLabelBase);
+  const completeTitle: string = resolveMessage("confirm.completeTitle");
+  const completeBody: string = resolveMessage("confirm.completeBody");
+  const backLabel: string = resolveMessage("confirm.completeBackButton");
 
   return (
     <>

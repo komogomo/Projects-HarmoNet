@@ -25,7 +25,6 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
   tenantId,
 }) => {
   const { currentLocale } = useI18n();
-  const facilityTranslations: any | null = null;
   const [messages, setMessages] = React.useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -73,27 +72,18 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
     };
   }, [tenantId, currentLocale]);
 
-  const legendTexts = facilityTranslations?.booking?.legend ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const legendAvailableBase: string = (legendTexts.available as string | undefined) ?? "空き";
-  const legendAvailable: string = resolveMessage("booking.legend.available", legendAvailableBase);
-
-  const legendSelectedBase: string = (legendTexts.selected as string | undefined) ?? "選択中";
-  const legendSelected: string = resolveMessage("booking.legend.selected", legendSelectedBase);
-
-  const legendBookedBase: string = (legendTexts.booked as string | undefined) ?? "予約済";
-  const legendBooked: string = resolveMessage("booking.legend.booked", legendBookedBase);
-
-  const legendMyBase: string = (legendTexts.my as string | undefined) ?? "自己予約済";
-  const legendMy: string = resolveMessage("booking.legend.my", legendMyBase);
+  const legendAvailable: string = resolveMessage("booking.legend.available");
+  const legendSelected: string = resolveMessage("booking.legend.selected");
+  const legendBooked: string = resolveMessage("booking.legend.booked");
+  const legendMy: string = resolveMessage("booking.legend.my");
 
   const handleClick = (slot: ParkingSlot) => {
     if (slot.state === "booked") return;

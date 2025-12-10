@@ -29,7 +29,6 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
 }) => {
   const { currentLocale } = useI18n();
   const router = useRouter();
-  const facilityTranslations: any | null = null;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
@@ -79,7 +78,7 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
     };
   }, [tenantId, currentLocale]);
 
-  // 予約日表示をロケールに合わせて整形（曜日ラベルは facility.json の weekdays を利用）
+  // 予約日表示は数値日付のみ整形し、翻訳済みの曜日ラベルには依存しない
   const localizedDisplayDate: string = React.useMemo(() => {
     if (!date) return displayDate;
 
@@ -87,97 +86,29 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
     if (parts.length !== 3) return displayDate;
 
     const [year, month, day] = parts;
-    const y = Number(year);
-    const m = Number(month);
-    const d = Number(day);
-
-    const dt = new Date(y, m - 1, d);
-    if (Number.isNaN(dt.getTime())) return displayDate;
-
     const mm = month.padStart(2, "0");
     const dd = day.padStart(2, "0");
 
-    const weekdaysMap = (facilityTranslations?.top?.weekdays ?? null) as
-      | Record<string, string>
-      | null;
-
-    let w = "";
-    if (weekdaysMap) {
-      const weekdayKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-      const idx = dt.getDay();
-      const key = weekdayKeys[idx];
-      const value = weekdaysMap[key];
-      if (typeof value === "string") {
-        w = value;
-      }
-    }
-
-    if (currentLocale === "ja") {
-      // 日本語は従来どおり「YYYY/MM/DD（木）」形式
-      return `${year}/${mm}/${dd}${w ? `（${w}）` : ""}`;
-    }
-
-    // それ以外は "YYYY/MM/DD (Thu.)" のように括弧付きで表示
-    if (w) {
-      return `${year}/${mm}/${dd} (${w})`;
-    }
-
     return `${year}/${mm}/${dd}`;
-  }, [date, displayDate, facilityTranslations, currentLocale]);
+  }, [date, displayDate]);
 
-  const topTexts = facilityTranslations?.top ?? {};
-  const confirmTexts = facilityTranslations?.confirm ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const facilityNameLabelBase: string =
-    (topTexts.facilityName?.room as string | undefined) ?? facilityName;
-  const facilityNameLabel: string = resolveMessage(
-    "top.facilityName.room",
-    facilityNameLabelBase,
-  );
-
-  const headingBase: string = (confirmTexts.heading as string | undefined) ?? "ご予約内容";
-  const heading: string = resolveMessage("confirm.heading", headingBase);
-
-  const dateLabelBase: string = (confirmTexts.dateLabel as string | undefined) ?? "予約日";
-  const dateLabel: string = resolveMessage("confirm.dateLabel", dateLabelBase);
-
-  const timeLabelBase: string = (confirmTexts.timeLabel as string | undefined) ?? "予約時間";
-  const timeLabel: string = resolveMessage("confirm.timeLabel", timeLabelBase);
-
-  const participantsLabelBase: string =
-    (confirmTexts.participantsLabel as string | undefined) ?? "参加人数";
-  const participantsLabel: string = resolveMessage(
-    "confirm.participantsLabel",
-    participantsLabelBase,
-  );
-
-  const purposeLabelBase: string =
-    (confirmTexts.purposeLabel as string | undefined) ?? "利用目的";
-  const purposeLabel: string = resolveMessage("confirm.purposeLabel", purposeLabelBase);
-
-  const executeNoticeBase: string =
-    (confirmTexts.executeNotice as string | undefined) ??
-    "上記の内容で予約します。よろしければ「予約」ボタンをタップしてください。";
-  const executeNotice: string = resolveMessage("confirm.executeNotice", executeNoticeBase);
-
-  const submitLabelBase: string = (confirmTexts.submitButton as string | undefined) ?? "予約";
-  const submitLabel: string = resolveMessage("confirm.submitButton", submitLabelBase);
-
-  const errorMessageTextBase: string =
-    (confirmTexts.errorMessage as string | undefined) ??
-    "エラーが発生しました。時間をおいて再度お試しください。";
-  const errorMessageText: string = resolveMessage(
-    "confirm.errorMessage",
-    errorMessageTextBase,
-  );
+  const facilityNameLabel: string = resolveMessage("top.facilityName.room");
+  const heading: string = resolveMessage("confirm.heading");
+  const dateLabel: string = resolveMessage("confirm.dateLabel");
+  const timeLabel: string = resolveMessage("confirm.timeLabel");
+  const participantsLabel: string = resolveMessage("confirm.participantsLabel");
+  const purposeLabel: string = resolveMessage("confirm.purposeLabel");
+  const executeNotice: string = resolveMessage("confirm.executeNotice");
+  const submitLabel: string = resolveMessage("confirm.submitButton");
+  const errorMessageText: string = resolveMessage("confirm.errorMessage");
 
   const handleSubmit = async () => {
     if (isSubmitting) return;

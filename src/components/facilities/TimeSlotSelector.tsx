@@ -61,7 +61,6 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   const { currentLocale } = useI18n();
   const [rangeStartIndex, setRangeStartIndex] = useState<number | null>(null);
   const [rangeEndIndex, setRangeEndIndex] = useState<number | null>(null);
-  const facilityTranslations: any | null = null;
   const [messages, setMessages] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -118,27 +117,18 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     });
   }, [availableFromTime, availableToTime]);
 
-  const legendTexts = facilityTranslations?.booking?.legend ?? {};
-
-  const resolveMessage = (key: string, fallback: string): string => {
+  const resolveMessage = (key: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback;
+    return "";
   };
 
-  const legendSelectedBase: string = (legendTexts.selected as string | undefined) ?? "選択中";
-  const legendSelected: string = resolveMessage("booking.legend.selected", legendSelectedBase);
-
-  const legendBookedBase: string = (legendTexts.booked as string | undefined) ?? "予約済";
-  const legendBooked: string = resolveMessage("booking.legend.booked", legendBookedBase);
-
-  const legendAvailableBase: string = (legendTexts.available as string | undefined) ?? "予約可能";
-  const legendAvailable: string = resolveMessage("booking.legend.available", legendAvailableBase);
-
-  const legendMyBase: string = (legendTexts.my as string | undefined) ?? "自予約済";
-  const legendMy: string = resolveMessage("booking.legend.my", legendMyBase);
+  const legendSelected: string = resolveMessage("booking.legend.selected");
+  const legendBooked: string = resolveMessage("booking.legend.booked");
+  const legendAvailable: string = resolveMessage("booking.legend.available");
+  const legendMy: string = resolveMessage("booking.legend.my");
 
   const handleToggle = (slot: Slot, index: number) => {
     if (slot.state === "booked" || slot.state === "blocked") {
