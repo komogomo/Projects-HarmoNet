@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/src/lib/supabaseServerClient';
-import { logError } from '@/src/lib/logging/log.util';
+import { logError, logInfo } from '@/src/lib/logging/log.util';
 import { prisma } from '@/src/server/db/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,18 @@ export async function GET(req: Request) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user || !user.email) {
+    const isSessionMissingError =
+      !!authError && authError.message === 'Auth session missing!';
+
+    if (authError && !isSessionMissingError) {
       logError('board.notifications.api.auth_error', {
+        reason: authError.message,
+      });
+      return NextResponse.json({ hasUnread: false }, { status: 401 });
+    }
+
+    if (!user || !user.email || isSessionMissingError) {
+      logInfo('board.notifications.api.auth_error', {
         reason: authError?.message ?? 'no_session',
       });
       return NextResponse.json({ hasUnread: false }, { status: 401 });

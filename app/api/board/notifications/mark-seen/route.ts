@@ -14,8 +14,18 @@ export async function POST(req: Request) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user || !user.email) {
+    const isSessionMissingError =
+      !!authError && authError.message === 'Auth session missing!';
+
+    if (authError && !isSessionMissingError) {
       logError('board.notifications.api.auth_error', {
+        reason: authError.message,
+      });
+      return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
+    }
+
+    if (!user || !user.email || isSessionMissingError) {
+      logInfo('board.notifications.api.auth_error', {
         reason: authError?.message ?? 'no_session',
       });
       return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
