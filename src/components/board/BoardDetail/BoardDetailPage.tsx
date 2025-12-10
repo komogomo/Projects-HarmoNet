@@ -253,7 +253,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return key;
+    return "";
   };
 
   // 通知の既読更新: 詳細画面（特定の投稿）を開いた時点で mark-seen API を呼び出す

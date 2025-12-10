@@ -98,7 +98,7 @@ export const HomeFooterShortcuts: React.FC<HomeFooterShortcutsProps> = ({
     if (typeof value === "string" && value.trim().length > 0) {
       return value;
     }
-    return key;
+    return "";
   };
 
   const handleClick = async (item: ShortcutItem) => {

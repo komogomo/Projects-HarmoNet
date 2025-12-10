@@ -109,7 +109,7 @@ const BoardPostForm: React.FC<BoardPostFormProps> = ({
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return key;
+    return "";
   };
 
   const getCategoryLabel = (category: BoardCategoryOption): string => {

@@ -55,7 +55,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     if (typeof value === "string" && value.trim().length > 0) {
       return value;
     }
-    return key;
+    return "";
   };
 
   useEffect(() => {

@@ -218,13 +218,16 @@ export const SysAdminTenantsConsole: React.FC<SysAdminTenantsConsoleProps> = ({
     adminLastNameKana.trim().length > 0 &&
     adminFirstNameKana.trim().length > 0;
 
-  const resolveMessage = (key: string, _fallback?: string): string => {
+  const resolveMessage = (key: string, fallback?: string): string => {
     const fromDb = messages[key];
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
     // 静的翻訳に存在しないキーは、そのままキーを表示してマスタ不備を見える化する
-    return key;
+    if (typeof fallback === 'string' && fallback.length > 0) {
+      return fallback;
+    }
+    return '';
   };
 
   const handleSelectTenant = (tenant: TenantListItem) => {

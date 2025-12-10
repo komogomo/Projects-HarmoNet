@@ -47,7 +47,7 @@ export const SysAdminFooterLogout: React.FC = () => {
     if (typeof value === "string" && value.trim().length > 0) {
       return value;
     }
-    return key;
+    return "";
   };
 
   const handleLogout = async () => {

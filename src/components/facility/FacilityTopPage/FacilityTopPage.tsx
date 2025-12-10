@@ -106,7 +106,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   usageNotes,
   maxReservableDays,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t: tf, currentLocale } = useI18n();
   const router = useRouter();
 
   const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
@@ -181,8 +181,8 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   const [daySummaries, setDaySummaries] = useState<Record<string, CalendarDaySummary>>({});
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
 
-  const tf = useCallback(
-    (key: string) => {
+  const resolveMessage = useCallback(
+    (key: string): string => {
       const fromDb = messages[key];
       if (typeof fromDb === "string" && fromDb.trim().length > 0) {
         return fromDb;
@@ -193,7 +193,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
         return fromJson;
       }
 
-      return key;
+      return '';
     },
     [messages, facilityTranslations],
   );

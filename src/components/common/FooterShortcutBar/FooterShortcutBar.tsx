@@ -66,7 +66,7 @@ export const FooterShortcutBar: React.FC<FooterShortcutBarProps> = ({ role, clas
     if (typeof value === 'string' && value.trim().length > 0) {
       return value;
     }
-    return key;
+    return '';
   };
 
   const items = useMemo(() => ROLE_ITEMS[role], [role]);

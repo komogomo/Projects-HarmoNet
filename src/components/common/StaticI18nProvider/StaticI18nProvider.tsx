@@ -99,15 +99,15 @@ export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({ children
 
       if (!hasLoadedDictionary) {
         // 初回ロード中は警告を出さずにキーをそのまま返す。
-        return key;
+        return '';
       }
 
       const value = resolveKey(translations, key);
-      if (typeof value === 'string') {
+      if (typeof value === 'string' && value.trim().length > 0) {
         return value;
       }
       console.warn('[i18n] Missing key:', key);
-      return key;
+      return '';
     },
     [translations],
   );

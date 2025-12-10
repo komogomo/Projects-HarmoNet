@@ -105,7 +105,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
       return fromDb;
     }
     // common.json はフォールバックに使わず、キー文字列をそのまま返す
-    return key;
+    return '';
   };
 
   // Filter tiles based on role / availability

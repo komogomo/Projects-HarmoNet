@@ -294,7 +294,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     if (typeof fromDb === "string" && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return key;
+    return "";
   };
 
   useEffect(() => {

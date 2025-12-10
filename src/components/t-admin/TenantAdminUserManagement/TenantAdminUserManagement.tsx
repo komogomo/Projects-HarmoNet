@@ -201,13 +201,16 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return () => clearTimeout(timer);
     }, [formData.email, editingId, initialFormData]);
 
-    const resolveMessage = (key: string, _fallback?: string): string => {
+    const resolveMessage = (key: string, fallback?: string): string => {
         const fromDb = messages[key];
         if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
             return fromDb;
         }
         // テナント静的翻訳に存在しないキーは、そのままキーを表示してマスタ不備を見える化する
-        return key;
+        if (typeof fallback === 'string' && fallback.length > 0) {
+            return fallback;
+        }
+        return '';
     };
 
     const handleSubmit = async (e: React.FormEvent | React.MouseEvent, mode: 'create' | 'update' = 'create') => {
@@ -440,6 +443,12 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const allRoleKeys: string[] = ['general_user', 'tenant_admin', 'group_leader'];
 
+    const roleLabelFromKey = (key: string): string => {
+        if (key === 'tenant_admin') return roleTenantAdminLabel;
+        if (key === 'group_leader') return roleGroupLeaderLabel;
+        return roleGeneralUserLabel;
+    };
+
     const availableRoleKeys = allRoleKeys.filter((key) => !formData.roleKeys.includes(key));
 
     const assignedRoleKeysForDisplay =
@@ -452,12 +461,6 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const assignedRoleSummary = assignedRoleKeysForDisplay
         .map((key) => roleLabelFromKey(key))
         .join(' / ');
-
-    const roleLabelFromKey = (key: string): string => {
-        if (key === 'tenant_admin') return roleTenantAdminLabel;
-        if (key === 'group_leader') return roleGroupLeaderLabel;
-        return roleGeneralUserLabel;
-    };
 
     const handleAssignSelectedRoles = () => {
         setFormData((prev) => {
