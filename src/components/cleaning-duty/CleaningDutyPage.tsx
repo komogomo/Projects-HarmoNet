@@ -688,13 +688,13 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse">
+                  <table className="w-full min-w-[560px] border-collapse table-auto">
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50">
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                        <th className="w-12 px-2 py-2 text-center text-xs font-semibold text-gray-700">
                           {resolveMessage('cleaningDuty.table.result')}
                         </th>
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700">
                           {resolveMessage('cleaningDuty.table.cleanedOn')}
                         </th>
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
@@ -703,7 +703,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                         <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">
                           {resolveMessage('cleaningDuty.table.assignee')}
                         </th>
-                        <th className="pl-1 pr-0 py-2 text-center text-xs font-semibold text-gray-700">
+                        <th className="w-20 px-2 py-2 text-center text-xs font-semibold text-gray-700">
                           {resolveMessage('cleaningDuty.table.actions')}
                         </th>
                       </tr>
@@ -731,11 +731,11 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                 key={`blank-initial-${index}`}
                                 className="border-b border-gray-100"
                               >
+                                <td className="w-12 px-2 py-2 text-center text-xs text-gray-900" />
+                                <td className="px-2 py-2 text-center text-xs text-gray-900" />
                                 <td className="px-3 py-2 text-center text-xs text-gray-900" />
                                 <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="pl-1 pr-0 py-2 text-right text-xs text-gray-900">
+                                <td className="w-20 px-2 py-2 text-center text-xs text-gray-900">
                                   {canEditBlankRow ? (
                                     isCreatingNewDuty ? (
                                       <select
@@ -793,7 +793,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                 key={row.id}
                                 className="border-b border-gray-100 hover:bg-gray-50"
                               >
-                                <td className="pl-1 pr-0 py-2 text-right text-xs text-gray-900">
+                                <td className="w-12 px-2 py-2 text-center text-xs text-gray-900">
                                   <input
                                     type="checkbox"
                                     checked={row.isDone}
@@ -804,7 +804,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                                   />
                                 </td>
-                                <td className="px-3 py-2 text-center text-xs text-gray-900">
+                                <td className="px-2 py-2 text-center text-xs text-gray-900">
                                   {formatDate(row.cleanedOn)}
                                 </td>
                                 <td className="px-3 py-2 text-center text-xs text-gray-900">
@@ -813,7 +813,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                 <td className="px-3 py-2 text-center text-xs text-gray-900">
                                   {assigneeNameById[row.assigneeId] ?? row.assigneeId}
                                 </td>
-                                <td className="pl-1 pr-0 py-2 text-right text-xs text-gray-900">
+                                <td className="w-20 px-2 py-2 text-center text-xs text-gray-900">
                                   {isGroupLeader && !isCompleted ? (
                                     editingDutyId === row.id ? (
                                       <select
@@ -871,11 +871,11 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                 key={`blank-${index}`}
                                 className="border-b border-gray-100"
                               >
+                                <td className="w-12 px-2 py-2 text-center text-xs text-gray-900" />
+                                <td className="px-2 py-2 text-center text-xs text-gray-900" />
                                 <td className="px-3 py-2 text-center text-xs text-gray-900" />
                                 <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="px-3 py-2 text-center text-xs text-gray-900" />
-                                <td className="pl-1 pr-0 py-2 text-right text-xs text-gray-900">
+                                <td className="px-2 py-2 text-center text-xs text-gray-900">
                                   {canEditBlankRow ? (
                                     isCreatingNewDuty ? (
                                       <select
@@ -921,24 +921,25 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
               </>
             )}
 
-            <div className="mt-4 flex items-center justify-between">
-              <div>
+            <div className="mt-4 flex items-center">
+              <div className="w-12 px-2 text-center">
                 <button
                   type="button"
                   onClick={() => {
                     void handleOpenHistory();
                   }}
-                  className="rounded-md border-2 border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-md border-2 border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
                 >
                   {resolveMessage('cleaningDuty.actions.history')}
                 </button>
               </div>
-              <div>
+              <div className="flex-1" />
+              <div className="w-20 px-2 text-center">
                 {isGroupLeader && (
                   <button
                     type="button"
                     onClick={handleOpenCompleteDialog}
-                    className="rounded-md border-2 border-blue-400 bg-white px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-md border-2 border-blue-400 bg-white px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap"
                     disabled={
                       isLoading
                       || isCompleting
