@@ -16,7 +16,10 @@ export default async function HomePage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError) {
+  const isSessionMissingError =
+    !!authError && authError.message === 'Auth session missing!';
+
+  if (authError && !isSessionMissingError) {
     logError('auth.callback.no_session', {
       reason: authError.message,
       screen: 'Home',
@@ -24,9 +27,9 @@ export default async function HomePage() {
     redirect('/login?error=no_session');
   }
 
-  if (!user || !user.email) {
+  if (!user || !user.email || isSessionMissingError) {
     logInfo('auth.callback.no_session', {
-      reason: 'no_session',
+      reason: authError?.message ?? 'no_session',
       screen: 'Home',
     });
     redirect('/login?error=no_session');
