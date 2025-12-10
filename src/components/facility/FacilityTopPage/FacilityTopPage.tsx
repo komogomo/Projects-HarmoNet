@@ -325,7 +325,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
     if (!selectedFacility) return base;
 
     if (selectedFacility.type === "parking") {
-      const note = tf("top.parkingTermsNote");
+      const note = resolveMessage("top.parkingTermsNote");
 
       if (!base) {
         return note;
@@ -335,7 +335,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
     }
 
     return base;
-  }, [usageText, selectedFacility, tf]);
+  }, [usageText, selectedFacility, resolveMessage]);
 
   const hasTranslation = useMemo(() => {
     if (!selectedFacility) return false;
@@ -500,7 +500,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <section className="flex-1 flex items-center justify-center">
               <p className="text-sm text-gray-600">
-                {tf("top.noFacilities")}
+                {resolveMessage("top.noFacilities")}
               </p>
             </section>
           </div>
@@ -543,7 +543,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
 
               <div className="rounded-lg border-2 border-gray-200 bg-white p-3">
                 <label className="block text-[11px] text-gray-600 mb-1">
-                  {tf("top.selectFacility")}
+                  {resolveMessage("top.selectFacility")}
                 </label>
                 <div className="relative">
                   <select
@@ -588,12 +588,13 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                         disabled={hasTranslation}
                         className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-[11px] disabled:opacity-60 ${hasTranslation
                           ? "border-gray-200 bg-gray-100 text-gray-400"
-                          : "border-blue-200 text-blue-600 hover:bg-blue-50"}
+                          : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                        }
                         `}
                       >
                         <Languages className="h-4 w-4" aria-hidden="true" />
                         <span>
-                          {tf("top.translateButton")}
+                          {resolveMessage("top.translateButton")}
                         </span>
                       </button>
                     </div>
@@ -609,7 +610,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-sm text-gray-600">
-                  {tf("top.calendarTitle")}
+                  {resolveMessage("top.calendarTitle")}
                 </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   {(() => {
@@ -628,7 +629,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                           }}
                           disabled={isPrevDisabled}
                           className="inline-flex items-center justify-center rounded-md border-2 border-gray-200 bg-white p-1 text-[11px] text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label={tf("top.prevMonth")}
+                          aria-label={resolveMessage("top.prevMonth")}
                         >
                           <ChevronLeft
                             className="h-4 w-4 text-blue-600"
@@ -643,7 +644,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                           type="button"
                           onClick={handleNextMonth}
                           className="inline-flex items-center justify-center rounded-md border-2 border-gray-200 bg-white p-1 text-[11px] text-gray-600 hover:bg-gray-50"
-                          aria-label={tf("top.nextMonth")}
+                          aria-label={resolveMessage("top.nextMonth")}
                         >
                           <ChevronRight
                             className="h-4 w-4 text-blue-600"
@@ -659,13 +660,13 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
 
               <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-600">
                 <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-gray-600 mb-1">
-                  <span>{tf("top.weekdays.sun")}</span>
-                  <span>{tf("top.weekdays.mon")}</span>
-                  <span>{tf("top.weekdays.tue")}</span>
-                  <span>{tf("top.weekdays.wed")}</span>
-                  <span>{tf("top.weekdays.thu")}</span>
-                  <span>{tf("top.weekdays.fri")}</span>
-                  <span>{tf("top.weekdays.sat")}</span>
+                  <span>{resolveMessage("top.weekdays.sun")}</span>
+                  <span>{resolveMessage("top.weekdays.mon")}</span>
+                  <span>{resolveMessage("top.weekdays.tue")}</span>
+                  <span>{resolveMessage("top.weekdays.wed")}</span>
+                  <span>{resolveMessage("top.weekdays.thu")}</span>
+                  <span>{resolveMessage("top.weekdays.fri")}</span>
+                  <span>{resolveMessage("top.weekdays.sat")}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {daysInMonth.map((cell, index) => {
@@ -772,19 +773,19 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                 <div className="mt-3 flex flex-wrap justify-center gap-4 text-[12px] text-gray-600">
                   <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-4 w-4 rounded-sm border-2 border-blue-500 bg-blue-50" />
-                    <span>{tf("top.legend.today")}</span>
+                    <span>{resolveMessage("top.legend.today")}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-4 w-4 rounded-sm border-2 border-gray-400 bg-gray-300" />
-                    <span>{tf("top.legend.unavailable")}</span>
+                    <span>{resolveMessage("top.legend.unavailable")}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-4 w-4 rounded-sm border-2 border-blue-200 bg-white" />
-                    <span>{tf("top.legend.available")}</span>
+                    <span>{resolveMessage("top.legend.available")}</span>
                   </div>
                   <div className="inline-flex items-center gap-2">
                     <span className="inline-flex h-4 w-4 rounded-sm border-2 border-blue-500 bg-gray-300" />
-                    <span>{tf("top.legend.mine")}</span>
+                    <span>{resolveMessage("top.legend.mine")}</span>
                   </div>
                 </div>
               </div>
@@ -794,12 +795,12 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                   <div className="flex-1 text-left">
                     {showRangeTooLongError && (
                       <p className="text-xs text-red-600">
-                        {tf("top.parkingRangeTooLong")}
+                        {resolveMessage("top.parkingRangeTooLong")}
                       </p>
                     )}
                     {!showRangeTooLongError && showRangeError && (
                       <p className="text-xs text-red-600">
-                        {tf("top.parkingRangeNotAvailable")}
+                        {resolveMessage("top.parkingRangeNotAvailable")}
                       </p>
                     )}
                   </div>
@@ -851,7 +852,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                     }}
                     className="inline-flex items-center whitespace-nowrap rounded-md border-2 border-blue-600 bg-white px-4 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
                   >
-                    {tf("top.viewReservationDetail")}
+                    {resolveMessage("top.viewReservationDetail")}
                   </button>
                     );
                   })()}
