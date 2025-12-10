@@ -68,12 +68,22 @@ export async function updateSession(request: NextRequest, response: NextResponse
   }
 
   if (isTenantAdminPath) {
-    if (authError || !user) {
+    const isSessionMissingError =
+      !!authError && authError.message === 'Auth session missing!';
+
+    if (authError && !isSessionMissingError) {
+      // 予期せぬ認証エラーのみ ERROR としてログに残す
       logError('t-admin.middleware.no_session', {
-        reason: authError?.message ?? 'no_session',
+        reason: authError.message,
         path,
       });
 
+      const loginUrl = new URL('/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (!user || isSessionMissingError) {
+      // 単なる未ログインや Auth session missing! は想定内のためログを出さずに /login へ
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     }

@@ -25,9 +25,7 @@ export async function POST(req: Request) {
     }
 
     if (!user || !user.email || isSessionMissingError) {
-      logInfo('board.notifications.api.auth_error', {
-        reason: authError?.message ?? 'no_session',
-      });
+      // 単なる未ログインアクセスは想定内の 401 のため、ログは出さない
       return NextResponse.json({ errorCode: 'auth_error' }, { status: 401 });
     }
 
