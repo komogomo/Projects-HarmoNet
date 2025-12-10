@@ -699,7 +699,20 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         {resolveMessage('tadmin.users.form.role.available', '未割り当て')}
                                     </div>
                                     <p className="mb-1 text-[11px] text-gray-500">
-                                        {availableRoleSummary || '-'}
+                                        {availableRoleKeys.length > 0 ? (
+                                            <span className="flex flex-wrap gap-1">
+                                                {availableRoleKeys.map((key) => (
+                                                    <span
+                                                        key={key}
+                                                        className="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5"
+                                                    >
+                                                        {roleLabelFromKey(key)}
+                                                    </span>
+                                                ))}
+                                            </span>
+                                        ) : (
+                                            '-'
+                                        )}
                                     </p>
                                     <select
                                         multiple
@@ -755,7 +768,20 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         {resolveMessage('tadmin.users.form.role.assigned', '割り当て済み')}
                                     </div>
                                     <p className="mb-1 text-[11px] text-gray-500">
-                                        {assignedRoleSummary || '-'}
+                                        {assignedRoleKeysForDisplay.length > 0 ? (
+                                            <span className="flex flex-wrap gap-1">
+                                                {assignedRoleKeysForDisplay.map((key) => (
+                                                    <span
+                                                        key={key}
+                                                        className="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5"
+                                                    >
+                                                        {roleLabelFromKey(key)}
+                                                    </span>
+                                                ))}
+                                            </span>
+                                        ) : (
+                                            '-'
+                                        )}
                                     </p>
                                     <select
                                         multiple

@@ -201,14 +201,14 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   const getFacilityDisplayName = useCallback(
     (facility: FacilitySummary): string => {
       if (facility.type === "room") {
-        return tf("top.facilityName.room");
+        return resolveMessage("top.facilityName.room");
       }
       if (facility.type === "parking") {
-        return tf("top.facilityName.parking");
+        return resolveMessage("top.facilityName.parking");
       }
       return facility.name;
     },
-    [tf],
+    [resolveMessage],
   );
 
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(
