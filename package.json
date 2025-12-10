@@ -12,6 +12,9 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@corbado/web-js": "^3.1.1",
     "@google-cloud/text-to-speech": "^6.4.0",

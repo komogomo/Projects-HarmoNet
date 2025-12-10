@@ -1,7 +1,7 @@
 import React from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
-import { logError } from "@/src/lib/logging/log.util";
+import { logError, logInfo } from "@/src/lib/logging/log.util";
 import FacilityCompletePage from "@/src/components/facilities/FacilityCompletePage";
 
 export default async function FacilitiesCompleteRoutePage() {
@@ -12,9 +12,17 @@ export default async function FacilitiesCompleteRoutePage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user || !user.email) {
+  if (authError) {
     logError("auth.callback.no_session", {
-      reason: authError?.message ?? "no_session",
+      reason: authError.message,
+      screen: "FacilityComplete",
+    });
+    redirect("/login?error=no_session");
+  }
+
+  if (!user || !user.email) {
+    logInfo("auth.callback.no_session", {
+      reason: "no_session",
       screen: "FacilityComplete",
     });
     redirect("/login?error=no_session");

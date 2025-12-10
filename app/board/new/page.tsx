@@ -28,9 +28,17 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user || !user.email) {
+  if (authError) {
     logError("auth.callback.no_session", {
-      reason: authError?.message ?? "no_session",
+      reason: authError.message,
+      screen: "BoardNew",
+    });
+    redirect("/login?error=no_session");
+  }
+
+  if (!user || !user.email) {
+    logInfo("auth.callback.no_session", {
+      reason: "no_session",
       screen: "BoardNew",
     });
     redirect("/login?error=no_session");

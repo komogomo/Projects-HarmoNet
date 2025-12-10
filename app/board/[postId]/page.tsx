@@ -27,9 +27,17 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user || !user.email) {
+  if (authError) {
     logError("auth.callback.no_session", {
-      reason: authError?.message ?? "no_session",
+      reason: authError.message,
+      screen: "BoardDetail",
+    });
+    redirect("/login?error=no_session");
+  }
+
+  if (!user || !user.email) {
+    logInfo("auth.callback.no_session", {
+      reason: "no_session",
       screen: "BoardDetail",
     });
     redirect("/login?error=no_session");
