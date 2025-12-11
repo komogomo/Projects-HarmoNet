@@ -129,6 +129,7 @@ model tenants {
   // Relations
   tenant_settings            tenant_settings[]
   tenant_shortcut_menu       tenant_shortcut_menu[]
+  tenant_groups              tenant_groups[]
   users                      users[] // for nullable tenant_id
   user_tenants               user_tenants[]
   user_roles                 user_roles[]
@@ -161,6 +162,20 @@ model tenant_settings {
 
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
+  @@index([tenant_id])
+}
+
+/// テナント別グループIDマスタ
+model tenant_groups {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  group_code String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, group_code])
   @@index([tenant_id])
 }
 

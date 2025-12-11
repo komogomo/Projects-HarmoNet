@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronsUpDown, TriangleAlert } from 'lucide-react';
 import { useI18n } from '@/src/components/common/StaticI18nProvider';
 import type { TenantAdminUserManagementProps, UserListItem, UserFormData } from './TenantAdminUserManagement.types';
@@ -12,6 +12,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [messages, setMessages] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [groupOptions, setGroupOptions] = useState<string[]>([]);
 
     const [formData, setFormData] = useState<UserFormData>({
         email: '',
@@ -45,6 +46,42 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     useEffect(() => {
         loadUsers();
+    }, []);
+
+    useEffect(() => {
+        const loadGroups = async () => {
+            try {
+                const res = await fetch('/api/t-admin/groups');
+                if (!res.ok) {
+                    setGroupOptions([]);
+                    return;
+                }
+
+                const data = (await res.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    items?: { groupCode?: string | null }[];
+                };
+
+                if (!data.ok || !Array.isArray(data.items)) {
+                    setGroupOptions([]);
+                    return;
+                }
+
+                const codes = Array.from(
+                    new Set(
+                        data.items
+                            .map((item) => (typeof item.groupCode === 'string' ? item.groupCode : ''))
+                            .filter((code) => code && code.trim().length > 0),
+                    ),
+                ).sort();
+
+                setGroupOptions(codes);
+            } catch {
+                setGroupOptions([]);
+            }
+        };
+
+        void loadGroups();
     }, []);
 
     useEffect(() => {
@@ -201,14 +238,10 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return () => clearTimeout(timer);
     }, [formData.email, editingId, initialFormData]);
 
-    const resolveMessage = (key: string, fallback?: string): string => {
+    const resolveMessage = (key: string): string => {
         const fromDb = messages[key];
-        if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
-            return fromDb;
-        }
-        // テナント静的翻訳に存在しないキーは、そのままキーを表示してマスタ不備を見える化する
-        if (typeof fallback === 'string' && fallback.length > 0) {
-            return fallback;
+        if (typeof fromDb === 'string' && fromDb.trim().length > 0 && fromDb.trim() !== key) {
+            return fromDb.trim();
         }
         return '';
     };
@@ -427,21 +460,29 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         </button>
     );
 
-    const emailLabel = resolveMessage('tadmin.users.form.email.label', 'メールアドレス');
-    const displayNameLabel = resolveMessage('tadmin.users.form.displayName.label', 'ニックネーム');
-    const lastNameLabel = resolveMessage('tadmin.users.form.lastName.label', '性');
-    const firstNameLabel = resolveMessage('tadmin.users.form.firstName.label', '名');
-    const lastNameKanaLabel = resolveMessage('tadmin.users.form.lastNameKana.label', '性：ふりがな');
-    const firstNameKanaLabel = resolveMessage('tadmin.users.form.firstNameKana.label', '名：ふりがな');
-    const groupCodeLabel = resolveMessage('tadmin.users.form.groupCode.label', 'グループID');
-    const residenceCodeLabel = resolveMessage('tadmin.users.form.residenceCode.label', '住居番号');
-    const roleLabelText = resolveMessage('tadmin.users.form.role.label', 'ロール');
-    const roleGeneralUserLabel = resolveMessage('tadmin.users.form.role.general', '一般ユーザ');
-    const roleTenantAdminLabel = resolveMessage('tadmin.users.form.role.tenantAdmin', 'テナント管理者');
-    const roleGroupLeaderLabel = resolveMessage('tadmin.users.form.role.groupLeader', '班長');
-    const languageLabel = resolveMessage('tadmin.users.form.language.label', '言語');
+    const emailLabel = resolveMessage('tadmin.users.form.email.label');
+    const displayNameLabel = resolveMessage('tadmin.users.form.displayName.label');
+    const lastNameLabel = resolveMessage('tadmin.users.form.lastName.label');
+    const firstNameLabel = resolveMessage('tadmin.users.form.firstName.label');
+    const lastNameKanaLabel = resolveMessage('tadmin.users.form.lastNameKana.label');
+    const firstNameKanaLabel = resolveMessage('tadmin.users.form.firstNameKana.label');
+    const groupCodeLabel = resolveMessage('tadmin.users.form.groupCode.label');
+    const residenceCodeLabel = resolveMessage('tadmin.users.form.residenceCode.label');
+    const roleLabelText = resolveMessage('tadmin.users.form.role.label');
+    const roleGeneralUserLabel = resolveMessage('tadmin.users.form.role.general');
+    const roleTenantAdminLabel = resolveMessage('tadmin.users.form.role.tenantAdmin');
+    const roleGroupLeaderLabel = resolveMessage('tadmin.users.form.role.groupLeader');
+    const languageLabel = resolveMessage('tadmin.users.form.language.label');
 
     const allRoleKeys: string[] = ['general_user', 'tenant_admin', 'group_leader'];
+
+    const allGroupCodesForSelect = useMemo(() => {
+        const set = new Set(groupOptions);
+        if (formData.groupCode && !set.has(formData.groupCode)) {
+            set.add(formData.groupCode);
+        }
+        return Array.from(set).sort();
+    }, [groupOptions, formData.groupCode]);
 
     const roleLabelFromKey = (key: string): string => {
         if (key === 'tenant_admin') return roleTenantAdminLabel;
@@ -494,40 +535,40 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         setSelectedAssignedRoleKeys([]);
     };
 
-    const saveNewButtonLabel = resolveMessage('tadmin.users.form.saveNew', '新規登録');
-    const cancelButtonLabel = resolveMessage('tadmin.users.form.cancel', 'キャンセル');
-    const submitUpdateButtonLabel = resolveMessage('tadmin.users.form.submit.update', '更新');
-    const submitCreateButtonLabel = resolveMessage('tadmin.users.form.submit.create', 'ユーザ登録');
+    const saveNewButtonLabel = resolveMessage('tadmin.users.form.saveNew');
+    const cancelButtonLabel = resolveMessage('tadmin.users.form.cancel');
+    const submitUpdateButtonLabel = resolveMessage('tadmin.users.form.submit.update');
+    const submitCreateButtonLabel = resolveMessage('tadmin.users.form.submit.create');
 
-    const listTitleLabel = resolveMessage('tadmin.users.list.title', 'ユーザ一覧');
-    const searchPlaceholderLabel = resolveMessage('tadmin.users.search.placeholder', '検索キーワード...');
-    const searchButtonLabel = resolveMessage('tadmin.users.search.button', '検索');
-    const clearButtonLabel = resolveMessage('tadmin.users.search.clear', 'クリア');
-    const loadingLabel = resolveMessage('tadmin.users.list.loading', '読み込み中...');
-    const emptyFilteredLabel = resolveMessage('tadmin.users.list.empty.filtered', '検索条件に一致するユーザは見つかりませんでした。');
-    const emptyNoDataLabel = resolveMessage('tadmin.users.list.empty.noData', 'ユーザが登録されていません。');
+    const listTitleLabel = resolveMessage('tadmin.users.list.title');
+    const searchPlaceholderLabel = resolveMessage('tadmin.users.search.placeholder');
+    const searchButtonLabel = resolveMessage('tadmin.users.search.button');
+    const clearButtonLabel = resolveMessage('tadmin.users.search.clear');
+    const loadingLabel = resolveMessage('tadmin.users.list.loading');
+    const emptyFilteredLabel = resolveMessage('tadmin.users.list.empty.filtered');
+    const emptyNoDataLabel = resolveMessage('tadmin.users.list.empty.noData');
 
-    const tableEmailHeaderLabel = resolveMessage('tadmin.users.table.email', 'メールアドレス');
-    const tableDisplayNameHeaderLabel = resolveMessage('tadmin.users.table.displayName', 'ニックネーム');
-    const tableFullNameHeaderLabel = resolveMessage('tadmin.users.table.fullName', '氏名');
-    const tableFullNameKanaHeaderLabel = resolveMessage('tadmin.users.table.fullNameKana', 'ふりがな');
-    const tableGroupCodeHeaderLabel = resolveMessage('tadmin.users.table.groupCode', 'グループID');
-    const tableResidenceCodeHeaderLabel = resolveMessage('tadmin.users.table.residenceCode', '住居番号');
-    const tableLanguageHeaderLabel = resolveMessage('tadmin.users.table.language', '言語');
-    const tableRoleHeaderLabel = resolveMessage('tadmin.users.table.role', 'ロール');
-    const tableActionsHeaderLabel = resolveMessage('tadmin.users.table.actions', '操作');
+    const tableEmailHeaderLabel = resolveMessage('tadmin.users.table.email');
+    const tableDisplayNameHeaderLabel = resolveMessage('tadmin.users.table.displayName');
+    const tableFullNameHeaderLabel = resolveMessage('tadmin.users.table.fullName');
+    const tableFullNameKanaHeaderLabel = resolveMessage('tadmin.users.table.fullNameKana');
+    const tableGroupCodeHeaderLabel = resolveMessage('tadmin.users.table.groupCode');
+    const tableResidenceCodeHeaderLabel = resolveMessage('tadmin.users.table.residenceCode');
+    const tableLanguageHeaderLabel = resolveMessage('tadmin.users.table.language');
+    const tableRoleHeaderLabel = resolveMessage('tadmin.users.table.role');
+    const tableActionsHeaderLabel = resolveMessage('tadmin.users.table.actions');
 
-    const actionEditLabel = resolveMessage('tadmin.users.actions.edit', '編集');
-    const actionDeleteLabel = resolveMessage('tadmin.users.actions.delete', '削除');
+    const actionEditLabel = resolveMessage('tadmin.users.actions.edit');
+    const actionDeleteLabel = resolveMessage('tadmin.users.actions.delete');
 
-    const paginationPerPageLabel = resolveMessage('tadmin.users.pagination.perPage.label', '表示件数:');
-    const paginationRangeMiddleLabel = resolveMessage('tadmin.users.pagination.range.middle', '件中');
-    const paginationRangeSuffixLabel = resolveMessage('tadmin.users.pagination.range.suffix', '件を表示');
-    const paginationPrevLabel = resolveMessage('tadmin.users.pagination.prev', '前へ');
-    const paginationNextLabel = resolveMessage('tadmin.users.pagination.next', '次へ');
+    const paginationPerPageLabel = resolveMessage('tadmin.users.pagination.perPage.label');
+    const paginationRangeMiddleLabel = resolveMessage('tadmin.users.pagination.range.middle');
+    const paginationRangeSuffixLabel = resolveMessage('tadmin.users.pagination.range.suffix');
+    const paginationPrevLabel = resolveMessage('tadmin.users.pagination.prev');
+    const paginationNextLabel = resolveMessage('tadmin.users.pagination.next');
 
-    const deleteCancelButtonLabel = resolveMessage('tadmin.users.delete.cancel', 'キャンセル');
-    const deleteSubmitButtonLabel = resolveMessage('tadmin.users.delete.submit', '削除');
+    const deleteCancelButtonLabel = resolveMessage('tadmin.users.delete.cancel');
+    const deleteSubmitButtonLabel = resolveMessage('tadmin.users.delete.submit');
     const deleteConfirmMessage = resolveMessage('tadmin.users.delete.confirm');
 
     return (
@@ -679,95 +720,103 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 <label htmlFor="groupCode" className="block text-xs font-medium text-gray-700">
                                     {groupCodeLabel}
                                 </label>
-                                <input
-                                    type="text"
+                                <select
                                     id="groupCode"
                                     value={formData.groupCode}
                                     onChange={(e) => setFormData({ ...formData, groupCode: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
+                                >
+                                    <option value="">
+                                        {resolveMessage('tadmin.users.form.groupCode.none')}
+                                    </option>
+                                    {allGroupCodesForSelect.map((code) => (
+                                        <option key={code} value={code}>
+                                            {code}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700">
-                                {roleLabelText} <span className="text-red-500">*</span>
-                            </label>
-                            <div className="mt-1 flex items-start gap-4">
-                                <div>
-                                    <div className="mb-0 text-[11px] font-semibold text-gray-600">
-                                        {resolveMessage('tadmin.users.form.role.available', '未割り当て')}
-                                    </div>
-                                    <select
-                                        multiple
-                                        className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        value={selectedAvailableRoleKeys}
-                                        onChange={(e) =>
-                                            setSelectedAvailableRoleKeys(
-                                                Array.from(e.target.selectedOptions).map((opt) => opt.value),
-                                            )
-                                        }
-                                    >
-                                        {availableRoleKeys.map((key) => (
-                                            <option key={key} value={key}>
-                                                {roleLabelFromKey(key)}
-                                            </option>
-                                        ))}
-                                    </select>
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr]">
+                            {/* 未割り当てロール一覧 */}
+                            <div>
+                                <div className="mb-0 text-[11px] font-semibold text-gray-600">
+                                    {resolveMessage('tadmin.users.form.role.available')}
                                 </div>
+                                <select
+                                    multiple
+                                    className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    value={selectedAvailableRoleKeys}
+                                    onChange={(e) =>
+                                        setSelectedAvailableRoleKeys(
+                                            Array.from(e.target.selectedOptions).map((opt) => opt.value),
+                                        )
+                                    }
+                                >
+                                    {availableRoleKeys.map((key) => (
+                                        <option key={key} value={key}>
+                                            {roleLabelFromKey(key)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-[11px] text-gray-500">{availableRoleSummary}</p>
+                            </div>
 
-                                <div className="mt-5 flex h-32 flex-col items-center justify-between">
-                                    <button
-                                        type="button"
-                                        onClick={handleAssignSelectedRoles}
-                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        &gt;
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleAssignAllRoles}
-                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        &gt;&gt;
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveSelectedRoles}
-                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        &lt;
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveAllRoles}
-                                        className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        &lt;&lt;
-                                    </button>
-                                </div>
+                            {/* 矢印ボタン */}
+                            <div className="mt-5 flex h-32 flex-col items-center justify-between">
+                                <button
+                                    type="button"
+                                    onClick={handleAssignSelectedRoles}
+                                    className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    &gt;
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAssignAllRoles}
+                                    className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    &gt;&gt;
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveSelectedRoles}
+                                    className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    &lt;
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveAllRoles}
+                                    className="w-12 rounded border border-gray-300 bg-white py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    &lt;&lt;
+                                </button>
+                            </div>
 
-                                <div>
-                                    <div className="mb-0 text-[11px] font-semibold text-gray-600">
-                                        {resolveMessage('tadmin.users.form.role.assigned', '割り当て済み')}
-                                    </div>
-                                    <select
-                                        multiple
-                                        className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                        value={selectedAssignedRoleKeys}
-                                        onChange={(e) =>
-                                            setSelectedAssignedRoleKeys(
-                                                Array.from(e.target.selectedOptions).map((opt) => opt.value),
-                                            )
-                                        }
-                                    >
-                                        {assignedRoleKeysForDisplay.map((key) => (
-                                            <option key={key} value={key}>
-                                                {roleLabelFromKey(key)}
-                                            </option>
-                                        ))}
-                                    </select>
+                            {/* 割り当て済みロール一覧 */}
+                            <div>
+                                <div className="mb-0 text-[11px] font-semibold text-gray-600">
+                                    {resolveMessage('tadmin.users.form.role.assigned')}
                                 </div>
+                                <select
+                                    multiple
+                                    className="h-32 w-full md:w-40 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    value={selectedAssignedRoleKeys}
+                                    onChange={(e) =>
+                                        setSelectedAssignedRoleKeys(
+                                            Array.from(e.target.selectedOptions).map((opt) => opt.value),
+                                        )
+                                    }
+                                >
+                                    {assignedRoleKeysForDisplay.map((key) => (
+                                        <option key={key} value={key}>
+                                            {roleLabelFromKey(key)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-[11px] text-gray-500">{assignedRoleSummary}</p>
                             </div>
                         </div>
 
