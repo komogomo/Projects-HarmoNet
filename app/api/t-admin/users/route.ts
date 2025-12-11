@@ -593,10 +593,36 @@ export async function DELETE(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
-    if (!countError && count === 0) {
+    if (countError) {
+      console.error('user_tenants count error during delete:', countError);
+      return NextResponse.json(
+        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ユーザの削除に失敗しました。' },
+        { status: 500 },
+      );
+    }
+
+    if (count === 0) {
       // Completely remove user - no other tenants
-      await supabaseAdmin.from('users').delete().eq('id', userId);
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      const { error: usersDeleteError } = await supabaseAdmin.from('users').delete().eq('id', userId);
+
+      if (usersDeleteError) {
+        console.error('Users hard delete error:', usersDeleteError);
+        // 代表的なケースとしては掲示板投稿など他テーブルからの参照が残っている
+        return NextResponse.json(
+          {
+            ok: false,
+            errorCode: 'INTERNAL_ERROR',
+            message: '関連データが存在するため、このユーザを削除できません。',
+          },
+          { status: 500 },
+        );
+      }
+
+      // auth 側に存在しないユーザもいるため、auth 削除エラーはログのみにとどめる
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (authDeleteError) {
+        console.warn('Auth deleteUser error (ignored):', authDeleteError.message);
+      }
     }
 
     return NextResponse.json({ ok: true, message: 'ユーザを削除しました。' });
