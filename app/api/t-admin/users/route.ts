@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAdminApiContext, TenantAdminApiError } from '@/src/lib/auth/tenantAdminAuth';
+import { sendTenantUserRegistrationEmail } from '@/src/server/services/TenantUserEmailService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -294,6 +295,16 @@ export async function POST(request: NextRequest) {
 
     if (userTenantsError) {
       return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'テナント所属設定に失敗しました。' }, { status: 500 });
+    }
+
+    try {
+      await sendTenantUserRegistrationEmail({
+        to: email,
+        firstName,
+        lastName,
+      });
+    } catch (emailError) {
+      console.error('Tenant user registration email send error:', emailError);
     }
 
     return NextResponse.json({ ok: true, message: 'ユーザを登録しました。' });
