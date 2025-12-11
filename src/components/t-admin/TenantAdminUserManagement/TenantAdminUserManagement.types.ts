@@ -15,6 +15,7 @@ export type UserListItem = {
     residenceCode: string | null;
     roleKeys: string[]; // system_admin 以外のロールキー一覧
     language: string;
+    status: 'active' | 'inactive' | 'archived';
 };
 
 export type UserFormData = {
@@ -28,4 +29,5 @@ export type UserFormData = {
     residenceCode: string;
     roleKeys: string[];
     language: string;
+    status: 'active' | 'inactive';
 };

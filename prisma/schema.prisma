@@ -213,6 +213,7 @@ model users {
   note            String? // 備考（最大200文字相当を想定）
   created_at      DateTime @default(now())
   updated_at      DateTime @default(now())
+  status          status   @default(active)
 
   // Relations
   tenant                   tenants                 @relation(fields: [tenant_id], references: [id])

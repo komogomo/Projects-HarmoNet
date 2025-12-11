@@ -26,6 +26,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         residenceCode: '',
         roleKeys: ['general_user'],
         language: 'ja',
+        status: 'active',
     });
 
     const loadUsers = async () => {
@@ -178,6 +179,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             residenceCode: user.residenceCode || '',
             roleKeys: user.roleKeys && user.roleKeys.length > 0 ? user.roleKeys : ['general_user'],
             language: user.language,
+            status: user.status === 'inactive' ? 'inactive' : 'active',
         };
         setFormData(newFormData);
         setInitialFormData(newFormData);
@@ -200,6 +202,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             residenceCode: '',
             roleKeys: ['general_user'],
             language: 'ja',
+            status: 'active',
         });
         setMessage(null);
     };
@@ -219,6 +222,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             formData.groupCode !== initialFormData.groupCode ||
             formData.residenceCode !== initialFormData.residenceCode ||
             formData.language !== initialFormData.language ||
+            formData.status !== initialFormData.status ||
             JSON.stringify(normalizeRoles(formData.roleKeys)) !==
                 JSON.stringify(normalizeRoles(initialFormData.roleKeys))
         );
@@ -444,6 +448,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 case 'groupCode':
                 case 'residenceCode':
                 case 'language':
+                case 'status':
                     return (user[sortColumn] || '') as string;
                 case 'roleKeys':
                     return user.roleKeys && user.roleKeys.length > 0 ? user.roleKeys.join(',') : '';
@@ -507,6 +512,9 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const roleTenantAdminLabel = resolveMessage('tadmin.users.form.role.tenantAdmin');
     const roleGroupLeaderLabel = resolveMessage('tadmin.users.form.role.groupLeader');
     const languageLabel = resolveMessage('tadmin.users.form.language.label');
+    const statusLabel = resolveMessage('tadmin.users.form.status.label');
+    const statusActiveLabel = resolveMessage('tadmin.users.form.status.active');
+    const statusInactiveLabel = resolveMessage('tadmin.users.form.status.inactive');
 
     const allRoleKeys: string[] = ['general_user', 'tenant_admin', 'group_leader'];
 
@@ -536,14 +544,6 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     const assignedRoleKeysForDisplay =
         formData.roleKeys && formData.roleKeys.length > 0 ? formData.roleKeys : ['general_user'];
-
-    const availableRoleSummary = availableRoleKeys
-        .map((key) => roleLabelFromKey(key))
-        .join(' / ');
-
-    const assignedRoleSummary = assignedRoleKeysForDisplay
-        .map((key) => roleLabelFromKey(key))
-        .join(' / ');
 
     const handleAssignSelectedRoles = () => {
         setFormData((prev) => {
@@ -597,6 +597,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const tableGroupCodeHeaderLabel = resolveMessage('tadmin.users.table.groupCode');
     const tableResidenceCodeHeaderLabel = resolveMessage('tadmin.users.table.residenceCode');
     const tableLanguageHeaderLabel = resolveMessage('tadmin.users.table.language');
+    const tableStatusHeaderLabel = resolveMessage('tadmin.users.table.status');
     const tableRoleHeaderLabel = resolveMessage('tadmin.users.table.role');
     const tableActionsHeaderLabel = resolveMessage('tadmin.users.table.actions');
 
@@ -685,7 +686,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 >
                                     <option value="ja">JA</option>
                                     <option value="en">EN</option>
-                                    <option value="zh">ZH</option>
+                                    <option value="zh">CN</option>
                                 </select>
                             </div>
 
@@ -786,9 +787,29 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                     ))}
                                 </select>
                             </div>
+
+                            <div>
+                                <label htmlFor="status" className="block text-xs font-medium text-gray-700">
+                                    {statusLabel}
+                                </label>
+                                <select
+                                    id="status"
+                                    value={formData.status}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            status: e.target.value as 'active' | 'inactive',
+                                        })
+                                    }
+                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                    <option value="active">{statusActiveLabel}</option>
+                                    <option value="inactive">{statusInactiveLabel}</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr]">
+                        <div className="mt-3 flex flex-col md:flex-row md:items-start md:space-x-2">
                             {/* 未割り当てロール一覧 */}
                             <div>
                                 <div className="mb-0 text-[11px] font-semibold text-gray-600">
@@ -810,11 +831,10 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         </option>
                                     ))}
                                 </select>
-                                <p className="mt-1 text-[11px] text-gray-500">{availableRoleSummary}</p>
                             </div>
 
                             {/* 矢印ボタン */}
-                            <div className="mt-5 flex h-32 flex-col items-center justify-between">
+                            <div className="mt-3 flex h-32 flex-row items-center justify-center space-x-2 md:mt-5 md:flex-col md:space-x-0 md:space-y-2">
                                 <button
                                     type="button"
                                     onClick={handleAssignSelectedRoles}
@@ -846,7 +866,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                             </div>
 
                             {/* 割り当て済みロール一覧 */}
-                            <div>
+                            <div className="mt-3 md:mt-0">
                                 <div className="mb-0 text-[11px] font-semibold text-gray-600">
                                     {resolveMessage('tadmin.users.form.role.assigned')}
                                 </div>
@@ -866,7 +886,6 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                         </option>
                                     ))}
                                 </select>
-                                <p className="mt-1 text-[11px] text-gray-500">{assignedRoleSummary}</p>
                             </div>
                         </div>
 
@@ -988,13 +1007,20 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                             <th className="w-28 text-center">
                                                 <SortableHeader column="roleKeys" label={tableRoleHeaderLabel} />
                                             </th>
+                                            <th className="w-20 text-center">
+                                                <SortableHeader column="status" label={tableStatusHeaderLabel} />
+                                            </th>
                                             <th className="px-3 py-2 text-xs font-semibold text-gray-700 text-center whitespace-nowrap w-40">{tableActionsHeaderLabel}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {paginatedUsers.map((user) => {
                                             const languageShortLabel =
-                                                user.language === 'en' ? 'EN' : user.language === 'zh' ? 'ZH' : 'JA';
+                                                user.language === 'en' ? 'EN' : user.language === 'zh' ? 'CN' : 'JA';
+
+                                            const isDisabled = user.status && user.status !== 'active';
+                                            const mainTextClass = isDisabled ? 'text-red-600' : 'text-gray-900';
+                                            const subTextClass = isDisabled ? 'text-red-500' : 'text-gray-600';
 
                                             const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
                                             const fullNameKana = `${user.firstNameKana ?? ''} ${user.lastNameKana ?? ''}`.trim();
@@ -1011,14 +1037,17 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
                                             return (
                                                 <tr key={user.userId} className="border-b border-gray-100 hover:bg-gray-50">
-                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[11rem] truncate" title={user.email}>{user.email}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={user.displayName}>{user.displayName}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-900 max-w-[8rem] truncate" title={fullName}>{fullName}</td>
-                                                    <td className="px-3 py-2 text-xs text-gray-600 max-w-[10rem] truncate" title={fullNameKana}>{fullNameKana}</td>
+                                                    <td className={`px-3 py-2 text-xs ${mainTextClass} max-w-[11rem] truncate`} title={user.email}>{user.email}</td>
+                                                    <td className={`px-3 py-2 text-xs ${mainTextClass} max-w-[8rem] truncate`} title={user.displayName}>{user.displayName}</td>
+                                                    <td className={`px-3 py-2 text-xs ${mainTextClass} max-w-[8rem] truncate`} title={fullName}>{fullName}</td>
+                                                    <td className={`px-3 py-2 text-xs ${subTextClass} max-w-[10rem] truncate`} title={fullNameKana}>{fullNameKana}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.groupCode || '-'}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{user.residenceCode || '-'}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{languageShortLabel}</td>
                                                     <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">{rolesForDisplay}</td>
+                                                    <td className="px-3 py-2 text-xs text-gray-600 text-center whitespace-nowrap">
+                                                        {user.status === 'inactive' ? statusInactiveLabel : statusActiveLabel}
+                                                    </td>
                                                     <td className="px-3 py-2 text-xs whitespace-nowrap">
                                                         <div className="flex space-x-2 justify-center">
                                                             <button

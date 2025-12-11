@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const { data: usersData, error: usersError } = await supabaseAdmin
       .from('users')
       .select(
-        'id, email, display_name, last_name, first_name, last_name_kana, first_name_kana, group_code, residence_code, language',
+        'id, email, display_name, last_name, first_name, last_name_kana, first_name_kana, group_code, residence_code, language, status',
       )
       .eq('tenant_id', tenantId);
 
@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
         residenceCode: (user.residence_code as string) || null,
         roleKeys,
         language,
+        status: ((user as any).status as string) || 'active',
       });
 
       return acc;
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
       residenceCode,
       roleKeys,
       language,
+      status,
     } = body as {
       email: string;
       lastName: string;
@@ -141,6 +143,7 @@ export async function POST(request: NextRequest) {
       residenceCode?: string | null;
       roleKeys?: string[];
       language?: string;
+      status?: string;
     };
 
     // Validation
@@ -237,6 +240,7 @@ export async function POST(request: NextRequest) {
         group_code: groupCode ?? '',
         residence_code: residenceCode ?? '',
         language: language || 'ja',
+        status: status === 'inactive' ? 'inactive' : 'active',
         updated_at: new Date().toISOString(),
       });
 
@@ -342,6 +346,7 @@ export async function PUT(request: NextRequest) {
       residenceCode,
       roleKeys,
       language,
+      status,
     } = body as {
       userId: string;
       email: string;
@@ -354,6 +359,7 @@ export async function PUT(request: NextRequest) {
       residenceCode?: string | null;
       roleKeys?: string[];
       language?: string;
+      status?: string;
     };
 
     // Validation
@@ -399,15 +405,45 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify target user belongs to this tenant
+    // 通常は user_tenants で確認するが、過去の削除処理失敗などで user_tenants 側だけ欠けている可能性があるため、
+    // users.tenant_id をフォールバックとして参照しつつ、自動修復を試みる。
     const { data: targetUserTenant, error: targetCheckError } = await supabaseAdmin
       .from('user_tenants')
       .select('user_id')
       .eq('user_id', userId)
       .eq('tenant_id', tenantId)
-      .single();
+      .maybeSingle();
 
-    if (targetCheckError || !targetUserTenant) {
-      return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
+    if (targetCheckError) {
+      console.error('t-admin.users.update.user_tenants_check_error', targetCheckError);
+    }
+
+    if (!targetUserTenant) {
+      // user_tenants に行が無い場合は、users テーブルでテナント所属を確認する
+      const { data: targetUser, error: targetUserError } = await supabaseAdmin
+        .from('users')
+        .select('id, tenant_id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (targetUserError || !targetUser || (targetUser.tenant_id as string | null) !== tenantId) {
+        return NextResponse.json(
+          { ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' },
+          { status: 403 },
+        );
+      }
+
+      // users 側では同一テナント所属であることが確認できたので、欠落している user_tenants を自動修復する
+      const { error: repairError } = await supabaseAdmin
+        .from('user_tenants')
+        .insert({ user_id: userId, tenant_id: tenantId })
+        .select('user_id')
+        .maybeSingle();
+
+      if (repairError) {
+        console.error('t-admin.users.update.user_tenants_repair_error', repairError);
+        // 自動修復に失敗しても、以降の処理は継続する（users 側の所属は保証されているため）
+      }
     }
 
     // Fetch current user data for optimization
@@ -447,6 +483,7 @@ export async function PUT(request: NextRequest) {
         group_code: groupCode ?? '',
         residence_code: residenceCode ?? '',
         language: language || 'ja',
+        status: status === 'inactive' ? 'inactive' : 'active',
         updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
