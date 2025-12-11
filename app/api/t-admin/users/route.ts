@@ -648,10 +648,10 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json(
           {
             ok: false,
-            errorCode: 'INTERNAL_ERROR',
-            message: '関連データが存在するため、このユーザを削除できません。',
+            errorCode: 'RELATED_DATA_EXISTS',
+            message: 'tadmin.users.error.relatedDataExists',
           },
-          { status: 500 },
+          { status: 409 },
         );
       }
 

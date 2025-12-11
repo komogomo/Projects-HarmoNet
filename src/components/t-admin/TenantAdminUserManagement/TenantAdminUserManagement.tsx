@@ -372,7 +372,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             const res = await fetch('/api/t-admin/users', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: deletingUserId }),
+                body: JSON.stringify({ userId: deletingUserId, lang: currentLocale }),
             });
 
             const result = await res.json();
@@ -407,6 +407,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const [activeSearchQuery, setActiveSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [showOnlyActive, setShowOnlyActive] = useState(true);
 
     const handleSearch = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -416,6 +417,11 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
 
     // Filter
     const filteredUsers = users.filter((user) => {
+        // 無効ユーザを非表示にするフィルタ（チェックがオンのときのみ適用）
+        if (showOnlyActive && user.status && user.status !== 'active') {
+            return false;
+        }
+
         if (!activeSearchQuery) return true;
         const q = activeSearchQuery.toLowerCase();
 
@@ -610,6 +616,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const paginationPrevLabel = resolveMessage('tadmin.users.pagination.prev');
     const paginationNextLabel = resolveMessage('tadmin.users.pagination.next');
 
+    const filterActiveOnlyLabel = resolveMessage('tadmin.users.filter.activeOnly');
     const deleteCancelButtonLabel = resolveMessage('tadmin.users.delete.cancel');
     const deleteSubmitButtonLabel = resolveMessage('tadmin.users.delete.submit');
     const deleteConfirmMessage = resolveMessage('tadmin.users.delete.confirm');
@@ -938,14 +945,32 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                     <div className="flex flex-col md:flex-row justify-between items-center mb-4 space-y-3 md:space-y-0">
                         <h2 className="text-sm font-bold text-gray-900">{listTitleLabel}</h2>
 
-                        {/* 検索フォーム */}
-                        <form onSubmit={handleSearch} className="flex w-full md:w-auto space-x-2">
+                        {/* 検索フォーム＋ステータスフィルタ */}
+                        <form onSubmit={handleSearch} className="flex w-full md:w-auto items-center space-x-2">
+                            <label className="flex items-center text-[11px] text-gray-600 mr-1 -ml-6">
+                                <span className="mr-1 whitespace-nowrap">{filterActiveOnlyLabel}</span>
+                                <input
+                                    type="checkbox"
+                                    checked={showOnlyActive}
+                                    onChange={(e) => {
+                                        setShowOnlyActive(e.target.checked);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <input
+                                    type="checkbox"
+                                    tabIndex={-1}
+                                    aria-hidden="true"
+                                    className="h-4 w-4 opacity-0 pointer-events-none"
+                                />
+                            </label>
                             <input
                                 type="text"
                                 placeholder={searchPlaceholderLabel}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 md:w-96 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="flex-1 md:w-72 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                             <button
                                 type="submit"
