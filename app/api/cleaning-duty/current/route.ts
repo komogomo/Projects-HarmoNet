@@ -120,35 +120,44 @@ export async function GET() {
         tenant_id: tenantId,
         group_code: groupCode,
         cycle_no: latestCycleNo,
+        // 現在の当番表として扱うため、同一テナント・同一グループに所属しているユーザのみ対象とする
+        assignee: {
+          tenant_id: tenantId,
+          group_code: groupCode,
+        },
       },
       select: {
         id: true,
-        residence_code: true,
         cycle_no: true,
         assignee_id: true,
         is_done: true,
         cleaned_on: true,
         completed_at: true,
         created_at: true,
+        assignee: {
+          select: {
+            residence_code: true,
+          },
+        },
       },
       orderBy: {
         created_at: 'asc',
       },
-    } as any)) as {
+    } as any)) as unknown as {
       id: string;
-      residence_code: string;
       cycle_no: number;
       assignee_id: string;
       is_done: boolean;
       cleaned_on: Date | null;
       completed_at: Date | null;
+      assignee: { residence_code: string | null } | null;
     }[];
 
     const seenResidences = new Set<string>();
     const currentRows: CleaningDutyRowDto[] = [];
 
     for (const row of rows) {
-      const residenceCode = row.residence_code;
+      const residenceCode = (row.assignee?.residence_code ?? '').trim();
       if (!residenceCode || seenResidences.has(residenceCode)) continue;
       seenResidences.add(residenceCode);
 

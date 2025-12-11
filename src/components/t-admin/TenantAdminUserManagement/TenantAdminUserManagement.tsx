@@ -13,6 +13,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
     const [messages, setMessages] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
     const [groupOptions, setGroupOptions] = useState<string[]>([]);
+    const [residenceOptions, setResidenceOptions] = useState<string[]>([]);
 
     const [formData, setFormData] = useState<UserFormData>({
         email: '',
@@ -81,7 +82,40 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
             }
         };
 
+        const loadResidences = async () => {
+            try {
+                const res = await fetch('/api/t-admin/residences');
+                if (!res.ok) {
+                    setResidenceOptions([]);
+                    return;
+                }
+
+                const data = (await res.json().catch(() => ({}))) as {
+                    ok?: boolean;
+                    items?: { residenceCode?: string | null }[];
+                };
+
+                if (!data.ok || !Array.isArray(data.items)) {
+                    setResidenceOptions([]);
+                    return;
+                }
+
+                const codes = Array.from(
+                    new Set(
+                        data.items
+                            .map((item) => (typeof item.residenceCode === 'string' ? item.residenceCode : ''))
+                            .filter((code) => code && code.trim().length > 0),
+                    ),
+                ).sort();
+
+                setResidenceOptions(codes);
+            } catch {
+                setResidenceOptions([]);
+            }
+        };
+
         void loadGroups();
+        void loadResidences();
     }, []);
 
     useEffect(() => {
@@ -484,6 +518,14 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return Array.from(set).sort();
     }, [groupOptions, formData.groupCode]);
 
+    const allResidenceCodesForSelect = useMemo(() => {
+        const set = new Set(residenceOptions);
+        if (formData.residenceCode && !set.has(formData.residenceCode)) {
+            set.add(formData.residenceCode);
+        }
+        return Array.from(set).sort();
+    }, [residenceOptions, formData.residenceCode]);
+
     const roleLabelFromKey = (key: string): string => {
         if (key === 'tenant_admin') return roleTenantAdminLabel;
         if (key === 'group_leader') return roleGroupLeaderLabel;
@@ -679,13 +721,21 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                                 <label htmlFor="residenceCode" className="block text-xs font-medium text-gray-700">
                                     {residenceCodeLabel}
                                 </label>
-                                <input
-                                    type="text"
+                                <select
                                     id="residenceCode"
                                     value={formData.residenceCode}
                                     onChange={(e) => setFormData({ ...formData, residenceCode: e.target.value })}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
+                                >
+                                    <option value="">
+                                        {resolveMessage('tadmin.users.form.groupCode.none')}
+                                    </option>
+                                    {allResidenceCodesForSelect.map((code) => (
+                                        <option key={code} value={code}>
+                                            {code}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>

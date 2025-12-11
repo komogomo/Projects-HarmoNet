@@ -3,13 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Users, Layers } from 'lucide-react';
+import { Users, Layers, Home } from 'lucide-react';
 
 export const TenantAdminSidebar: React.FC = () => {
   const pathname = usePathname();
 
   const isUsersActive = pathname.startsWith('/t-admin/users');
   const isGroupsActive = pathname.startsWith('/t-admin/groups');
+  const isResidencesActive = pathname.startsWith('/t-admin/residences');
 
   const baseLinkClass = 'flex items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium';
   const activeClass = 'bg-blue-50 text-blue-700';
@@ -33,6 +34,13 @@ export const TenantAdminSidebar: React.FC = () => {
       >
         <Layers size={20} />
         グループマスタ管理
+      </Link>
+      <Link
+        href="/t-admin/residences"
+        className={`${baseLinkClass} ${isResidencesActive ? activeClass : inactiveClass}`}
+      >
+        <Home size={20} />
+        住居番号マスタ管理
       </Link>
     </nav>
   );

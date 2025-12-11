@@ -144,6 +144,7 @@ model tenants {
   facility_slots             facility_slots[]
   facility_reservations      facility_reservations[]
   cleaning_duties            cleaning_duties[]
+  tenant_residences          tenant_residences[]
   moderation_logs            moderation_logs[]
   board_post_translations    board_post_translations[]
   board_comment_translations board_comment_translations[]
@@ -176,6 +177,20 @@ model tenant_groups {
   tenant tenants @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, group_code])
+  @@index([tenant_id])
+}
+
+/// テナント別住居番号マスタ
+model tenant_residences {
+  id             String   @id @default(uuid())
+  tenant_id      String
+  residence_code String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id])
+
+  @@unique([tenant_id, residence_code])
   @@index([tenant_id])
 }
 

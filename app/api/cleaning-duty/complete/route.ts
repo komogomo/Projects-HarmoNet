@@ -182,6 +182,11 @@ export async function POST(req: Request) {
           tenant_id: tenantId,
           group_code: groupCode,
           cycle_no: currentCycleNo,
+          // 現在の当番表として扱うため、同一テナント・同一グループに所属しているユーザのみを対象とする
+          assignee: {
+            tenant_id: tenantId,
+            group_code: groupCode,
+          },
         },
         select: {
           residence_code: true,
