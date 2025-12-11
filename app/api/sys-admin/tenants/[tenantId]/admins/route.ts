@@ -250,7 +250,8 @@ export async function POST(request: NextRequest, context: RouteParams) {
 
     targetUserId = existingUser.id;
 
-    // 既存ユーザの場合も、表示名・氏名情報を最新の入力内容で更新する
+    // 既存ユーザの場合も、表示名・氏名情報を最新の入力内容で更新し、
+    // ステータスを active に戻す
     const { error: updateUsersError } = await adminClient
       .from("users")
       .update({
@@ -259,6 +260,7 @@ export async function POST(request: NextRequest, context: RouteParams) {
         first_name: firstName,
         last_name_kana: lastNameKana,
         first_name_kana: firstNameKana,
+        status: "active",
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingUser.id)
@@ -299,7 +301,7 @@ export async function POST(request: NextRequest, context: RouteParams) {
     targetUserId = newUser.user.id;
     createdNewUser = true;
 
-    // 3. public.users に INSERT（ダミー値を含む）
+    // 3. public.users に INSERT（ダミー値を含む）し、ステータスは active で作成
     const { error: usersError } = await adminClient
       .from("users")
       .upsert({
@@ -314,6 +316,7 @@ export async function POST(request: NextRequest, context: RouteParams) {
         group_code: "SYSADMIN",
         residence_code: "SYSADMIN",
         language: "ja",
+        status: "active",
         updated_at: new Date().toISOString(),
       });
 
