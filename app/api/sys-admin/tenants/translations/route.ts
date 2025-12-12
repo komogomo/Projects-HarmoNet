@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSystemAdminApiContext, SystemAdminApiError } from "@/src/lib/auth/systemAdminAuth";
+import { logError } from '@/src/lib/logging/log.util';
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,9 @@ export async function GET(request: NextRequest) {
       .eq("screen_key", "sys_admin_tenants");
 
     if (error || !Array.isArray(data)) {
-      console.error(
-        "[sys-admin][tenants][translations] Failed to read static_translation_defaults",
-        error,
-      );
+      logError('sys-admin.tenants.translations.read_failed', {
+        reason: (error as any)?.message ?? 'unknown',
+      });
       return NextResponse.json({ errorCode: "server_error" }, { status: 500 });
     }
 
@@ -54,7 +54,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ errorCode: error.code }, { status: error.status });
     }
 
-    console.error("[sys-admin][tenants][translations] Unexpected error", error);
+    logError('sys-admin.tenants.translations.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ errorCode: "server_error" }, { status: 500 });
   }
 }

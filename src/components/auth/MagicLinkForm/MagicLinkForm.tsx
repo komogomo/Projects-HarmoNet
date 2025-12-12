@@ -1,6 +1,5 @@
 "use client";
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Mail as MailIcon, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
@@ -48,53 +47,11 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
   signedInRedirectTo,
 }) => {
   const { t } = useStaticI18n();
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [state, setState] = useState<MagicLinkFormState>('idle');
   const [banner, setBanner] = useState<BannerState>(null);
 
   const postSignInRedirectTo = signedInRedirectTo ?? '/home';
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkSessionAndRedirect = async (source: string) => {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (!cancelled && data?.session) {
-        router.replace(postSignInRedirectTo);
-      }
-    };
-
-    void checkSessionAndRedirect('mount');
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void checkSessionAndRedirect('visibilitychange');
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [router]);
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        router.replace(postSignInRedirectTo);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
 
   const handleLogin = useCallback(async () => {
     if (!validateEmail(email)) {

@@ -3,6 +3,7 @@ import {
   getSystemAdminApiContext,
   SystemAdminApiError,
 } from "@/src/lib/auth/systemAdminAuth";
+import { logError, logWarn } from '@/src/lib/logging/log.util';
 
 interface RouteParams {
   params: Promise<{
@@ -106,7 +107,11 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
           });
 
           if (listError) {
-            console.error("Error listing storage files:", listError);
+            logError('sys-admin.tenants.delete.storage_list_failed', {
+              tenantId,
+              folder: currentFolder,
+              reason: (listError as any)?.message ?? 'unknown',
+            });
             break;
           }
 
@@ -136,12 +141,18 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
         const { error: removeError } = await storageBucket.remove(chunk);
 
         if (removeError) {
-          console.error("Error removing storage files:", removeError);
+          logError('sys-admin.tenants.delete.storage_remove_failed', {
+            tenantId,
+            reason: (removeError as any)?.message ?? 'unknown',
+          });
           break;
         }
       }
     } catch (storageError) {
-      console.error("Unexpected error during storage cleanup:", storageError);
+      logError('sys-admin.tenants.delete.storage_cleanup_unexpected_error', {
+        tenantId,
+        errorMessage: storageError instanceof Error ? storageError.message : String(storageError),
+      });
       // Continue with DB deletion even if storage cleanup fails
     }
 
@@ -151,13 +162,23 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .from("board_posts")
       .delete()
       .eq("tenant_id", tenantId);
-    if (postsError) console.error("Error deleting board_posts:", postsError);
+    if (postsError) {
+      logError('sys-admin.tenants.delete.board_posts_failed', {
+        tenantId,
+        reason: (postsError as any)?.message ?? 'unknown',
+      });
+    }
 
     const { error: categoriesError } = await adminClient
       .from("board_categories")
       .delete()
       .eq("tenant_id", tenantId);
-    if (categoriesError) console.error("Error deleting board_categories:", categoriesError);
+    if (categoriesError) {
+      logError('sys-admin.tenants.delete.board_categories_failed', {
+        tenantId,
+        reason: (categoriesError as any)?.message ?? 'unknown',
+      });
+    }
 
     // Facility Data
     // Delete from child to parent just in case
@@ -168,7 +189,12 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .from("facilities")
       .delete()
       .eq("tenant_id", tenantId);
-    if (facilitiesError) console.error("Error deleting facilities:", facilitiesError);
+    if (facilitiesError) {
+      logError('sys-admin.tenants.delete.facilities_failed', {
+        tenantId,
+        reason: (facilitiesError as any)?.message ?? 'unknown',
+      });
+    }
 
     // Logs & Settings & Residents
     await adminClient.from("moderation_logs").delete().eq("tenant_id", tenantId);
@@ -194,7 +220,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
 
     if (rolesError) {
-      console.error("Error deleting user_roles:", rolesError);
+      logError('sys-admin.tenants.delete.user_roles_failed', {
+        tenantId,
+        reason: (rolesError as any)?.message ?? 'unknown',
+      });
       throw new Error("Failed to delete user roles");
     }
 
@@ -205,7 +234,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
 
     if (userTenantsError) {
-      console.error("Error deleting user_tenants:", userTenantsError);
+      logError('sys-admin.tenants.delete.user_tenants_failed', {
+        tenantId,
+        reason: (userTenantsError as any)?.message ?? 'unknown',
+      });
       throw new Error("Failed to delete user tenants");
     }
 
@@ -217,7 +249,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
 
     if (fetchUsersError) {
-      console.error("Error fetching users to delete:", fetchUsersError);
+      logError('sys-admin.tenants.delete.fetch_users_failed', {
+        tenantId,
+        reason: (fetchUsersError as any)?.message ?? 'unknown',
+      });
       // Continue to delete from public.users even if fetch fails?
       // Better to fail here to avoid inconsistency if possible, but for deletion we might want to be aggressive.
       // Let's log and proceed, but ideally we should ensure Auth deletion.
@@ -228,7 +263,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
         // Skip if user.id is not a valid UUID (e.g. legacy data or test data)
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(user.id)) {
-          console.warn(`Skipping auth deletion for non-UUID user id: ${user.id}`);
+          logWarn('sys-admin.tenants.delete.auth_delete_skipped_non_uuid', {
+            tenantId,
+            userId: user.id,
+          });
           return;
         }
 
@@ -236,10 +274,11 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
           user.id
         );
         if (deleteAuthError) {
-          console.error(
-            `Error deleting auth user ${user.id}:`,
-            deleteAuthError
-          );
+          logError('sys-admin.tenants.delete.auth_delete_failed', {
+            tenantId,
+            userId: user.id,
+            reason: (deleteAuthError as any)?.message ?? 'unknown',
+          });
         }
       });
       await Promise.all(deleteAuthPromises);
@@ -252,7 +291,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
 
     if (usersError) {
-      console.error("Error deleting users:", usersError);
+      logError('sys-admin.tenants.delete.users_failed', {
+        tenantId,
+        reason: (usersError as any)?.message ?? 'unknown',
+      });
       throw new Error("Failed to delete users");
     }
 
@@ -265,7 +307,10 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       .eq("id", tenantId);
 
     if (error) {
-      console.error("Error deleting tenant record:", error);
+      logError('sys-admin.tenants.delete.tenant_record_failed', {
+        tenantId,
+        reason: (error as any)?.message ?? 'unknown',
+      });
       return NextResponse.json(
         {
           ok: false,

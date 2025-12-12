@@ -30,12 +30,20 @@ export async function updateSession(request: NextRequest, response: NextResponse
   const isTenantAdminPath = path.startsWith('/t-admin');
 
   if (isSysAdminPath) {
-    if (authError || !user) {
+    const isSessionMissingError =
+      !!authError && authError.message === 'Auth session missing!';
+
+    if (authError && !isSessionMissingError) {
       logError('sys-admin.middleware.no_session', {
-        reason: authError?.message ?? 'no_session',
+        reason: authError.message,
         path,
       });
 
+      const sysAdminLoginUrl = new URL('/sys-admin/login', request.url);
+      return NextResponse.redirect(sysAdminLoginUrl);
+    }
+
+    if (!user || isSessionMissingError) {
       const sysAdminLoginUrl = new URL('/sys-admin/login', request.url);
       return NextResponse.redirect(sysAdminLoginUrl);
     }
@@ -60,8 +68,9 @@ export async function updateSession(request: NextRequest, response: NextResponse
         path,
       });
 
-      const homeUrl = new URL('/home', request.url);
-      return NextResponse.redirect(homeUrl);
+      const sysAdminLoginUrl = new URL('/sys-admin/login', request.url);
+      sysAdminLoginUrl.searchParams.set('error', 'forbidden');
+      return NextResponse.redirect(sysAdminLoginUrl);
     }
 
     return response;

@@ -2,13 +2,25 @@
 
 import React, { useEffect, useState } from "react";
 import { useI18n } from "@/src/components/common/StaticI18nProvider";
+import { usePathname } from 'next/navigation';
 
 export const HomeBoardNotificationBanner: React.FC = () => {
   const { t } = useI18n();
+  const pathname = usePathname();
   const [hasUnread, setHasUnread] = useState<boolean>(false);
 
   useEffect(() => {
     let isCancelled = false;
+
+    const hasPathname = typeof pathname === 'string' && pathname.length > 0;
+    const isSysAdminPath = hasPathname && pathname.startsWith('/sys-admin');
+    const isLoginPath = !hasPathname || pathname === '/login' || pathname === '/sys-admin/login';
+
+    if (isSysAdminPath || isLoginPath) {
+      return () => {
+        isCancelled = true;
+      };
+    }
 
     const fetchUnread = async () => {
       try {
@@ -35,7 +47,7 @@ export const HomeBoardNotificationBanner: React.FC = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [pathname]);
 
   if (!hasUnread) {
     return null;

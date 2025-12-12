@@ -4,6 +4,7 @@ import {
   getSystemAdminApiContext,
   SystemAdminApiError,
 } from "@/src/lib/auth/systemAdminAuth";
+import { logError } from '@/src/lib/logging/log.util';
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,7 +62,9 @@ export async function POST(request: NextRequest) {
 
     if (error || !data) {
       if (error) {
-        console.error("Create tenant error:", error);
+        logError('sys-admin.tenants.create_failed', {
+          reason: (error as any)?.message ?? 'unknown',
+        });
       }
       return NextResponse.json(
         {
@@ -97,7 +100,10 @@ export async function POST(request: NextRequest) {
       });
 
     if (settingsError) {
-      console.error("Failed to create tenant settings:", settingsError);
+      logError('sys-admin.tenants.create_settings_failed', {
+        tenantId: data.id,
+        reason: (settingsError as any)?.message ?? 'unknown',
+      });
       // Rollback tenant
       await adminClient.from("tenants").delete().eq("id", data.id);
       return NextResponse.json(
@@ -121,7 +127,10 @@ export async function POST(request: NextRequest) {
       .insert(defaultCategories);
 
     if (categoryError) {
-      console.error("Failed to create default categories:", categoryError);
+      logError('sys-admin.tenants.create_default_categories_failed', {
+        tenantId: data.id,
+        reason: (categoryError as any)?.message ?? 'unknown',
+      });
       await adminClient.from("tenants").delete().eq("id", data.id);
       return NextResponse.json(
         { ok: false, message: "テナントの初期設定（カテゴリ作成）に失敗しました。" },
@@ -143,7 +152,10 @@ export async function POST(request: NextRequest) {
       .insert(defaultShortcuts);
 
     if (shortcutError) {
-      console.error("Failed to create default shortcuts:", shortcutError);
+      logError('sys-admin.tenants.create_default_shortcuts_failed', {
+        tenantId: data.id,
+        reason: (shortcutError as any)?.message ?? 'unknown',
+      });
       await adminClient.from("tenants").delete().eq("id", data.id);
       return NextResponse.json(
         { ok: false, message: "テナントの初期設定（ショートカット作成）に失敗しました。" },
@@ -156,7 +168,10 @@ export async function POST(request: NextRequest) {
       .select("screen_id, screen_key, message_key, text_ja, text_en, text_zh");
 
     if (defaultTranslationsError) {
-      console.error("Failed to read static translation defaults:", defaultTranslationsError);
+      logError('sys-admin.tenants.read_static_translation_defaults_failed', {
+        tenantId: data.id,
+        reason: (defaultTranslationsError as any)?.message ?? 'unknown',
+      });
       await adminClient.from("tenants").delete().eq("id", data.id);
       return NextResponse.json(
         { ok: false, message: "テナントの初期設定（翻訳マスタ読込）に失敗しました。" },
@@ -191,7 +206,10 @@ export async function POST(request: NextRequest) {
         .insert(seedRows);
 
       if (seedError) {
-        console.error("Failed to seed tenant_static_translations:", seedError);
+        logError('sys-admin.tenants.seed_tenant_static_translations_failed', {
+          tenantId: data.id,
+          reason: (seedError as any)?.message ?? 'unknown',
+        });
         await adminClient.from("tenants").delete().eq("id", data.id);
         return NextResponse.json(
           { ok: false, message: "テナントの初期設定（翻訳データ作成）に失敗しました。" },

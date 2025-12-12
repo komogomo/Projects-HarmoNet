@@ -13,14 +13,26 @@ export const AuthCallbackHandler: React.FC = () => {
     let mounted = true;
     let handled = false;
 
+    const normalizeNextPath = (value: string | null): string | null => {
+      if (!value) return null;
+      if (!value.startsWith('/')) return null;
+      if (value.startsWith('//')) return null;
+      return value;
+    };
+
     logInfo('auth.callback.start');
+
+    const url = new URL(window.location.href);
+    const searchParams = url.searchParams;
+    const nextPath = normalizeNextPath(searchParams.get('next'));
+    const isSysAdminFlow = typeof nextPath === 'string' && nextPath.startsWith('/sys-admin');
 
     const completeSuccess = () => {
       if (!mounted || handled) return;
       handled = true;
       logInfo('auth.callback.success');
 
-      router.replace('/home');
+      router.replace(nextPath ?? '/home');
     };
 
     const completeFailure = (reason: string) => {
@@ -29,11 +41,8 @@ export const AuthCallbackHandler: React.FC = () => {
       logError('auth.callback.fail.session', {
         reason,
       });
-      router.replace('/login?error=auth_failed');
+      router.replace(isSysAdminFlow ? '/sys-admin/login?error=auth_failed' : '/login?error=auth_failed');
     };
-
-    const url = new URL(window.location.href);
-    const searchParams = url.searchParams;
 
     const tokenHash = searchParams.get('token_hash');
     const errorDescription = searchParams.get('error_description') ?? searchParams.get('error');

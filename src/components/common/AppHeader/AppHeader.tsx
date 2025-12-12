@@ -17,7 +17,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const pathname = usePathname();
   const [hasUnread, setHasUnread] = useState<boolean>(false);
 
-  const isLoginPath = pathname === '/login';
+  const hasPathname = typeof pathname === 'string' && pathname.length > 0;
+  const isSysAdminPath = !hasPathname ? true : pathname.startsWith('/sys-admin');
+  const isLoginPath = !hasPathname || pathname === '/login' || pathname === '/sys-admin/login';
 
   useEffect(() => {
     let isCancelled = false;
@@ -38,7 +40,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       }
     };
 
-    if (!isLoginPath) {
+    if (!isLoginPath && !isSysAdminPath) {
       fetchUnread();
 
       if (typeof window !== 'undefined') {
@@ -58,7 +60,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [isLoginPath, pathname]);
+  }, [isLoginPath, isSysAdminPath, pathname]);
   return (
     <header
       className={`
@@ -91,7 +93,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* 右側要素 */}
         <div className="flex items-center gap-4">
 
-          {!isLoginPath && (
+          {!isLoginPath && !isSysAdminPath && (
             <button
               className="
                 relative

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
 import { createSupabaseServiceRoleClient } from "@/src/lib/supabaseServiceRoleClient";
+import { logError } from '@/src/lib/logging/log.util';
 
 async function ensureSystemAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -267,7 +268,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
       .eq("tenant_id", tenantId);
 
     if (updateUsersError) {
-      console.error("Error updating existing user in public.users:", updateUsersError);
+      logError('sys-admin.tenants.admins.update_existing_user_failed', {
+        tenantId,
+        userId: existingUser.id,
+        reason: (updateUsersError as any)?.message ?? 'unknown',
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -288,7 +293,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
       });
 
     if (createError || !newUser?.user) {
-      console.error("Error creating user in Supabase Auth:", createError);
+      logError('sys-admin.tenants.admins.create_auth_user_failed', {
+        tenantId,
+        reason: (createError as any)?.message ?? 'unknown',
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -321,7 +329,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
       });
 
     if (usersError) {
-      console.error("Error upserting user in public.users:", usersError);
+      logError('sys-admin.tenants.admins.upsert_public_user_failed', {
+        tenantId,
+        userId: targetUserId,
+        reason: (usersError as any)?.message ?? 'unknown',
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -354,7 +366,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
     );
 
   if (userTenantsError) {
-    console.error("Error upserting user_tenants:", userTenantsError);
+    logError('sys-admin.tenants.admins.upsert_user_tenants_failed', {
+      tenantId,
+      userId: targetUserId,
+      reason: (userTenantsError as any)?.message ?? 'unknown',
+    });
     return NextResponse.json(
       {
         ok: false,
@@ -372,7 +388,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
     .maybeSingle();
 
   if (roleError || !tenantAdminRole) {
-    console.error("Error fetching tenant_admin role:", roleError);
+    logError('sys-admin.tenants.admins.fetch_role_tenant_admin_failed', {
+      tenantId,
+      reason: (roleError as any)?.message ?? 'unknown',
+    });
     return NextResponse.json(
       { ok: false, message: "ロール(tenant_admin)が見つかりません。" },
       { status: 500 },
@@ -387,7 +406,10 @@ export async function POST(request: NextRequest, context: RouteParams) {
     .maybeSingle();
 
   if (generalRoleError || !generalUserRole) {
-    console.error("Error fetching general_user role:", generalRoleError);
+    logError('sys-admin.tenants.admins.fetch_role_general_user_failed', {
+      tenantId,
+      reason: (generalRoleError as any)?.message ?? 'unknown',
+    });
     return NextResponse.json(
       { ok: false, message: "ロール(general_user)が見つかりません。" },
       { status: 500 },
@@ -414,7 +436,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
     .upsert(rolesToInsert, { onConflict: "user_id, tenant_id, role_id" });
 
   if (userRolesError) {
-    console.error("Error upserting user_roles:", userRolesError);
+    logError('sys-admin.tenants.admins.upsert_user_roles_failed', {
+      tenantId,
+      userId: targetUserId,
+      reason: (userRolesError as any)?.message ?? 'unknown',
+    });
     return NextResponse.json(
       {
         ok: false,

@@ -21,12 +21,12 @@ export async function GET(req: Request) {
       logError('board.notifications.api.auth_error', {
         reason: authError.message,
       });
-      return NextResponse.json({ hasUnread: false }, { status: 401 });
+      return NextResponse.json({ hasUnread: false }, { status: 200 });
     }
 
     if (!user || !user.email || isSessionMissingError) {
       // 単なる未ログインアクセスは想定内の 401 のため、ログは出さない
-      return NextResponse.json({ hasUnread: false }, { status: 401 });
+      return NextResponse.json({ hasUnread: false }, { status: 200 });
     }
 
     const email = user.email;
