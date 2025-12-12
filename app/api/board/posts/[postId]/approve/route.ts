@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
-import { logError, logInfo } from "@/src/lib/logging/log.util";
+import { logError, logInfo, logWarn } from "@/src/lib/logging/log.util";
 import { prisma } from "@/src/server/db/prisma";
 import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantIdsForUser";
 
@@ -101,6 +101,15 @@ export async function POST(req: Request, context: ApprovePostRouteContext) {
     }
 
     const tenantId = post.tenant_id as string;
+
+    if (post.author_id === appUser.id) {
+      logWarn("board.post.approve.forbidden_self_approval", {
+        tenantId,
+        postId,
+        userId: appUser.id,
+      });
+      return NextResponse.json({ errorCode: "self_approval_forbidden" }, { status: 403 });
+    }
 
     let hasAdminRole = false;
     try {

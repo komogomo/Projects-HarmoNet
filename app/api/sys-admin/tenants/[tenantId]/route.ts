@@ -89,32 +89,55 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     const tenantFolder = `tenant-${tenantId}`;
 
     try {
-      let hasMore = true;
-      while (hasMore) {
-        const { data: files, error: listError } = await storageBucket.list(tenantFolder, {
-          limit: 100,
-        });
+      const foldersToVisit: string[] = [tenantFolder];
+      const visitedFolders = new Set<string>();
+      const pathsToDelete: string[] = [];
 
-        if (listError) {
-          console.error("Error listing storage files:", listError);
-          break;
+      while (foldersToVisit.length > 0) {
+        const currentFolder = foldersToVisit.shift();
+        if (!currentFolder || visitedFolders.has(currentFolder)) continue;
+        visitedFolders.add(currentFolder);
+
+        let offset = 0;
+        while (true) {
+          const { data: entries, error: listError } = await storageBucket.list(currentFolder, {
+            limit: 100,
+            offset,
+          });
+
+          if (listError) {
+            console.error("Error listing storage files:", listError);
+            break;
+          }
+
+          if (!entries || entries.length === 0) {
+            break;
+          }
+
+          entries.forEach((entry: any) => {
+            const fullPath = `${currentFolder}/${entry.name}`;
+            if (entry?.id) {
+              pathsToDelete.push(fullPath);
+              return;
+            }
+            foldersToVisit.push(fullPath);
+          });
+
+          if (entries.length < 100) {
+            break;
+          }
+          offset += 100;
         }
+      }
 
-        if (!files || files.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        const pathsToDelete = files.map((file) => `${tenantFolder}/${file.name}`);
-        const { error: removeError } = await storageBucket.remove(pathsToDelete);
+      const chunkSize = 100;
+      for (let i = 0; i < pathsToDelete.length; i += chunkSize) {
+        const chunk = pathsToDelete.slice(i, i + chunkSize);
+        const { error: removeError } = await storageBucket.remove(chunk);
 
         if (removeError) {
           console.error("Error removing storage files:", removeError);
           break;
-        }
-
-        if (files.length < 100) {
-          hasMore = false;
         }
       }
     } catch (storageError) {

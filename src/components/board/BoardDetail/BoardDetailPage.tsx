@@ -172,6 +172,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
     isManagementPost &&
     isPending &&
     isAdminViewer &&
+    !isAuthor &&
     !hasApprovedByCurrentUser &&
     !isApproving;
 
@@ -270,7 +271,18 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
       };
 
       if (!res.ok) {
-        throw new Error(json.errorCode ?? "board.detail.approval.error");
+        if (json.errorCode === "self_approval_forbidden") {
+          setApprovalErrorKey("board.detail.approval.selfForbidden");
+          return;
+        }
+
+        if (res.status === 403) {
+          setApprovalErrorKey("board.detail.approval.forbidden");
+          return;
+        }
+
+        setApprovalErrorKey("board.detail.approval.error");
+        return;
       }
 
       setPostData((prev) => ({
@@ -875,7 +887,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                         type="button"
                         onClick={handleApproveClick}
                         disabled={!canApprove}
-                        className="inline-flex items-center rounded-md border-2 border-gray-800 bg-white px-3 py-1 text-[11px] text-gray-800 hover:bg-gray-50 disabled:opacity-40"
+                        className={`inline-flex items-center rounded-md border-2 bg-white px-3 py-1 text-[11px] hover:bg-gray-50 disabled:opacity-40 ${canApprove ? "border-sky-400 text-sky-700" : "border-gray-800 text-gray-800"}`}
                       >
                         {t('board.detail.post.approve')}
                       </button>
