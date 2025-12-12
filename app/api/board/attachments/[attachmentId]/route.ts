@@ -14,6 +14,9 @@ export async function GET(req: Request, props: RouteParams) {
   const { params } = props;
   const { attachmentId } = await params;
 
+  const url = new URL(req.url);
+  const isInline = url.searchParams.get('inline') === '1';
+
   if (!attachmentId) {
     return NextResponse.json({ errorCode: 'validation_error' }, { status: 400 });
   }
@@ -44,7 +47,7 @@ export async function GET(req: Request, props: RouteParams) {
 
     if (appUserError || !appUser) {
       logError('board.attachment.api.user_not_found', {
-        email: user.email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
     }
@@ -148,7 +151,10 @@ export async function GET(req: Request, props: RouteParams) {
     headers.set('Content-Length', String(attachment.file_size));
 
     const encodedFileName = encodeURIComponent(attachment.file_name);
-    headers.set('Content-Disposition', `inline; filename*=UTF-8''${encodedFileName}`);
+    headers.set(
+      'Content-Disposition',
+      `${isInline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodedFileName}`,
+    );
 
     return new NextResponse(buffer, {
       status: 200,
@@ -196,7 +202,7 @@ export async function DELETE(req: Request, props: RouteParams) {
 
     if (appUserError || !appUser) {
       logError('board.attachment.delete.user_not_found', {
-        email: user.email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
     }

@@ -57,7 +57,6 @@ async function resolveCleaningDutyAssigneeAuthContext(): Promise<CleaningDutyAss
       operation: 'fetchAssigneeCandidates',
       errorCode: 'unauthorized',
       reason: 'user_not_found',
-      email,
     });
     return { error: { status: 403, body: { errorCode: 'unauthorized' } } };
   }
@@ -97,6 +96,7 @@ export async function GET() {
       where: {
         tenant_id: tenantId,
         group_code: groupCode,
+        status: 'active',
       },
       select: {
         id: true,

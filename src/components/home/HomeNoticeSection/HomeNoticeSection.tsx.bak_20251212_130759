@@ -1,0 +1,146 @@
+"use client";
+
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { Newspaper } from 'lucide-react';
+import { useI18n } from '@/src/components/common/StaticI18nProvider';
+import type { HomeNoticeSectionProps } from './HomeNoticeSection.types';
+import { clampNoticeCount, DEFAULT_HOME_NOTICE_COUNT } from './HomeNoticeSection.types';
+
+export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, maxItems, tenantName, tenantId }) => {
+  const { currentLocale } = useI18n();
+  const router = useRouter();
+
+  const [messages, setMessages] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (!tenantId) {
+      setMessages({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadMessages = async () => {
+      try {
+        const params = new URLSearchParams({ tenantId, lang: currentLocale });
+        const res = await fetch(`/api/tenant-static-translations/home-notice?${params.toString()}`);
+
+        if (!res.ok) {
+          if (!cancelled) {
+            setMessages({});
+          }
+          return;
+        }
+
+        const data = (await res.json().catch(() => ({}))) as {
+          messages?: Record<string, string>;
+        };
+
+        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
+          setMessages(data.messages);
+        }
+      } catch {
+        if (!cancelled) {
+          setMessages({});
+        }
+      }
+    };
+
+    void loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, currentLocale]);
+
+  const resolveMessage = React.useCallback(
+    (key: string): string => {
+      const fromDb = messages[key];
+      if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
+        return fromDb;
+      }
+      return '';
+    },
+    [messages],
+  );
+
+  const hasItems = items && items.length > 0;
+
+  if (!hasItems) {
+    return (
+      <section aria-labelledby="home-notice-title">
+        {tenantName && (
+          <div className="mb-1 flex justify-center">
+            <p className="max-w-full truncate text-base text-gray-600">
+              {tenantName}
+            </p>
+          </div>
+        )}
+        <h2
+          id="home-notice-title"
+          className="mb-2 text-sm text-gray-600 flex items-center gap-2"
+        >
+          <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
+          <span>{resolveMessage('home.noticeSection.title')}</span>
+        </h2>
+        <p className="text-sm text-gray-600">{resolveMessage('home.noticeSection.emptyMessage')}</p>
+      </section>
+    );
+  }
+
+  const limit = clampNoticeCount(maxItems ?? DEFAULT_HOME_NOTICE_COUNT);
+  const visibleItems = items.slice(0, limit);
+
+  return (
+    <section aria-labelledby="home-notice-title">
+      {tenantName && (
+        <div className="mb-1 flex justify-center">
+          <p className="max-w-full truncate text-base text-gray-600">
+            {tenantName}
+          </p>
+        </div>
+      )}
+      <h2
+        id="home-notice-title"
+        className="mb-3 text-sm text-gray-600 flex items-center gap-2"
+      >
+        <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
+        <span>{resolveMessage('home.noticeSection.title')}</span>
+      </h2>
+      <div className="space-y-3">
+        {visibleItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className="w-full rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            aria-label={`${item.publishedAt} ${item.title}`}
+            onClick={() => {
+              router.push(`/board/${item.id}`);
+            }}
+          >
+            <div className="mb-1 flex items-center justify-between text-[11px] text-gray-600">
+              <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-blue-700">
+                {resolveMessage('home.noticeSection.badge')}
+              </span>
+              <span>{item.publishedAt}</span>
+            </div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 space-y-1">
+                <p className="text-sm text-gray-600 line-clamp-2">{item.title}</p>
+                {item.content && (
+                  <p className="text-xs text-gray-600 line-clamp-2">{item.content}</p>
+                )}
+              </div>
+              <span className="ml-1 text-gray-600" aria-hidden="true">
+                &gt;
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+HomeNoticeSection.displayName = 'HomeNoticeSection';

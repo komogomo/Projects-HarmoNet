@@ -69,7 +69,7 @@ export async function DELETE(req: Request, context: DeletePostRouteContext) {
 
     if (appUserError || !appUser) {
       logError("board.post.delete.user_not_found", {
-        email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: "unauthorized" }, { status: 403 });
     }

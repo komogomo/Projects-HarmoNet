@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import TimeSlotSelector from "./TimeSlotSelector";
 import ReservationForm from "./ReservationForm";
 
@@ -27,10 +28,9 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   availableToTime,
   maxParticipants,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const router = useRouter();
-
-  const [messages, setMessages] = useState<Record<string, string>>({});
   const [rangeStartTime, setRangeStartTime] = useState<string | null>(null);
   const [rangeEndTime, setRangeEndTime] = useState<string | null>(null);
   const [purpose, setPurpose] = useState<string>("");
@@ -38,49 +38,6 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
   const [existingReservationId, setExistingReservationId] = useState<string | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -145,24 +102,19 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
     };
   }, [facilityId, selectedDate]);
 
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
+  const reservationDateLabel: string = t("labels.reservation_date");
+  const purposeLabel: string = t("labels.purpose");
+  const participantCountLabel: string = t("labels.participant_count");
+  const facilityNameLabel: string = t("top.facilityName.room");
+  const reservationSectionTitle: string = t("booking.reservationSectionTitle");
+  const confirmButtonLabel: string = t("booking.confirmButton");
+  const cancelButtonLabel: string = t("booking.cancelButton");
+  const cancelConfirmMessage: string = t("booking.cancelConfirmMessage");
+  const cancelConfirmNoLabel: string = t("booking.cancelConfirmNo");
+  const cancelConfirmYesLabel: string = t("booking.cancelConfirmYes");
 
-  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
-  const purposeLabel: string = resolveMessage("labels.purpose");
-  const participantCountLabel: string = resolveMessage("labels.participant_count");
-  const facilityNameLabel: string = resolveMessage("top.facilityName.room");
-  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
-  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
-  const cancelButtonLabel: string = resolveMessage("booking.cancelButton");
-  const cancelConfirmMessage: string = resolveMessage("booking.cancelConfirmMessage");
-  const cancelConfirmNoLabel: string = resolveMessage("booking.cancelConfirmNo");
-  const cancelConfirmYesLabel: string = resolveMessage("booking.cancelConfirmYes");
+  const reservationTimeLabel: string = t("confirm.timeLabel");
+  const selectPlaceholderLabel: string = t("booking.selectTimePlaceholder");
 
   const handleRequestCancel = () => {
     if (!existingReservationId || isSubmittingCancel) return;
@@ -210,6 +162,8 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
             tenantId={tenantId}
             availableFromTime={availableFromTime}
             availableToTime={availableToTime}
+            myReservedStartTime={existingReservationId ? rangeStartTime : null}
+            myReservedEndTime={existingReservationId ? rangeEndTime : null}
             onRangeChange={(start, end) => {
               setRangeStartTime(start);
               setRangeEndTime(end);
@@ -234,6 +188,8 @@ const FacilityMeetingRoomBookingPage: React.FC<FacilityMeetingRoomBookingPagePro
             maxParticipants={maxParticipants}
             selectedStartTime={rangeStartTime}
             selectedEndTime={rangeEndTime}
+            reservationTimeLabel={reservationTimeLabel}
+            selectPlaceholderLabel={selectPlaceholderLabel}
             purposeLabel={purposeLabel}
             participantCountLabel={participantCountLabel}
             purpose={purpose}

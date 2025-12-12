@@ -79,7 +79,7 @@ export async function GET(req: Request) {
 
     if (appUserError || !appUser) {
       logError('board.posts.api.user_not_found', {
-        email: user.email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
     }
@@ -385,7 +385,7 @@ export async function POST(req: Request) {
 
     if (appUserError || !appUser) {
       logError('board.post.api.user_not_found', {
-        email: user.email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: 'unauthorized' }, { status: 403 });
     }

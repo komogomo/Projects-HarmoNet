@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 
-type SlotState = "available" | "selected" | "booked" | "blocked";
+type SlotState = "available" | "selected" | "booked" | "blocked" | "my";
 
 type Slot = {
   time: string;
@@ -15,6 +16,8 @@ interface TimeSlotSelectorProps {
   availableToTime?: string | null;
   onRangeChange?: (startTime: string | null, endTime: string | null) => void;
   tenantId: string;
+  myReservedStartTime?: string | null;
+  myReservedEndTime?: string | null;
 }
 
 const parseHmToMinutes = (value: string | null | undefined, fallback: number): number => {
@@ -57,56 +60,13 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   availableToTime,
   onRangeChange,
   tenantId,
+  myReservedStartTime,
+  myReservedEndTime,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const [rangeStartIndex, setRangeStartIndex] = useState<number | null>(null);
   const [rangeEndIndex, setRangeEndIndex] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   const slots: Slot[] = useMemo(() => {
     const baseTimes = buildTimeList(availableFromTime ?? undefined, availableToTime ?? undefined);
@@ -117,21 +77,26 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     });
   }, [availableFromTime, availableToTime]);
 
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
+  const myReservedRange = useMemo(() => {
+    const start = typeof myReservedStartTime === "string" ? myReservedStartTime : "";
+    const end = typeof myReservedEndTime === "string" ? myReservedEndTime : "";
+    if (!start || !end) return null;
 
-  const legendSelected: string = resolveMessage("booking.legend.selected");
-  const legendBooked: string = resolveMessage("booking.legend.booked");
-  const legendAvailable: string = resolveMessage("booking.legend.available");
-  const legendMy: string = resolveMessage("booking.legend.my");
+    const startMin = parseHmToMinutes(start, -1);
+    const endMin = parseHmToMinutes(end, -1);
+    if (startMin < 0 || endMin < 0) return null;
+    if (endMin < startMin) return null;
+
+    return { startMin, endMin };
+  }, [myReservedStartTime, myReservedEndTime]);
+
+  const legendSelected: string = t("booking.legend.selected");
+  const legendBooked: string = t("booking.legend.booked");
+  const legendAvailable: string = t("booking.legend.available");
+  const legendMy: string = t("booking.legend.my");
 
   const handleToggle = (slot: Slot, index: number) => {
-    if (slot.state === "booked" || slot.state === "blocked") {
+    if (slot.state === "booked" || slot.state === "blocked" || slot.state === "my") {
       return;
     }
 
@@ -188,13 +153,24 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
             return index >= rangeStartIndex && index <= rangeEndIndex;
           })();
 
-          const state: SlotState = slot.state;
+          const state: SlotState = (() => {
+            if (!myReservedRange) return slot.state;
+            const slotMin = parseHmToMinutes(slot.time, -1);
+            if (slotMin < 0) return slot.state;
+            if (slotMin >= myReservedRange.startMin && slotMin <= myReservedRange.endMin) {
+              return "my";
+            }
+            return slot.state;
+          })();
 
           let classes =
             "flex items-center justify-center rounded-md border-2 px-1.5 py-1.5 text-[11px]";
           if (state === "available") {
             // カレンダーの「予約可能」と同じ青系アウトライン
             classes += " border-blue-200 bg-white text-gray-600 hover:bg-blue-50";
+          } else if (state === "my") {
+            // 自予約済（枠は青、背景は薄いグレー）
+            classes += " border-blue-500 bg-gray-200 text-blue-700 cursor-not-allowed";
           } else if (state === "booked") {
             classes += " border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed";
           } else if (state === "blocked") {
@@ -211,8 +187,8 @@ const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
             <button
               key={slot.time}
               type="button"
-              onClick={() => handleToggle(slot, index)}
-              disabled={slot.state === "booked" || slot.state === "blocked"}
+              onClick={() => handleToggle({ ...slot, state }, index)}
+              disabled={state === "booked" || state === "blocked" || state === "my"}
               className={classes}
             >
               {slot.time}

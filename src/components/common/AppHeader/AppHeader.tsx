@@ -12,51 +12,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   className = '',
   testId = 'app-header',
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [hasUnread, setHasUnread] = useState<boolean>(false);
-  const [messages, setMessages] = useState<Record<string, string>>({});
 
   const isLoginPath = pathname === '/login';
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const params = new URLSearchParams({ lang: currentLocale });
-        const res = await fetch(`/api/static-translations/nav?${params.toString()}`);
-        if (!res.ok) return;
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  const resolveNavMessage = (key: string): string => {
-    const value = messages[key];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value;
-    }
-    return "";
-  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -141,7 +102,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 rounded-lg
                 transition-colors
               "
-              aria-label={resolveNavMessage("home.noticeSection.title")}
+              aria-label={t("home.noticeSection.title")}
               data-testid={`${testId}-notification`}
               type="button"
               onClick={() => {

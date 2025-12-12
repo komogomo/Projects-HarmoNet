@@ -85,7 +85,6 @@ export default async function FacilityBookingPage(props: FacilityBookingPageProp
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "FacilityBooking",
-      email,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");

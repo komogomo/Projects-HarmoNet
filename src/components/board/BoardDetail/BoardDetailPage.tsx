@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Languages, MessageCircle, Star, Trash2, Volume2 } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import { BOARD_ATTACHMENT_DEFAULTS } from "@/src/lib/boardAttachmentSettings";
 import type { BoardPostDetailDto } from "@/src/server/board/getBoardPostById";
@@ -94,7 +95,7 @@ type AttachmentPreviewState = {
 } | null;
 
 const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, tenantId }) => {
-  const { currentLocale } = useI18n();
+  const { currentLocale, t } = useI18n();
   const router = useRouter();
   const [preview, setPreview] = useState<AttachmentPreviewState>(null);
   const [postData, setPostData] = useState(data);
@@ -121,11 +122,13 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
   const audioUrlRef = useRef<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationErrorKey, setTranslationErrorKey] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Record<string, string>>({});
   const [isApproving, setIsApproving] = useState(false);
   const [approvalErrorKey, setApprovalErrorKey] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishErrorKey, setPublishErrorKey] = useState<string | null>(null);
+
+  useTenantStaticTranslations({ tenantId, apiPath: 'board-detail' });
+  useTenantStaticTranslations({ tenantId, apiPath: 'board-post-form' });
 
   const {
     categoryKey,
@@ -204,57 +207,6 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
 
     return { file, isPdf, isImage };
   }, [selectedAttachmentIds, attachments]);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/board-detail?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
 
   // 通知の既読更新: 詳細画面（特定の投稿）を開いた時点で mark-seen API を呼び出す
   useEffect(() => {
@@ -475,16 +427,17 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
     }
 
     const { file, isPdf, isImage } = selectedPreviewableAttachment;
+    const previewUrl = `${file.fileUrl}?inline=1`;
     if (isPdf) {
       if (typeof window !== "undefined") {
-        window.open(file.fileUrl, "_blank", "noreferrer");
+        window.open(previewUrl, "_blank", "noreferrer");
       }
       return;
     }
 
     if (isImage) {
       setPreview({
-        url: file.fileUrl,
+        url: previewUrl,
         fileName: file.fileName,
         isPdf: false,
         isImage: true,
@@ -505,9 +458,11 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
 
       const link = document.createElement("a");
       link.href = attachment.fileUrl;
-      link.target = "_blank";
+      link.download = attachment.fileName;
       link.rel = "noreferrer";
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     });
   };
 
@@ -811,7 +766,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
         <main className="min-h-screen bg-white pb-24">
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pt-20 pb-24">
             <div className="flex-1 flex items-center justify-center text-sm text-gray-600">
-              {resolveMessage("board.detail.loading")}
+              {t('board.detail.loading')}
             </div>
           </div>
         </main>
@@ -846,7 +801,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
             <header className="space-y-2">
               <div className="flex items-center justify-between text-[11px] text-gray-600">
                 <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-blue-700">
-                  {resolveMessage(categoryLabelKey)}
+                  {t(categoryLabelKey)}
                 </span>
                 <span>{createdAtLabel}</span>
               </div>
@@ -866,7 +821,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                     ? "border-yellow-400 text-yellow-400"
                     : "border-gray-200 text-gray-400 hover:border-yellow-300 hover:text-yellow-400"
                     }`}
-                  aria-label={resolveMessage(
+                  aria-label={t(
                     isFavorite ? "board.detail.favorite.remove" : "board.detail.favorite.add",
                   )}
                 >
@@ -875,22 +830,22 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
               </div>
               {/* お気に入りボタンは本文カード内の右上に移動 */}
               {favoriteErrorKey && (
-                <p className="text-[11px] text-red-600">{resolveMessage(favoriteErrorKey)}</p>
+                <p className="text-[11px] text-red-600">{t(favoriteErrorKey)}</p>
               )}
               {postDeleteErrorKey && (
-                <p className="text-[11px] text-red-600">{resolveMessage(postDeleteErrorKey)}</p>
+                <p className="text-[11px] text-red-600">{t(postDeleteErrorKey)}</p>
               )}
               {approvalErrorKey && (
-                <p className="text-[11px] text-red-600">{resolveMessage(approvalErrorKey)}</p>
+                <p className="text-[11px] text-red-600">{t(approvalErrorKey)}</p>
               )}
               {publishErrorKey && (
-                <p className="text-[11px] text-red-600">{resolveMessage(publishErrorKey)}</p>
+                <p className="text-[11px] text-red-600">{t(publishErrorKey)}</p>
               )}
             </header>
 
             {/* 本文エリア */}
             <section
-              aria-label={resolveMessage("board.detail.section.content")}
+              aria-label={t('board.detail.section.content')}
               className="rounded-lg border-2 border-gray-200 bg-white px-3 pt-4 pb-2"
             >
               {/* 上段: 本文 + 右上のお気に入りボタン */}
@@ -910,7 +865,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                       disabled={isPostDeleting}
                       className="inline-flex items-center rounded-md border-2 border-red-200 bg-white px-3 py-1 text-[11px] text-red-500 hover:bg-red-50 disabled:opacity-50"
                     >
-                      {resolveMessage("board.detail.post.delete")}
+                      {t('board.detail.post.delete')}
                     </button>
                   )}
 
@@ -922,14 +877,14 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                         disabled={!canApprove}
                         className="inline-flex items-center rounded-md border-2 border-gray-800 bg-white px-3 py-1 text-[11px] text-gray-800 hover:bg-gray-50 disabled:opacity-40"
                       >
-                        {resolveMessage("board.detail.post.approve")}
+                        {t('board.detail.post.approve')}
                       </button>
                       <span className="text-[11px] text-gray-600">
                         {isPending
                           ? approvalCount >= approvalRequiredCount
-                            ? resolveMessage("board.detail.post.approvalCompleted")
-                            : resolveMessage("board.detail.post.approvalPending")
-                          : resolveMessage("board.detail.post.published")}
+                            ? t('board.detail.post.approvalCompleted')
+                            : t('board.detail.post.approvalPending')
+                          : t('board.detail.post.published')}
                       </span>
                       {canPublish && (
                         <button
@@ -938,7 +893,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                           disabled={!canPublish}
                           className="inline-flex items-center rounded-md border-2 border-blue-600 bg-white px-3 py-1 text-[11px] text-blue-600 hover:bg-blue-50 disabled:opacity-40"
                         >
-                          {resolveMessage("board.detail.post.publish")}
+                          {t('board.detail.post.publish')}
                         </button>
                       )}
                     </>
@@ -951,10 +906,10 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                       type="button"
                       onClick={handleReplyClick}
                       className="inline-flex items-center gap-1 rounded-md border-2 border-blue-200 px-2 py-1 text-[11px] text-blue-600 hover:bg-blue-50"
-                      aria-label={resolveMessage("board.detail.post.reply")}
+                      aria-label={t('board.detail.post.reply')}
                     >
                       <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                      <span>{resolveMessage("board.detail.post.reply")}</span>
+                      <span>{t('board.detail.post.reply')}</span>
                     </button>
                   )}
 
@@ -972,12 +927,12 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                         <Languages className="h-4 w-4" aria-hidden="true" />
                         <span>
                           {isTranslating
-                            ? resolveMessage("board.detail.i18n.translating")
-                            : resolveMessage("board.detail.i18n.translate")}
+                            ? t('board.detail.i18n.translating')
+                            : t('board.detail.i18n.translate')}
                         </span>
                       </button>
                       {translationErrorKey && (
-                        <p className="text-[11px] text-red-600">{resolveMessage(translationErrorKey)}</p>
+                        <p className="text-[11px] text-red-600">{t(translationErrorKey)}</p>
                       )}
                     </div>
                   )}
@@ -995,12 +950,12 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                       <Volume2 className="h-4 w-4" aria-hidden="true" />
                       <span>
                         {ttsState === "playing"
-                          ? resolveMessage("board.detail.tts.stop")
-                          : resolveMessage("board.detail.tts.play")}
+                          ? t('board.detail.tts.stop')
+                          : t('board.detail.tts.play')}
                       </span>
                     </button>
                     {ttsErrorKey && (
-                      <p className="text-[11px] text-red-600">{resolveMessage(ttsErrorKey)}</p>
+                      <p className="text-[11px] text-red-600">{t(ttsErrorKey)}</p>
                     )}
                   </div>
                 </div>
@@ -1010,7 +965,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
             {/* 添付ファイルリスト */}
             {(attachments.length > 0 || data.isDeletable) && (
               <section
-                aria-label={resolveMessage("board.detail.section.attachments")}
+                aria-label={t('board.detail.section.attachments')}
                 className="space-y-3"
               >
                 <div className="rounded-lg border-2 border-gray-200 bg-white p-3 text-xs text-gray-600">
@@ -1028,11 +983,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                             onChange={handleToggleSelectAllAttachments}
                           />
                           <span>
-                            {currentLocale === "en"
-                              ? "Select all"
-                              : currentLocale === "zh"
-                                ? "全选"
-                                : "すべて選択"}
+                            {t('board.detail.attachments.selectAll')}
                           </span>
                         </label>
                         <div className="flex items-center gap-2">
@@ -1043,8 +994,8 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                                 className="inline-flex cursor-pointer items-center rounded-md border-2 border-blue-200 bg-white px-2.5 py-1 text-[11px] text-blue-600 hover:border-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed"
                               >
                                 {isUploadingAttachments
-                                  ? resolveMessage("board.detail.attachments.uploading")
-                                  : resolveMessage("board.detail.attachments.attachFile")}
+                                  ? t('board.detail.attachments.uploading')
+                                  : t('board.detail.attachments.attachFile')}
                               </label>
                               <input
                                 id="board-detail-attachment-input"
@@ -1069,7 +1020,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                               : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
                               }`}
                           >
-                            {resolveMessage("board.detail.attachments.preview")}
+                            {t('board.detail.attachments.preview')}
                           </button>
                           <button
                             type="button"
@@ -1080,7 +1031,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                               : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
                               }`}
                           >
-                            {resolveMessage("board.detail.attachments.download")}
+                            {t('board.detail.attachments.download')}
                           </button>
                         </div>
                       </div>
@@ -1128,7 +1079,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                     </>
                   )}
                   {attachmentErrorKey && (
-                    <p className="mt-2 text-[11px] text-red-600">{resolveMessage(attachmentErrorKey)}</p>
+                    <p className="mt-2 text-[11px] text-red-600">{t(attachmentErrorKey)}</p>
                   )}
                 </div>
               </section>
@@ -1136,20 +1087,20 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
 
             {/* コメント一覧 */}
             <section
-              aria-label={resolveMessage("board.detail.section.comments")}
+              aria-label={t('board.detail.section.comments')}
               className="space-y-3"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-sm text-gray-600">
-                  {resolveMessage("board.detail.comments.title")}
+                  {t('board.detail.comments.title')}
                 </h2>
               </div>
               {deleteErrorKey && (
-                <p className="text-[11px] text-red-600">{resolveMessage(deleteErrorKey)}</p>
+                <p className="text-[11px] text-red-600">{t(deleteErrorKey)}</p>
               )}
               {comments.length === 0 ? (
                 <p className="text-xs text-gray-600">
-                  {resolveMessage("board.detail.comments.empty")}
+                  {t('board.detail.comments.empty')}
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -1166,8 +1117,13 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                       : null;
 
                     const effectiveContent = isDeleted
-                      ? `${timeLabel} ${resolveMessage("board.comment.deleted")}`
+                      ? `${timeLabel} ${t('board.comment.deleted')}`
                       : translated ?? comment.content;
+
+                    const effectiveAuthorDisplayName =
+                      comment.authorDisplayName && comment.authorDisplayName.trim().length > 0
+                        ? comment.authorDisplayName
+                        : t('board.postForm.option.anonymous');
 
                     return (
                       <li
@@ -1175,7 +1131,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                         className="rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs text-gray-600"
                       >
                         <div className="mb-1 flex items-center justify-between text-[11px] text-gray-600">
-                          <span>{comment.authorDisplayName}</span>
+                          <span>{effectiveAuthorDisplayName}</span>
                           <div className="flex items-center gap-2">
                             <span>{timeLabel}</span>
                             {comment.isDeletable && comment.status !== "deleted" && (
@@ -1184,7 +1140,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                                 onClick={() => handleRequestDeleteComment(comment.id)}
                                 disabled={deletingCommentId === comment.id}
                                 className="text-gray-400 hover:text-red-500 disabled:opacity-50"
-                                aria-label={resolveMessage("board.detail.comment.delete")}
+                                aria-label={t('board.detail.comment.delete')}
                               >
                                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
@@ -1217,7 +1173,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
               onClick={(event) => event.stopPropagation()}
             >
               <p className="mb-3 whitespace-pre-line">
-                {resolveMessage("board.detail.post.deleteConfirmMessage")}
+                {t('board.detail.post.deleteConfirmMessage')}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1226,7 +1182,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={isPostDeleting}
                   className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmNo")}
+                  {t('board.detail.post.deleteConfirmNo')}
                 </button>
                 <button
                   type="button"
@@ -1234,7 +1190,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={isPostDeleting}
                   className="text-red-500 hover:text-red-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmYes")}
+                  {t('board.detail.post.deleteConfirmYes')}
                 </button>
               </div>
             </div>
@@ -1254,7 +1210,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
               onClick={(event) => event.stopPropagation()}
             >
               <p className="mb-3 whitespace-pre-line">
-                {resolveMessage("board.detail.comment.deleteConfirmMessage")}
+                {t('board.detail.comment.deleteConfirmMessage')}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1263,7 +1219,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={deletingAttachmentId === confirmingAttachmentId}
                   className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmNo")}
+                  {t('board.detail.post.deleteConfirmNo')}
                 </button>
                 <button
                   type="button"
@@ -1271,7 +1227,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={deletingAttachmentId === confirmingAttachmentId}
                   className="text-red-500 hover:text-red-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmYes")}
+                  {t('board.detail.post.deleteConfirmYes')}
                 </button>
               </div>
             </div>
@@ -1291,7 +1247,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
               onClick={(event) => event.stopPropagation()}
             >
               <p className="mb-3 whitespace-pre-line">
-                {resolveMessage("board.detail.comment.deleteConfirmMessage")}
+                {t('board.detail.comment.deleteConfirmMessage')}
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1300,7 +1256,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={deletingCommentId === confirmingCommentId}
                   className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmNo")}
+                  {t('board.detail.post.deleteConfirmNo')}
                 </button>
                 <button
                   type="button"
@@ -1308,7 +1264,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   disabled={deletingCommentId === confirmingCommentId}
                   className="text-red-500 hover:text-red-600 disabled:opacity-50"
                 >
-                  {resolveMessage("board.detail.post.deleteConfirmYes")}
+                  {t('board.detail.post.deleteConfirmYes')}
                 </button>
               </div>
             </div>
@@ -1334,7 +1290,7 @@ const BoardDetailPage: React.FC<BoardDetailPageProps> = ({ data, tenantName, ten
                   type="button"
                   onClick={() => setPreview(null)}
                   className="text-gray-500 hover:text-gray-700"
-                  aria-label={resolveMessage("board.detail.attachments.closePreview")}
+                  aria-label={t('board.detail.attachments.closePreview')}
                 >
                   ×
                 </button>

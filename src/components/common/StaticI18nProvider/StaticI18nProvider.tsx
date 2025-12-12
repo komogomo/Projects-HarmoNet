@@ -2,19 +2,54 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import type { Locale, StaticI18nContextValue, StaticI18nProviderProps, Translations } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider.types';
+import { logError } from '@/src/lib/logging/log.util';
 
 const I18NContext = createContext<StaticI18nContextValue | null>(null);
 
 const FALLBACK_LOCALE: Locale = 'ja';
 const LOCALES: Locale[] = ['ja', 'en', 'zh'];
 
-const buildDictionaryPath = (locale: Locale): string => `/locales/${locale}/common.json`;
+const DEFAULT_SCREEN_KEYS = ['nav', 'login'] as const;
 
 async function fetchTranslations(locale: Locale): Promise<Translations> {
-  return {};
+  const params = new URLSearchParams({ lang: locale });
+
+  const parts = await Promise.all(
+    DEFAULT_SCREEN_KEYS.map(async (screenKey) => {
+      try {
+        const res = await fetch(`/api/static-translations/${screenKey}?${params.toString()}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          return {} as Record<string, string>;
+        }
+        const data = (await res.json().catch(() => ({}))) as { messages?: Record<string, string> };
+        if (!data || !data.messages || typeof data.messages !== 'object') {
+          return {} as Record<string, string>;
+        }
+        return data.messages;
+      } catch {
+        return {} as Record<string, string>;
+      }
+    }),
+  );
+
+  const merged: Record<string, string> = {};
+  for (const dict of parts) {
+    for (const [k, v] of Object.entries(dict)) {
+      merged[k] = v;
+    }
+  }
+
+  return merged;
 }
 
 function resolveKey(obj: Translations, key: string): string | undefined {
+  const direct = (obj as any)?.[key];
+  if (typeof direct === 'string') {
+    return direct;
+  }
+
   const parts = key.split('.');
   let current: any = obj;
 
@@ -59,12 +94,15 @@ export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({ children
   const loadTranslations = useEffectEvent(async (target: Locale) => {
     try {
       const data = await fetchTranslations(target);
-      setTranslations(data);
+      setTranslations((prev) => ({
+        ...(prev ?? {}),
+        ...(data ?? {}),
+      }));
     } catch (err) {
-      console.error('[i18n] Failed to load dictionary:', target, err);
-      if (target !== FALLBACK_LOCALE) {
-        setLocaleState(FALLBACK_LOCALE);
-      }
+      logError('i18n.static.load_failed', {
+        locale: target,
+      });
+      // 静的辞書ロードに失敗しても、tenant側でマージされた辞書まで消さない
     }
   });
 
@@ -103,14 +141,21 @@ export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({ children
       }
 
       const value = resolveKey(translations, key);
-      if (typeof value === 'string' && value.trim().length > 0) {
+      if (typeof value === 'string' && value.trim().length > 0 && value !== key) {
         return value;
       }
-      console.warn('[i18n] Missing key:', key);
       return '';
     },
     [translations],
   );
+
+  const mergeTranslations = useCallback<StaticI18nContextValue['mergeTranslations']>((messages) => {
+    if (!messages || typeof messages !== 'object') return;
+    setTranslations((prev) => ({
+      ...(prev ?? {}),
+      ...messages,
+    }));
+  }, []);
 
   const value = useMemo<StaticI18nContextValue>(
     () => ({
@@ -118,8 +163,9 @@ export const StaticI18nProvider: React.FC<StaticI18nProviderProps> = ({ children
       currentLocale: locale,
       setLocale,
       t,
+      mergeTranslations,
     }),
-    [locale, setLocale, t],
+    [locale, setLocale, t, mergeTranslations],
   );
 
   return <I18NContext.Provider value={value}>{children}</I18NContext.Provider>;

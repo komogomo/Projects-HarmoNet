@@ -1,0 +1,3 @@
+export { StaticI18nProvider, useStaticI18n } from './StaticI18nProvider';
+export { useStaticI18n as useI18n } from './StaticI18nProvider';
+export type { StaticI18nProviderProps, StaticI18nContextValue, Locale } from './StaticI18nProvider.types';

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 
 type ParkingState = "available" | "booked" | "my";
 
@@ -16,6 +17,7 @@ interface ParkingSlotSelectorProps {
   selectedSlotId?: string | null;
   onSelectSlot?: (slotId: string | null) => void;
   tenantId?: string;
+  selectionLocked?: boolean;
 }
 
 const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
@@ -23,70 +25,20 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
   selectedSlotId = null,
   onSelectSlot,
   tenantId,
+  selectionLocked = false,
 }) => {
-  const { currentLocale } = useI18n();
-  const [messages, setMessages] = React.useState<Record<string, string>>({});
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
-
-  const legendAvailable: string = resolveMessage("booking.legend.available");
-  const legendSelected: string = resolveMessage("booking.legend.selected");
-  const legendBooked: string = resolveMessage("booking.legend.booked");
-  const legendMy: string = resolveMessage("booking.legend.my");
+  const legendAvailable: string = t("booking.legend.available");
+  const legendSelected: string = t("booking.legend.selected");
+  const legendBooked: string = t("booking.legend.booked");
+  const legendMy: string = t("booking.legend.my");
 
   const handleClick = (slot: ParkingSlot) => {
+    if (selectionLocked) return;
     if (slot.state === "booked") return;
+    if (slot.state === "my") return;
     if (!onSelectSlot) return;
     const nextSelected = selectedSlotId === slot.id ? null : slot.id;
     onSelectSlot(nextSelected);
@@ -104,12 +56,12 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
           if (slot.state === "booked") {
             // 予約不可（カレンダー凡例と同じく濃いグレー）
             classes += " border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed";
-          } else if (isSelected) {
-            // 選択中（本日と同じトーン：青枠 + 青みの背景）
-            classes += " border-blue-500 bg-blue-50 text-blue-700";
           } else if (slot.state === "my") {
             // 自予約済（枠は青、背景は薄いグレー）
             classes += " border-blue-500 bg-gray-200 text-blue-700";
+          } else if (isSelected && !selectionLocked) {
+            // 選択中（本日と同じトーン：青枠 + 青みの背景）
+            classes += " border-blue-500 bg-blue-50 text-blue-700";
           } else {
             // 空き（予約可能：薄い青枠）
             classes += " border-blue-200 bg-white text-gray-600";
@@ -120,7 +72,7 @@ const ParkingSlotSelector: React.FC<ParkingSlotSelectorProps> = ({
               key={slot.id}
               type="button"
               onClick={() => handleClick(slot)}
-              disabled={slot.state === "booked"}
+              disabled={slot.state === "booked" || slot.state === "my" || selectionLocked}
               className={classes}
             >
               <span className="text-lg">{slot.label}</span>

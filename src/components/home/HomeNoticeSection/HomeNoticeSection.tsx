@@ -3,67 +3,15 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Newspaper } from 'lucide-react';
-import { useI18n } from '@/src/components/common/StaticI18nProvider';
+import { useI18n, useTenantStaticTranslations } from '@/src/components/common/StaticI18nProvider';
 import type { HomeNoticeSectionProps } from './HomeNoticeSection.types';
 import { clampNoticeCount, DEFAULT_HOME_NOTICE_COUNT } from './HomeNoticeSection.types';
 
 export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, maxItems, tenantName, tenantId }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
 
-  const [messages, setMessages] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(`/api/tenant-static-translations/home-notice?${params.toString()}`);
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = React.useCallback(
-    (key: string): string => {
-      const fromDb = messages[key];
-      if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
-        return fromDb;
-      }
-      return '';
-    },
-    [messages],
-  );
+  useTenantStaticTranslations({ tenantId, apiPath: 'home-notice' });
 
   const hasItems = items && items.length > 0;
 
@@ -82,9 +30,9 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
           className="mb-2 text-sm text-gray-600 flex items-center gap-2"
         >
           <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
-          <span>{resolveMessage('home.noticeSection.title')}</span>
+          <span>{t('home.noticeSection.title')}</span>
         </h2>
-        <p className="text-sm text-gray-600">{resolveMessage('home.noticeSection.emptyMessage')}</p>
+        <p className="text-sm text-gray-600">{t('home.noticeSection.emptyMessage')}</p>
       </section>
     );
   }
@@ -106,7 +54,7 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
         className="mb-3 text-sm text-gray-600 flex items-center gap-2"
       >
         <Newspaper aria-hidden="true" className="h-5 w-5 text-blue-600" />
-        <span>{resolveMessage('home.noticeSection.title')}</span>
+        <span>{t('home.noticeSection.title')}</span>
       </h2>
       <div className="space-y-3">
         {visibleItems.map((item) => (
@@ -121,7 +69,7 @@ export const HomeNoticeSection: React.FC<HomeNoticeSectionProps> = ({ items, max
           >
             <div className="mb-1 flex items-center justify-between text-[11px] text-gray-600">
               <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-blue-700">
-                {resolveMessage('home.noticeSection.badge')}
+                {t('home.noticeSection.badge')}
               </span>
               <span>{item.publishedAt}</span>
             </div>

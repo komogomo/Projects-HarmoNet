@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import type { BoardTab, BoardPostSummary, BoardCategoryTag, BoardCategoryKey } from "./types";
 import { BoardTabBar } from "./BoardTabBar";
@@ -52,7 +53,7 @@ interface BoardTopPageProps {
 }
 
 const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => {
-  const { currentLocale } = useI18n();
+  const { currentLocale, t } = useI18n();
   const router = useRouter();
 
   const searchParams = useSearchParams();
@@ -74,9 +75,9 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
   const [rawPosts, setRawPosts] = useState<BoardPostSummaryDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
-  const [messages, setMessages] = useState<Record<string, string>>({});
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [reloadNonce, setReloadNonce] = useState<number>(0);
 
   const [fabOffset, setFabOffset] = useState({ x: 0, y: 0 });
   const [isDraggingFab, setIsDraggingFab] = useState(false);
@@ -84,6 +85,8 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
   const offsetStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
+
+  useTenantStaticTranslations({ tenantId, apiPath: 'board-top' });
 
   const posts: BoardPostSummary[] = useMemo(() => {
     if (!rawPosts || rawPosts.length === 0) {
@@ -246,55 +249,10 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
     return () => {
       isCancelled = true;
     };
-  }, [tenantId]);
+  }, [tenantId, reloadNonce]);
 
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let isCancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const response = await fetch(`/api/tenant-static-translations/board-top?${params.toString()}`);
-
-        if (!response.ok) {
-          if (!isCancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await response.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!isCancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!isCancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    loadMessages();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
+  const handleRetryFetch = () => {
+    setReloadNonce((prev) => prev + 1);
   };
 
   useEffect(() => {
@@ -419,7 +377,7 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
                 id="board-top-title"
                 className="sr-only"
               >
-                {resolveMessage("board.top.title")}
+                {t('board.top.title')}
               </h1>
             </header>
 
@@ -431,27 +389,26 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
                 onToggleCategory={handleToggleCategoryFilter}
                 onResetAll={handleResetAllFilters}
                 categoryTags={CATEGORY_TAGS}
-                tOverride={resolveMessage}
               />
             </div>
 
             {isLoading ? null : isError ? (
-              <BoardErrorState tOverride={resolveMessage} />
+              <BoardErrorState onRetry={handleRetryFetch} />
             ) : filteredPosts.length === 0 ? (
-              <BoardEmptyState tOverride={resolveMessage} />
+              <BoardEmptyState />
             ) : (
               <>
-                <BoardPostSummaryList posts={pagedPosts} tOverride={resolveMessage} />
+                <BoardPostSummaryList posts={pagedPosts} />
                 <BoardPagination
                   currentPage={safeCurrentPage}
                   pageSize={pageSize}
                   totalItems={totalItems}
                   onChangePage={handleChangePage}
                   onChangePageSize={handleChangePageSize}
-                  labelPageSize={resolveMessage("board.top.pagination.pageSize.label")}
-                  labelRangeTemplate={resolveMessage("board.top.pagination.range.template")}
-                  labelPrev={resolveMessage("board.top.pagination.prev")}
-                  labelNext={resolveMessage("board.top.pagination.next")}
+                  labelPageSize={t('board.top.pagination.pageSize.label')}
+                  labelRangeTemplate={t('board.top.pagination.range.template')}
+                  labelPrev={t('board.top.pagination.prev')}
+                  labelNext={t('board.top.pagination.next')}
                 />
               </>
             )}
@@ -465,8 +422,8 @@ const BoardTopPage: React.FC<BoardTopPageProps> = ({ tenantId, tenantName }) => 
           onTouchStart={handleFabTouchStart}
           className="fixed bottom-24 right-4 z-[960] flex h-11 w-11 items-center justify-center rounded-full bg-transparent border-2 border-blue-400 text-blue-600 shadow-lg shadow-blue-200/60 hover:bg-blue-50/40 active:bg-blue-100/40 focus:outline-none focus:ring-2 focus:ring-blue-300/70 focus:ring-offset-2"
           style={{ transform: `translate3d(${fabOffset.x}px, ${fabOffset.y}px, 0)` }}
-          aria-label={resolveMessage("board.top.newPost.button")}
-          title={resolveMessage("board.top.newPost.button")}
+          aria-label={t('board.top.newPost.button')}
+          title={t('board.top.newPost.button')}
           data-testid="board-top-fab"
         >
           <Plus className="h-6 w-6" strokeWidth={2.6} aria-hidden="true" />

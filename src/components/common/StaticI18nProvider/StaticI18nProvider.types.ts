@@ -9,6 +9,7 @@ export interface StaticI18nContextValue {
   currentLocale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: string) => string;
+  mergeTranslations: (messages: Record<string, string>) => void;
 }
 
 export interface StaticI18nProviderProps {

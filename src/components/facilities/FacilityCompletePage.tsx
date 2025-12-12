@@ -1,74 +1,22 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 
 export interface FacilityCompletePageProps {
   tenantId: string;
 }
 
 const FacilityCompletePage: React.FC<FacilityCompletePageProps> = ({ tenantId }) => {
-  const { currentLocale } = useI18n();
-  const [messages, setMessages] = useState<Record<string, string>>({});
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
-
-  const completeTitle: string = resolveMessage("confirm.completeTitle");
-  const completeBody: string = resolveMessage("confirm.completeBody");
-  const backLabel: string = resolveMessage("confirm.completeBackButton");
+  const completeTitle: string = t("confirm.completeTitle");
+  const completeBody: string = t("confirm.completeBody");
+  const backLabel: string = t("confirm.completeBackButton");
 
   return (
     <>

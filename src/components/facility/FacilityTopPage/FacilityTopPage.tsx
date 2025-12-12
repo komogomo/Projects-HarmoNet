@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Languages, CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import { HomeFooterShortcuts } from "@/src/components/common/HomeFooterShortcuts/HomeFooterShortcuts";
 
 type FacilitySummary = {
@@ -35,21 +36,6 @@ interface FacilityTopPageProps {
   usageNotes: UsageNotesMap;
   maxReservableDays: number;
 }
-
-const resolveFacilityKey = (obj: any, key: string): string | undefined => {
-  if (!obj || typeof obj !== "object") return undefined;
-  const parts = key.split(".");
-  let current: any = obj;
-
-  for (const part of parts) {
-    if (!current || typeof current !== "object" || !(part in current)) {
-      return undefined;
-    }
-    current = current[part];
-  }
-
-  return typeof current === "string" ? current : undefined;
-};
 
 type CalendarCell = {
   date: Date | null;
@@ -106,76 +92,9 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   usageNotes,
   maxReservableDays,
 }) => {
-  const { t: tf, currentLocale } = useI18n();
+  const { t, currentLocale } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const router = useRouter();
-
-  const [facilityTranslations, setFacilityTranslations] = useState<any | null>(null);
-  const [messages, setMessages] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setFacilityTranslations(null);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const response = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!response.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await response.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   // カレンダー日別サマリー（予約可能 / 予約不可 / 自予約済）
   const [daySummaries, setDaySummaries] = useState<Record<string, CalendarDaySummary>>({});
@@ -183,19 +102,9 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
 
   const resolveMessage = useCallback(
     (key: string): string => {
-      const fromDb = messages[key];
-      if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-        return fromDb;
-      }
-
-      const fromJson = resolveFacilityKey(facilityTranslations, key);
-      if (typeof fromJson === "string" && fromJson.trim().length > 0) {
-        return fromJson;
-      }
-
-      return '';
+      return t(key);
     },
-    [messages, facilityTranslations],
+    [t],
   );
 
   const getFacilityDisplayName = useCallback(
@@ -349,6 +258,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
   }, [selectedFacility, selectedUsageNotes, currentLocale]);
 
   const showTranslateButton = currentLocale !== "ja";
+  const translateButtonLabel = resolveMessage("top.translateButton");
 
   const formatDateParam = (date: Date): string => {
     const year = date.getFullYear();
@@ -537,7 +447,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                   id="facility-top-title"
                   className="sr-only"
                 >
-                  施設予約
+                  {resolveMessage("top.selectFacility")}
                 </h1>
               </div>
 
@@ -581,7 +491,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                     {processedUsageText}
                   </p>
 
-                  {showTranslateButton && (
+                  {showTranslateButton && !!translateButtonLabel && (
                     <div className="flex justify-end">
                       <button
                         type="button"
@@ -594,7 +504,7 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
                       >
                         <Languages className="h-4 w-4" aria-hidden="true" />
                         <span>
-                          {resolveMessage("top.translateButton")}
+                          {translateButtonLabel}
                         </span>
                       </button>
                     </div>

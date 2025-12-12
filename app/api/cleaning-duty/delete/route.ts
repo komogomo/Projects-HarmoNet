@@ -52,7 +52,6 @@ async function resolveCleaningDutyDeleteAuthContext(): Promise<CleaningDutyDelet
       operation: 'deleteRow',
       errorCode: 'unauthorized',
       reason: 'user_not_found',
-      email,
     });
     return { error: { status: 403, body: { errorCode: 'unauthorized' } } };
   }

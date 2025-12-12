@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     if (appUserError || !appUser) {
       logError("board.comments.api.user_not_found", {
-        email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: "unauthorized" }, { status: 403 });
     }

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 
 interface FacilityMeetingRoomConfirmProps {
   tenantId: string;
@@ -27,56 +28,11 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
   participants,
   purpose,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   // 予約日表示は数値日付のみ整形し、翻訳済みの曜日ラベルには依存しない
   const localizedDisplayDate: string = React.useMemo(() => {
@@ -92,23 +48,15 @@ const FacilityMeetingRoomConfirm: React.FC<FacilityMeetingRoomConfirmProps> = ({
     return `${year}/${mm}/${dd}`;
   }, [date, displayDate]);
 
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
-
-  const facilityNameLabel: string = resolveMessage("top.facilityName.room");
-  const heading: string = resolveMessage("confirm.heading");
-  const dateLabel: string = resolveMessage("confirm.dateLabel");
-  const timeLabel: string = resolveMessage("confirm.timeLabel");
-  const participantsLabel: string = resolveMessage("confirm.participantsLabel");
-  const purposeLabel: string = resolveMessage("confirm.purposeLabel");
-  const executeNotice: string = resolveMessage("confirm.executeNotice");
-  const submitLabel: string = resolveMessage("confirm.submitButton");
-  const errorMessageText: string = resolveMessage("confirm.errorMessage");
+  const facilityNameLabel: string = t("top.facilityName.room");
+  const heading: string = t("confirm.heading");
+  const dateLabel: string = t("confirm.dateLabel");
+  const timeLabel: string = t("confirm.timeLabel");
+  const participantsLabel: string = t("confirm.participantsLabel");
+  const purposeLabel: string = t("confirm.purposeLabel");
+  const executeNotice: string = t("confirm.executeNotice");
+  const submitLabel: string = t("confirm.submitButton");
+  const errorMessageText: string = t("confirm.errorMessage");
 
   const handleSubmit = async () => {
     if (isSubmitting) return;

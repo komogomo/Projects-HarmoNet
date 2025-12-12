@@ -54,7 +54,6 @@ export default async function CleaningDutyRoute() {
   if (!appUser) {
     logError('auth.callback.unauthorized.user_not_found', {
       screen: 'CleaningDuty',
-      email,
     });
     await supabase.auth.signOut();
     redirect('/login?error=unauthorized');

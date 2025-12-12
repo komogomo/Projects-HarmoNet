@@ -56,6 +56,9 @@ export async function sendBoardNotificationEmailsForPost(
         tenant: {
           status: 'active',
         },
+        user: {
+          status: 'active',
+        },
       },
       select: {
         user: {

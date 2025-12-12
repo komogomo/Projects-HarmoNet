@@ -57,9 +57,7 @@ export async function resolveReservationAuthContext(): Promise<AuthContextResult
     .maybeSingle();
 
   if (appUserError || !appUser) {
-    logError("facility.reservations.api.user_not_found", {
-      email,
-    });
+    logError("facility.reservations.api.user_not_found");
     return { error: { status: 403, body: { errorCode: "unauthorized" } } };
   }
 

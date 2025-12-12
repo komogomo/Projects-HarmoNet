@@ -6,6 +6,8 @@ interface ReservationFormProps {
   maxParticipants?: number | null;
   selectedStartTime?: string | null;
   selectedEndTime?: string | null;
+  reservationTimeLabel: string;
+  selectPlaceholderLabel: string;
   purposeLabel: string;
   participantCountLabel: string;
   purpose: string;
@@ -18,6 +20,8 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
   maxParticipants,
   selectedStartTime,
   selectedEndTime,
+  reservationTimeLabel,
+  selectPlaceholderLabel,
   purposeLabel,
   participantCountLabel,
   purpose,
@@ -39,7 +43,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
       {/* 予約時間（選択中レンジの表示） */}
       {selectedStartTime && selectedEndTime && (
         <p className="text-sm text-gray-600">
-          予約時間：{selectedStartTime} ～ {selectedEndTime}
+          {reservationTimeLabel}：{selectedStartTime} ～ {selectedEndTime}
         </p>
       )}
 
@@ -68,7 +72,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
             value={participantCount}
             onChange={(event) => onChangeParticipantCount(event.target.value)}
           >
-            <option value="">--</option>
+            <option value="">{selectPlaceholderLabel}</option>
             {participantOptions.map((n) => (
               <option
                 key={n}

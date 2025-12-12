@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import ParkingSlotSelector, { type ParkingSlot } from "./ParkingSlotSelector";
 import VehicleInfoForm from "./VehicleInfoForm";
 
@@ -27,10 +28,9 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   availableToTime,
   parkingImageUrl,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const router = useRouter();
-
-  const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<string>("");
@@ -41,49 +41,6 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
   const [existingReservationId, setExistingReservationId] = useState<string | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!selectedDate) {
@@ -223,31 +180,23 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
     }
   }, [isAllDay, availableFromTime, availableToTime]);
 
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
-
-  const parkingLayoutTitle: string = resolveMessage("booking.parkingLayoutTitle");
-  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle");
-  const timeSlotSectionTitle: string = resolveMessage("booking.timeSlotSectionTitle");
-  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
-  const startTimeLabel: string = resolveMessage("booking.startTime");
-  const endTimeLabel: string = resolveMessage("booking.endTime");
-  const allDayLabel: string = resolveMessage("booking.allDay");
-  const timeSelectPlaceholder: string = resolveMessage("booking.selectTimePlaceholder");
-  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
-  const cancelButtonLabel: string = resolveMessage("booking.cancelButton");
-  const cancelConfirmMessage: string = resolveMessage("booking.cancelConfirmMessage");
-  const cancelConfirmNoLabel: string = resolveMessage("booking.cancelConfirmNo");
-  const cancelConfirmYesLabel: string = resolveMessage("booking.cancelConfirmYes");
-  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
-  const facilityNameLabel: string = resolveMessage("top.facilityName.parking");
-  const vehicleNumberLabel: string = resolveMessage("labels.vehicle_number");
-  const vehicleModelLabel: string = resolveMessage("labels.vehicle_model");
+  const parkingLayoutTitle: string = t("booking.parkingLayoutTitle");
+  const slotSectionTitle: string = t("booking.slotSectionTitle");
+  const timeSlotSectionTitle: string = t("booking.timeSlotSectionTitle");
+  const reservationSectionTitle: string = t("booking.reservationSectionTitle");
+  const startTimeLabel: string = t("booking.startTime");
+  const endTimeLabel: string = t("booking.endTime");
+  const allDayLabel: string = t("booking.allDay");
+  const timeSelectPlaceholder: string = t("booking.selectTimePlaceholder");
+  const confirmButtonLabel: string = t("booking.confirmButton");
+  const cancelButtonLabel: string = t("booking.cancelButton");
+  const cancelConfirmMessage: string = t("booking.cancelConfirmMessage");
+  const cancelConfirmNoLabel: string = t("booking.cancelConfirmNo");
+  const cancelConfirmYesLabel: string = t("booking.cancelConfirmYes");
+  const reservationDateLabel: string = t("labels.reservation_date");
+  const facilityNameLabel: string = t("top.facilityName.parking");
+  const vehicleNumberLabel: string = t("labels.vehicle_number");
+  const vehicleModelLabel: string = t("labels.vehicle_model");
 
   const isValidTime = (value: string | null | undefined): value is string =>
     !!value && /^([0-1]\d|2[0-3]):([0-5]\d)$/.test(value);
@@ -283,6 +232,8 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
     !!startTime &&
     !!endTime &&
     startTime < endTime;
+
+  const isSelectionLocked = !!existingReservationId;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -365,8 +316,9 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
           <ParkingSlotSelector
             tenantId={tenantId}
             slots={slots}
-            selectedSlotId={selectedSlotId}
-            onSelectSlot={setSelectedSlotId}
+            selectedSlotId={isSelectionLocked ? null : selectedSlotId}
+            onSelectSlot={isSelectionLocked ? undefined : setSelectedSlotId}
+            selectionLocked={isSelectionLocked}
           />
         </div>
       </section>

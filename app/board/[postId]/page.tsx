@@ -27,7 +27,10 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError) {
+  const isSessionMissingError =
+    !!authError && authError.message === 'Auth session missing!';
+
+  if (authError && !isSessionMissingError) {
     logError("auth.callback.no_session", {
       reason: authError.message,
       screen: "BoardDetail",
@@ -35,9 +38,9 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
     redirect("/login?error=no_session");
   }
 
-  if (!user || !user.email) {
+  if (!user || !user.email || isSessionMissingError) {
     logInfo("auth.callback.no_session", {
-      reason: "no_session",
+      reason: authError?.message ?? 'no_session',
       screen: "BoardDetail",
     });
     redirect("/login?error=no_session");
@@ -65,7 +68,7 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "BoardDetail",
-      email,
+      userId: user.id,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");
@@ -98,12 +101,6 @@ export default async function BoardDetailRoute(props: BoardDetailRouteProps) {
   }
 
   const tenantId = membership.tenant_id as string;
-
-  logInfo("board.detail.context_resolved", {
-    userId: appUser.id,
-    tenantId,
-    postId,
-  });
 
   // テナント名の取得（ServiceRole 経由）
   let tenantName = "";

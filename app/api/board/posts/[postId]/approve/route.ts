@@ -68,7 +68,7 @@ export async function POST(req: Request, context: ApprovePostRouteContext) {
 
     if (appUserError || !appUser) {
       logError("board.post.approve.user_not_found", {
-        email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: "unauthorized" }, { status: 403 });
     }

@@ -42,7 +42,7 @@ export async function GET(req: Request) {
 
     if (appUserError || !appUser) {
       logError('board.notifications.api.user_not_found', {
-        email,
+        userId: user.id,
       });
       return NextResponse.json({ hasUnread: false }, { status: 403 });
     }

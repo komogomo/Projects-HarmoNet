@@ -42,7 +42,6 @@ export default async function FacilitiesCompleteRoutePage() {
   if (appUserError || !appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "FacilityComplete",
-      email,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");

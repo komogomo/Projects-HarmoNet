@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { LayoutGrid, Bell, MessageSquare, Calendar, FileText, ClipboardList, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useI18n } from '@/src/components/common/StaticI18nProvider';
+import { useI18n, useTenantStaticTranslations } from '@/src/components/common/StaticI18nProvider';
 import type { HomeFeatureTilesProps } from './HomeFeatureTiles.types';
 import type { HomeFeatureTileDefinition } from './HomeFeatureTile.types';
 import { HomeFeatureTile } from './HomeFeatureTile';
@@ -58,55 +58,10 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
 	tenantId,
 	hasCleaningDutyGroup = false,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
 
-  const [messages, setMessages] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(`/api/tenant-static-translations/home?${params.toString()}`);
-
-        if (!res.ok) return;
-
-        const data = (await res.json()) as { messages?: Record<string, string> };
-
-        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    // common.json はフォールバックに使わず、キー文字列をそのまま返す
-    return '';
-  };
+  useTenantStaticTranslations({ tenantId, apiPath: 'home' });
 
   // Filter tiles based on role / availability
 	const baseTiles = FEATURE_TILES.filter((tile) => {
@@ -123,8 +78,8 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
   const effectiveTiles = baseTiles.map((tile) => {
     const baseTile: HomeFeatureTileDefinition = {
       ...tile,
-      labelOverride: resolveMessage(tile.labelKey),
-      descriptionOverride: resolveMessage(tile.descriptionKey),
+      labelOverride: t(tile.labelKey),
+      descriptionOverride: t(tile.descriptionKey),
     };
 
     if (tile.featureKey === 'NOTICE') {
@@ -200,7 +155,7 @@ export const HomeFeatureTiles: React.FC<HomeFeatureTilesProps> = ({
           aria-hidden="true"
           className="h-5 w-5 text-blue-600"
         />
-        <span>{resolveMessage('home.features.title')}</span>
+        <span>{t('home.features.title')}</span>
       </h2>
       <div className="grid grid-cols-3 gap-3">
         {effectiveTiles.map((tile) => (

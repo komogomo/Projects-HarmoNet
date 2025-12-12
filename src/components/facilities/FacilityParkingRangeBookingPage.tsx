@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStaticI18n as useI18n } from "@/src/components/common/StaticI18nProvider/StaticI18nProvider";
+import { useTenantStaticTranslations } from "@/src/components/common/StaticI18nProvider";
 import ParkingSlotSelector, { type ParkingSlot } from "./ParkingSlotSelector";
 import VehicleInfoForm from "./VehicleInfoForm";
 
@@ -25,59 +26,13 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
   facilityDescription,
   parkingImageUrl,
 }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: "facility" });
   const router = useRouter();
-
-  const [messages, setMessages] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<ParkingSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState<string>("");
   const [vehicleModel, setVehicleModel] = useState<string>("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        if (!tenantId) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(
-          `/api/tenant-static-translations/facility?${params.toString()}`,
-        );
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === "object") {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,21 +87,13 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
     };
   }, [facilityId, rangeStart, rangeEnd]);
 
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    if (typeof fromDb === "string" && fromDb.trim().length > 0) {
-      return fromDb;
-    }
-    return "";
-  };
-
-  const parkingLayoutTitle: string = resolveMessage("booking.parkingLayoutTitle");
-  const slotSectionTitle: string = resolveMessage("booking.slotSectionTitle");
-  const reservationSectionTitle: string = resolveMessage("booking.reservationSectionTitle");
-  const confirmButtonLabel: string = resolveMessage("booking.confirmButton");
-  const reservationDateLabel: string = resolveMessage("labels.reservation_date");
-  const vehicleNumberLabel: string = resolveMessage("labels.vehicle_number");
-  const vehicleModelLabel: string = resolveMessage("labels.vehicle_model");
+  const parkingLayoutTitle: string = t("booking.parkingLayoutTitle");
+  const slotSectionTitle: string = t("booking.slotSectionTitle");
+  const reservationSectionTitle: string = t("booking.reservationSectionTitle");
+  const confirmButtonLabel: string = t("booking.confirmButton");
+  const reservationDateLabel: string = t("labels.reservation_date");
+  const vehicleNumberLabel: string = t("labels.vehicle_number");
+  const vehicleModelLabel: string = t("labels.vehicle_model");
 
   const hasRange = !!rangeStart && !!rangeEnd;
   const canSubmit = hasRange && !!selectedSlotId;
@@ -198,7 +145,7 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
           {hasRange && (
             <p className="text-sm font-semibold text-gray-800">
               {reservationDateLabel}
-              {rangeStart} ~ {rangeEnd}
+              {rangeStart} ~ {rangeEnd}
             </p>
           )}
         </div>

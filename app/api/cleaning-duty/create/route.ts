@@ -52,7 +52,6 @@ async function resolveCleaningDutyCreateAuthContext(): Promise<CleaningDutyCreat
       operation: 'createRow',
       errorCode: 'unauthorized',
       reason: 'user_not_found',
-      email,
     });
     return { error: { status: 403, body: { errorCode: 'unauthorized' } } };
   }

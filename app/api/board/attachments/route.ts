@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     if (appUserError || !appUser) {
       logError("board.attachments.api.user_not_found", {
-        email: user.email,
+        userId: user.id,
       });
       return NextResponse.json({ errorCode: "unauthorized" }, { status: 403 });
     }
@@ -70,9 +70,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: "post_not_found" }, { status: 404 });
     }
 
-    if (post.status !== "published") {
-      return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
-    }
+    const rawStatus = (post as any).status as string | null;
+    const normalizedStatus =
+      rawStatus === "draft" || rawStatus === "pending" || rawStatus === "archived"
+        ? rawStatus
+        : "published";
 
     const tenantId = post.tenant_id as string;
 
@@ -130,6 +132,10 @@ export async function POST(req: Request) {
       }
     } catch {
       hasAdminRole = false;
+    }
+
+    if (normalizedStatus !== "published" && !isAuthor && !hasAdminRole) {
+      return NextResponse.json({ errorCode: "forbidden" }, { status: 403 });
     }
 
     if (!isAuthor && !hasAdminRole) {

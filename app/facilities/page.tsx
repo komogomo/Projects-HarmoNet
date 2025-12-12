@@ -54,7 +54,6 @@ export default async function FacilitiesPage() {
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "FacilityTop",
-      email,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");

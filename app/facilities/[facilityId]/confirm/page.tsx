@@ -121,7 +121,6 @@ export default async function FacilityConfirmPage(props: FacilityConfirmPageProp
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "FacilityConfirm",
-      email,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");

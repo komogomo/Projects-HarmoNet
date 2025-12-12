@@ -15,9 +15,6 @@ export const BoardErrorState: React.FC<BoardErrorStateProps> = ({ onRetry, tOver
   const handleRetry = () => {
     if (onRetry) {
       onRetry();
-    } else {
-      // eslint-disable-next-line no-console
-      console.log("retry");
     }
   };
 

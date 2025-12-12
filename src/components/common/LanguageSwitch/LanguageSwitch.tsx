@@ -7,24 +7,24 @@ export const LanguageSwitch: React.FC<LanguageSwitchProps> = ({
   className = '',
   testId = 'language-switch',
 }) => {
-  const { currentLocale, setLocale } = useI18n();
+  const { currentLocale, setLocale, t } = useI18n();
 
-  const buttons: { code: Locale; label: string; ariaLabel: string }[] = [
-    { code: 'ja', label: 'JA', ariaLabel: '日本語に切り替え' },
-    { code: 'en', label: 'EN', ariaLabel: '英語に切り替え' },
-    { code: 'zh', label: 'CN', ariaLabel: '中国語に切り替え' },
+  const buttons: { code: Locale; label: string; ariaLabelKey: string }[] = [
+    { code: 'ja', label: 'JA', ariaLabelKey: 'nav.languageSwitch.toJa' },
+    { code: 'en', label: 'EN', ariaLabelKey: 'nav.languageSwitch.toEn' },
+    { code: 'zh', label: 'CN', ariaLabelKey: 'nav.languageSwitch.toZh' },
   ];
 
   return (
     <div className={`flex gap-1.5 justify-end ${className}`} data-testid={testId}>
-      {buttons.map(({ code, label, ariaLabel }) => {
+      {buttons.map(({ code, label, ariaLabelKey }) => {
         const active = currentLocale === code;
         return (
           <button
             key={code}
             type="button"
             onClick={() => setLocale(code)}
-            aria-label={ariaLabel}
+            aria-label={t(ariaLabelKey)}
             aria-pressed={active}
             className={`min-w-[40px] min-h-[30px] rounded-lg border text-xs font-semibold px-2.5 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-blue-600 ${
               active

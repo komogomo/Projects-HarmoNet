@@ -28,53 +28,14 @@ const ROLE_ITEMS: Record<UserRole, Item[]> = {
 
 export const FooterShortcutBar: React.FC<FooterShortcutBarProps> = ({ role, className = '', testId = 'footer-shortcut-bar' }) => {
   const pathname = usePathname();
-  const { currentLocale } = useI18n();
-  const [messages, setMessages] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const params = new URLSearchParams({ lang: currentLocale });
-        const res = await fetch(`/api/static-translations/nav?${params.toString()}`);
-        if (!res.ok) return;
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocale]);
-
-  const resolveNavMessage = (key: string): string => {
-    const value = messages[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value;
-    }
-    return '';
-  };
+  const { t } = useI18n();
 
   const items = useMemo(() => ROLE_ITEMS[role], [role]);
 
   return (
     <nav
       role="navigation"
-      aria-label="ショートカットバー"
+      aria-label={t('common.shortcut_navigation')}
       data-testid={testId}
       className={`
         fixed bottom-0 left-0 right-0 h-16
@@ -90,7 +51,7 @@ export const FooterShortcutBar: React.FC<FooterShortcutBarProps> = ({ role, clas
             <Link
               href={href}
               key={key}
-              aria-label={resolveNavMessage(`shortcut.${key}`)}
+              aria-label={t(`shortcut.${key}`)}
               className={`
                 flex flex-col items-center gap-1 text-xs
                 ${active ? 'text-blue-600 border-t-2 border-blue-600' : 'text-gray-500'}
@@ -98,7 +59,7 @@ export const FooterShortcutBar: React.FC<FooterShortcutBarProps> = ({ role, clas
               data-testid={`${testId}-item-${key}`}
             >
               <Icon aria-hidden="true" className="h-5 w-5" />
-              <span>{resolveNavMessage(`shortcut.${key}`)}</span>
+              <span>{t(`shortcut.${key}`)}</span>
             </Link>
           );
         })}

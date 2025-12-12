@@ -37,11 +37,6 @@ export default async function HomePage() {
 
   const email = user.email;
 
-  logInfo('home.debug.auth_user', {
-    id: user.id,
-    email,
-  });
-
   const {
     data: appUser,
     error: appUserError,
@@ -50,12 +45,6 @@ export default async function HomePage() {
     .select('id, group_code')
     .eq('email', email)
     .maybeSingle();
-
-  logInfo('home.debug.app_user_query', {
-    email,
-    appUser,
-    appUserError,
-  });
 
   if (appUserError) {
     logError('auth.callback.db_error', {
@@ -68,7 +57,7 @@ export default async function HomePage() {
   if (!appUser) {
     logError('auth.callback.unauthorized.user_not_found', {
       screen: 'Home',
-      email,
+      userId: user.id,
     });
     await supabase.auth.signOut();
     redirect('/login?error=unauthorized');
@@ -136,13 +125,6 @@ export default async function HomePage() {
     .select('roles(role_key)')
     .eq('user_id', appUser.id)
     .eq('tenant_id', tenantId);
-
-  logInfo('home.debug.user_roles', {
-    userId: appUser.id,
-    tenantId,
-    userRoles,
-    roleError,
-  });
 
   const isTenantAdmin =
     !roleError

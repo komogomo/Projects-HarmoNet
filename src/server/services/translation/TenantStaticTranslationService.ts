@@ -67,11 +67,11 @@ export class TenantStaticTranslationService {
       const textZh = (row.text_zh ?? '').trim();
 
       // JA はそのまま or キーをフォールバック
-      result.ja[key] = textJa || key;
+      result.ja[key] = textJa && textJa !== key ? textJa : '';
       // EN/ZH は、それぞれの言語が未入力ならキーをそのまま表示し、
       // 別言語のテキストにはフォールバックしない（マスタ不備を隠さない）
-      result.en[key] = textEn || key;
-      result.zh[key] = textZh || key;
+      result.en[key] = textEn && textEn !== key ? textEn : '';
+      result.zh[key] = textZh && textZh !== key ? textZh : '';
     }
 
     return result;

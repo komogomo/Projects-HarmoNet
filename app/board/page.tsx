@@ -15,7 +15,10 @@ export default async function BoardPage() {
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError) {
+  const isSessionMissingError =
+    !!authError && authError.message === 'Auth session missing!';
+
+  if (authError && !isSessionMissingError) {
     logError("auth.callback.no_session", {
       reason: authError.message,
       screen: "BoardTop",
@@ -23,9 +26,9 @@ export default async function BoardPage() {
     redirect("/login?error=no_session");
   }
 
-  if (!user || !user.email) {
+  if (!user || !user.email || isSessionMissingError) {
     logInfo("auth.callback.no_session", {
-      reason: "no_session",
+      reason: authError?.message ?? 'no_session',
       screen: "BoardTop",
     });
     redirect("/login?error=no_session");
@@ -53,7 +56,7 @@ export default async function BoardPage() {
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "BoardTop",
-      email,
+      userId: user.id,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");
@@ -86,11 +89,6 @@ export default async function BoardPage() {
   }
 
   const tenantId = membership.tenant_id as string;
-
-  logInfo("board.top.context_resolved", {
-    userId: appUser.id,
-    tenantId,
-  });
 
   let tenantName = "";
   try {

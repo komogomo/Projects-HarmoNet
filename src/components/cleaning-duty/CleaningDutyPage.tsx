@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
+import { useTenantStaticTranslations } from '@/src/components/common/StaticI18nProvider';
 import { logError, logInfo } from '@/src/lib/logging/log.util';
 import {
   type CleaningDutyRow,
@@ -27,8 +28,6 @@ export interface CleaningDutyPageProps {
   isGroupLeader: boolean;
 }
 
-type MessagesMap = Record<string, string>;
-
 function formatDate(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
@@ -47,9 +46,9 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
   residenceCode,
   isGroupLeader,
 }) => {
-  const { currentLocale } = useStaticI18n();
+  const { t } = useStaticI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: 'cleaning-duty' });
 
-  const [messages, setMessages] = useState<MessagesMap>({});
   const [duties, setDuties] = useState<CleaningDutyRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -77,55 +76,10 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
 
   const resolveMessage = useCallback(
     (key: string): string => {
-      const fromDb = messages[key];
-      if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
-        return fromDb;
-      }
-      return '';
+      return t(key);
     },
-    [messages],
+    [t],
   );
-
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-        const res = await fetch(`/api/tenant-static-translations/cleaning-duty?${params.toString()}`);
-
-        if (!res.ok) {
-          if (!cancelled) {
-            setMessages({});
-          }
-          return;
-        }
-
-        const data = (await res.json().catch(() => ({}))) as {
-          messages?: Record<string, string>;
-        };
-
-        if (!cancelled && data && data.messages && typeof data.messages === 'object') {
-          setMessages(data.messages);
-        }
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
 
   useEffect(() => {
     if (!tenantId || !groupCode) {
@@ -749,7 +703,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                         disabled={isAssigneeLoading || isSavingAssignee}
                                         className="max-w-[7rem] rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                                       >
-                                        <option value=""> </option>
+                                        <option value="">{t('cleaningDuty.assignee.unselected')}</option>
                                         {availableAssigneeCandidates.map((candidate) => (
                                           <option key={candidate.id} value={candidate.id}>
                                             {candidate.firstName}
@@ -777,8 +731,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                       ) : (
                         <>
                           {duties.map((row) => {
-                            const isOwnRow =
-                              residenceCode && row.residenceCode === residenceCode;
+                            const isOwnRow = residenceCode && row.residenceCode === residenceCode;
                             const isCompleted = !!row.completedAt;
                             const checkboxDisabled = !isOwnRow || isCompleted;
 
@@ -833,7 +786,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                         disabled={isAssigneeLoading || isSavingAssignee}
                                         className="max-w-[7rem] rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                                       >
-                                        <option value=""> </option>
+                                        <option value="">{t('cleaningDuty.assignee.unselected')}</option>
                                         {assigneeOptions.map((candidate) => (
                                           <option key={candidate.id} value={candidate.id}>
                                             {candidate.firstName}
@@ -889,7 +842,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                         disabled={isAssigneeLoading || isSavingAssignee}
                                         className="max-w-[7rem] rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                                       >
-                                        <option value=""> </option>
+                                        <option value="">{t('cleaningDuty.assignee.unselected')}</option>
                                         {availableAssigneeCandidates.map((candidate) => (
                                           <option key={candidate.id} value={candidate.id}>
                                             {candidate.firstName}

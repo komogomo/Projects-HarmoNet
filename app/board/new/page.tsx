@@ -66,7 +66,7 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
   if (!appUser) {
     logError("auth.callback.unauthorized.user_not_found", {
       screen: "BoardNew",
-      email,
+      userId: user.id,
     });
     await supabase.auth.signOut();
     redirect("/login?error=unauthorized");
@@ -136,8 +136,8 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
   logInfo("board.post.form.user_roles_result", {
     userId: appUser.id,
     tenantId,
-    userRoles,
-    userRolesError,
+    hasError: !!userRolesError,
+    roleCount: Array.isArray(userRoles) ? userRoles.length : 0,
   });
 
   if (!userRolesError && userRoles && userRoles.length > 0) {
@@ -155,14 +155,6 @@ export default async function BoardNewPage(props: BoardNewPageProps) {
         .in("id", roleIds as string[]);
 
       if (!rolesError && roles && Array.isArray(roles)) {
-        logInfo("board.post.form.roles_debug", {
-          userId: appUser.id,
-          tenantId,
-          roleIds,
-          roles,
-          rolesError,
-        });
-
         const hasAdmin = roles.some(
           (role: any) =>
             role.role_key === "tenant_admin" || role.role_key === "system_admin",

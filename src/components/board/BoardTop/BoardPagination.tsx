@@ -9,10 +9,10 @@ interface BoardPaginationProps {
   onChangePage: (page: number) => void;
   onChangePageSize: (pageSize: number) => void;
   pageSizeOptions?: number[];
-  labelPageSize?: string;
-  labelRangeTemplate?: string; // placeholders: {total}, {start}, {end}
-  labelPrev?: string;
-  labelNext?: string;
+  labelPageSize: string;
+  labelRangeTemplate: string; // placeholders: {total}, {start}, {end}
+  labelPrev: string;
+  labelNext: string;
 }
 
 export const BoardPagination: React.FC<BoardPaginationProps> = ({
@@ -39,11 +39,10 @@ export const BoardPagination: React.FC<BoardPaginationProps> = ({
   const startItem = safeTotalItems === 0 ? 0 : startIndex + 1;
   const endItem = safeTotalItems === 0 ? 0 : Math.min(startIndex + safePageSize, safeTotalItems);
 
-  const pageSizeLabel = labelPageSize ?? "表示件数";
-  const rangeTemplate =
-    labelRangeTemplate ?? "{total} 件中 {start} - {end} 件を表示";
-  const prevLabel = labelPrev ?? "前へ";
-  const nextLabel = labelNext ?? "次へ";
+  const pageSizeLabel = labelPageSize;
+  const rangeTemplate = labelRangeTemplate;
+  const prevLabel = labelPrev;
+  const nextLabel = labelNext;
 
   const rangeText = rangeTemplate
     .replace("{total}", String(safeTotalItems))

@@ -287,7 +287,7 @@ export async function getBoardPostById(
         (comment as any).author_display_name &&
           typeof (comment as any).author_display_name === 'string'
           ? ((comment as any).author_display_name as string)
-          : comment.author.display_name || '匿名';
+          : comment.author.display_name || '';
 
       return {
         id: comment.id,

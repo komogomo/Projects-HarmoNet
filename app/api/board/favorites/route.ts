@@ -18,8 +18,8 @@ type AuthErrorResult = {
 
 type AuthSuccessResult = {
   context: {
-    tenantId: string;
     userId: string;
+    authUserId: string;
   };
 };
 
@@ -40,23 +40,77 @@ async function resolveAuthContext(): Promise<AuthResult> {
     return { error: { status: 401 as const, body: { errorCode: "auth_error" as const } } };
   }
 
-  const email = user.email;
-
   const {
     data: appUser,
     error: appUserError,
   } = await supabase
     .from("users")
     .select("id")
-    .eq("email", email)
+    .eq("email", user.email)
     .maybeSingle();
 
   if (appUserError || !appUser) {
     logError("board.favorites.api.user_not_found", {
-      email,
+      userId: user.id,
     });
     return { error: { status: 403 as const, body: { errorCode: "unauthorized" as const } } };
   }
+
+  return {
+    context: {
+      userId: appUser.id as string,
+      authUserId: user.id as string,
+    },
+  };
+}
+
+function isAuthError(result: AuthResult): result is AuthErrorResult {
+  return "error" in result;
+}
+
+function normalizePostStatus(rawStatus: string | null): "draft" | "pending" | "archived" | "published" {
+  return rawStatus === "draft" || rawStatus === "pending" || rawStatus === "archived"
+    ? rawStatus
+    : "published";
+}
+
+async function hasAdminRole(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data: userRoles } = await supabase
+    .from("user_roles")
+    .select("roles(role_key)")
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId);
+
+  return (
+    userRoles?.some(
+      (r: any) => r.roles?.role_key === "tenant_admin" || r.roles?.role_key === "system_admin",
+    ) ?? false
+  );
+}
+
+async function assertFavoritePermission(params: { userId: string; postId: string }) {
+  const { userId, postId } = params;
+  const supabase = await createSupabaseServerClient();
+
+  const post = await prisma.board_posts.findFirst({
+    where: { id: postId },
+    select: {
+      id: true,
+      tenant_id: true,
+      author_id: true,
+      status: true,
+    },
+  });
+
+  if (!post) {
+    return { ok: false as const, res: NextResponse.json({ errorCode: "not_found" }, { status: 404 }) };
+  }
+
+  const tenantId = post.tenant_id as string;
 
   const {
     data: membership,
@@ -64,26 +118,34 @@ async function resolveAuthContext(): Promise<AuthResult> {
   } = await supabase
     .from("user_tenants")
     .select("tenant_id")
-    .eq("user_id", appUser.id)
+    .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (membershipError || !membership?.tenant_id) {
     logError("board.favorites.api.membership_error", {
-      userId: appUser.id,
+      userId,
     });
-    return { error: { status: 403 as const, body: { errorCode: "unauthorized" as const } } };
+    return {
+      ok: false as const,
+      res: NextResponse.json({ errorCode: "unauthorized" }, { status: 403 }),
+    };
   }
 
-  return {
-    context: {
-      tenantId: membership.tenant_id as string,
-      userId: appUser.id as string,
-    },
-  };
-}
+  const normalizedStatus = normalizePostStatus(((post as any).status as string | null) ?? null);
 
-function isAuthError(result: AuthResult): result is AuthErrorResult {
-  return "error" in result;
+  if (normalizedStatus !== "published") {
+    const isAuthor = post.author_id === userId;
+    const admin = await hasAdminRole(supabase, userId, tenantId);
+    if (!isAuthor && !admin) {
+      return {
+        ok: false as const,
+        res: NextResponse.json({ errorCode: "forbidden" }, { status: 403 }),
+      };
+    }
+  }
+
+  return { ok: true as const, tenantId };
 }
 
 export async function POST(req: Request) {
@@ -93,7 +155,7 @@ export async function POST(req: Request) {
       return NextResponse.json(auth.error.body, { status: auth.error.status });
     }
 
-    const { tenantId, userId } = auth.context;
+    const { userId } = auth.context;
 
     const body = (await req.json().catch(() => ({}))) as FavoriteRequestBody;
     const postId = typeof body.postId === "string" ? body.postId : null;
@@ -102,20 +164,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ errorCode: "validation_error" }, { status: 400 });
     }
 
-    const post = await prisma.board_posts.findFirst({
-      where: {
-        id: postId,
-        tenant_id: tenantId,
-        status: "published",
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!post) {
-      return NextResponse.json({ errorCode: "not_found" }, { status: 404 });
+    const permission = await assertFavoritePermission({ userId, postId });
+    if (!permission.ok) {
+      return permission.res;
     }
+
+    const { tenantId } = permission;
 
     try {
       await (prisma as any).board_favorites.upsert({
@@ -165,7 +219,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json(auth.error.body, { status: auth.error.status });
     }
 
-    const { tenantId, userId } = auth.context;
+    const { userId } = auth.context;
 
     const body = (await req.json().catch(() => ({}))) as FavoriteRequestBody;
     const postId = typeof body.postId === "string" ? body.postId : null;
@@ -173,6 +227,13 @@ export async function DELETE(req: Request) {
     if (!postId) {
       return NextResponse.json({ errorCode: "validation_error" }, { status: 400 });
     }
+
+    const permission = await assertFavoritePermission({ userId, postId });
+    if (!permission.ok) {
+      return permission.res;
+    }
+
+    const { tenantId } = permission;
 
     try {
       await (prisma as any).board_favorites.deleteMany({

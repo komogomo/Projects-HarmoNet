@@ -65,9 +65,7 @@ export async function resolveAvailabilityContext(
     .maybeSingle();
 
   if (appUserError || !appUser) {
-    logError("facility.availability.user_not_found", {
-      email,
-    });
+    logError("facility.availability.user_not_found");
     return {
       error: {
         status: 403,

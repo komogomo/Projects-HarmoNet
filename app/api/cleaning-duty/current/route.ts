@@ -60,7 +60,6 @@ async function resolveCleaningDutyCurrentAuthContext(): Promise<CleaningDutyCurr
       operation: 'fetchCurrent',
       errorCode: 'unauthorized',
       reason: 'user_not_found',
-      email,
     });
     return { error: { status: 403, body: { errorCode: 'unauthorized' } } };
   }
