@@ -84,6 +84,24 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
 
       const targetRedirectTo = redirectTo ?? '/auth/callback';
 
+      const currentOrigin = window.location.origin;
+      const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+      const origin = (() => {
+        if (typeof configuredOrigin !== 'string' || configuredOrigin.trim().length === 0) {
+          return currentOrigin;
+        }
+        try {
+          const configured = new URL(configuredOrigin);
+          const current = new URL(currentOrigin);
+          if (configured.origin === current.origin) {
+            return configured.origin;
+          }
+          return currentOrigin;
+        } catch {
+          return currentOrigin;
+        }
+      })();
+
       // メールアドレスの存在チェック
       const checkRes = await fetch('/api/auth/check-email', {
         method: 'POST',
@@ -120,7 +138,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}${targetRedirectTo}`,
+          emailRedirectTo: `${origin}${targetRedirectTo}`,
         },
       });
 
