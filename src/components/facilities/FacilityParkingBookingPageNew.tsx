@@ -298,13 +298,11 @@ const FacilityParkingBookingPage: React.FC<FacilityParkingBookingPageProps> = ({
         <section className="space-y-2" aria-label="parking-layout">
           <h2 className="text-sm text-gray-600">{parkingLayoutTitle}</h2>
           <div className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white">
-            <div className="flex h-[360px] w-full items-center justify-center bg-white sm:h-[420px] md:h-[480px]">
-              <img
-                src={parkingImageUrl}
-                alt={parkingLayoutTitle}
-                className="h-full w-full object-contain bg-white"
-              />
-            </div>
+            <img
+              src={parkingImageUrl}
+              alt={parkingLayoutTitle}
+              className="block h-auto w-full bg-white"
+            />
           </div>
         </section>
       )}
