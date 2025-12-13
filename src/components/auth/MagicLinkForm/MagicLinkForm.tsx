@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Mail as MailIcon, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
@@ -10,6 +10,16 @@ type BannerState = {
   kind: 'info' | 'error';
   messageKey: string;
 } | null;
+
+const MAGICLINK_MIN_RESEND_INTERVAL_MS = (() => {
+  const raw = process.env.NEXT_PUBLIC_MAGICLINK_MIN_INTERVAL_PER_USER_SECONDS;
+  const parsed = typeof raw === 'string' ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return Math.ceil(parsed * 1000) + 5_000;
+  }
+  return 65_000;
+})();
+const MAGICLINK_LAST_SENT_AT_STORAGE_KEY = 'hn_magiclink_last_sent_at_ms';
 
 const cardBaseClassName =
   'rounded-lg border-2 border-gray-200 bg-white px-5 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]';
@@ -51,9 +61,39 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
   const [state, setState] = useState<MagicLinkFormState>('idle');
   const [banner, setBanner] = useState<BannerState>(null);
 
+  const sendingRef = useRef(false);
+  const lastSentAtRef = useRef<number | null>(null);
+
   const postSignInRedirectTo = signedInRedirectTo ?? '/home';
 
   const handleLogin = useCallback(async () => {
+    if (sendingRef.current) return;
+
+    const now = Date.now();
+    const persistedLastSentAt = (() => {
+      try {
+        const raw = window.localStorage.getItem(MAGICLINK_LAST_SENT_AT_STORAGE_KEY);
+        if (!raw) return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    const lastSentAt =
+      typeof lastSentAtRef.current === 'number'
+        ? lastSentAtRef.current
+        : typeof persistedLastSentAt === 'number'
+          ? persistedLastSentAt
+          : null;
+
+    if (typeof lastSentAt === 'number' && now - lastSentAt < MAGICLINK_MIN_RESEND_INTERVAL_MS) {
+      setState('sent');
+      setBanner({ kind: 'info', messageKey: 'auth.login.magiclink_sent' });
+      return;
+    }
+
     if (!validateEmail(email)) {
       const error: MagicLinkError = {
         code: 'INVALID_EMAIL',
@@ -74,6 +114,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
     }
 
     try {
+      sendingRef.current = true;
       setState('sending');
       setBanner(null);
 
@@ -174,9 +215,12 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
         const isAuthError = isSupabaseAuthError(error);
         const errorType: MagicLinkError['type'] = isAuthError ? 'error_auth' : 'error_network';
 
-        const messageKey = isAuthError
-          ? 'auth.login.error.auth'
-          : 'auth.login.error.network';
+        const isRateLimited = isAuthError && error.code === 'over_email_send_rate_limit';
+        const messageKey = isRateLimited
+          ? 'auth.login.error.network'
+          : isAuthError
+            ? 'auth.login.error.auth'
+            : 'auth.login.error.network';
 
         const magicError: MagicLinkError = {
           code: error.code ?? 'SUPABASE_ERROR',
@@ -205,6 +249,14 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
       setState('sent');
       setBanner({ kind: 'info', messageKey: 'auth.login.magiclink_sent' });
 
+      const sentAt = Date.now();
+      lastSentAtRef.current = sentAt;
+      try {
+        window.localStorage.setItem(MAGICLINK_LAST_SENT_AT_STORAGE_KEY, String(sentAt));
+      } catch {
+        // ignore
+      }
+
       logInfo('auth.login.success.magiclink', {
         screen: 'LoginPage',
         method: 'magiclink',
@@ -228,8 +280,10 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
       });
 
       onError?.(magicError);
+    } finally {
+      sendingRef.current = false;
     }
-  }, [email, onSent, onError, t]);
+  }, [email, onSent, onError, redirectTo, t]);
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
