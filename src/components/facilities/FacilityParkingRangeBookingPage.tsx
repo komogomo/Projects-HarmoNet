@@ -114,11 +114,11 @@ const FacilityParkingRangeBookingPage: React.FC<FacilityParkingRangeBookingPageP
         <section className="space-y-2" aria-label="parking-layout">
           <h2 className="text-sm font-semibold text-gray-800">{parkingLayoutTitle}</h2>
           <div className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white">
-            <div className="relative w-full" style={{ paddingBottom: "150%" }}>
+            <div className="flex h-[360px] w-full items-center justify-center bg-white sm:h-[420px] md:h-[480px]">
               <img
                 src={parkingImageUrl}
                 alt={parkingLayoutTitle}
-                className="absolute inset-0 h-full w-full object-contain bg-white"
+                className="h-full w-full object-contain bg-white"
               />
             </div>
           </div>
