@@ -131,6 +131,33 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
     return map;
   }, [assigneeCandidates]);
 
+  const invalidAssigneeIds = useMemo(() => {
+    const missing = new Set<string>();
+
+    for (const row of duties) {
+      if (!row.assigneeId) continue;
+      if (!assigneeNameById[row.assigneeId]) {
+        missing.add(row.assigneeId);
+      }
+    }
+
+    return Array.from(missing);
+  }, [assigneeNameById, duties]);
+
+  const hasInvalidAssignees = invalidAssigneeIds.length > 0;
+
+  useEffect(() => {
+    if (!tenantId || !groupCode) return;
+    if (!hasInvalidAssignees) return;
+
+    logError('cleaningDuty.data_inconsistent.assignee_not_resolved', {
+      tenantId,
+      userId,
+      groupCode,
+      invalidAssigneeIds,
+    });
+  }, [tenantId, userId, groupCode, hasInvalidAssignees, invalidAssigneeIds]);
+
   const assignedAssigneeIds = useMemo(() => {
     const set = new Set<string>();
     for (const row of duties) {
@@ -521,7 +548,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                         {item.residenceCode}
                       </td>
                       <td className="px-3 py-1.5 text-xs text-gray-900">
-                        {assigneeNameById[item.assigneeId] ?? item.assigneeId}
+                        {assigneeNameById[item.assigneeId]}
                       </td>
                       <td className="px-3 py-1.5 text-xs text-gray-900">
                         {formatDate(item.completedAt)}
@@ -636,6 +663,10 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                 {resolveMessage('cleaningDuty.loading')}
               </p>
             ) : isError ? (
+              <p className="text-sm text-red-600">
+                {resolveMessage('cleaningDuty.error.fetchFailed')}
+              </p>
+            ) : hasInvalidAssignees ? (
               <p className="text-sm text-red-600">
                 {resolveMessage('cleaningDuty.error.fetchFailed')}
               </p>
@@ -764,7 +795,7 @@ export const CleaningDutyPage: React.FC<CleaningDutyPageProps> = ({
                                   {row.residenceCode}
                                 </td>
                                 <td className="px-3 py-2 text-center text-xs text-gray-900">
-                                  {assigneeNameById[row.assigneeId] ?? row.assigneeId}
+                                  {assigneeNameById[row.assigneeId]}
                                 </td>
                                 <td className="w-20 px-2 py-2 text-center text-xs text-gray-900">
                                   {isGroupLeader && !isCompleted ? (

@@ -123,6 +123,7 @@ export async function GET() {
         assignee: {
           tenant_id: tenantId,
           group_code: groupCode,
+          status: 'active',
         },
       },
       select: {
@@ -136,6 +137,8 @@ export async function GET() {
         assignee: {
           select: {
             residence_code: true,
+            first_name: true,
+            status: true,
           },
         },
       },
@@ -149,7 +152,7 @@ export async function GET() {
       is_done: boolean;
       cleaned_on: Date | null;
       completed_at: Date | null;
-      assignee: { residence_code: string | null } | null;
+      assignee: { residence_code: string | null; first_name: string | null; status: string | null } | null;
     }[];
 
     const seenResidences = new Set<string>();
@@ -157,6 +160,19 @@ export async function GET() {
 
     for (const row of rows) {
       const residenceCode = (row.assignee?.residence_code ?? '').trim();
+      const firstName = (row.assignee?.first_name ?? '').trim();
+      const assigneeStatus = (row.assignee?.status ?? '').trim();
+
+      if (!firstName || (assigneeStatus && assigneeStatus !== 'active')) {
+        logError('cleaningDuty.data_inconsistent.current_assignee_invalid', {
+          tenantId,
+          groupCode,
+          dutyId: row.id,
+          assigneeId: row.assignee_id,
+          assigneeStatus: assigneeStatus || null,
+        });
+        continue;
+      }
       if (!residenceCode || seenResidences.has(residenceCode)) continue;
       seenResidences.add(residenceCode);
 

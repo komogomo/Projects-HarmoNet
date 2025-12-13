@@ -110,6 +110,7 @@ export async function GET() {
     } as any)) as { id: string; first_name: string | null; residence_code: string | null }[];
 
     const candidates: CleaningDutyAssigneeCandidateDto[] = [];
+    const skipped: { id: string; firstName: string; residenceCode: string }[] = [];
 
     for (const row of users) {
       const id = row.id;
@@ -117,6 +118,13 @@ export async function GET() {
       const residenceCode = (row.residence_code ?? '').trim();
 
       if (!id || !firstName || !residenceCode) {
+        if (id) {
+          skipped.push({
+            id,
+            firstName,
+            residenceCode,
+          });
+        }
         continue;
       }
 
@@ -124,6 +132,15 @@ export async function GET() {
         id,
         firstName,
         residenceCode,
+      });
+    }
+
+    if (skipped.length > 0) {
+      logError('cleaningDuty.data_inconsistent.assignee_candidates_skipped', {
+        tenantId,
+        groupCode,
+        skippedCount: skipped.length,
+        skippedUserIds: skipped.map((s) => s.id),
       });
     }
 
