@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronsUpDown, TriangleAlert } from 'lucide-react';
-import { useI18n } from '@/src/components/common/StaticI18nProvider';
+import { useI18n, useTenantStaticTranslations } from '@/src/components/common/StaticI18nProvider';
 import type { TenantAdminUserManagementProps, UserListItem, UserFormData } from './TenantAdminUserManagement.types';
 
 export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps> = ({ tenantId, tenantName }) => {
     const { t, currentLocale } = useI18n();
+    useTenantStaticTranslations({ tenantId, apiPath: 't-admin-users' });
     const [users, setUsers] = useState<UserListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    const [messages, setMessages] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
     const [groupOptions, setGroupOptions] = useState<string[]>([]);
     const [residenceOptions, setResidenceOptions] = useState<string[]>([]);
@@ -118,49 +118,6 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         void loadGroups();
         void loadResidences();
     }, []);
-
-    useEffect(() => {
-        if (!tenantId) {
-            setMessages({});
-            return;
-        }
-
-        let cancelled = false;
-
-        const loadMessages = async () => {
-            try {
-                const params = new URLSearchParams({ tenantId, lang: currentLocale });
-                const res = await fetch(
-                    `/api/tenant-static-translations/t-admin-users?${params.toString()}`,
-                );
-
-                if (!res.ok) {
-                    if (!cancelled) {
-                        setMessages({});
-                    }
-                    return;
-                }
-
-                const data = (await res.json().catch(() => ({}))) as {
-                    messages?: Record<string, string>;
-                };
-
-                if (!cancelled && data && data.messages && typeof data.messages === 'object') {
-                    setMessages(data.messages);
-                }
-            } catch {
-                if (!cancelled) {
-                    setMessages({});
-                }
-            }
-        };
-
-        void loadMessages();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [tenantId, currentLocale]);
 
     const [initialFormData, setInitialFormData] = useState<UserFormData | null>(null);
 
@@ -276,13 +233,7 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
         return () => clearTimeout(timer);
     }, [formData.email, editingId, initialFormData]);
 
-    const resolveMessage = (key: string): string => {
-        const fromDb = messages[key];
-        if (typeof fromDb === 'string' && fromDb.trim().length > 0 && fromDb.trim() !== key) {
-            return fromDb.trim();
-        }
-        return '';
-    };
+    const resolveMessage = (key: string): string => t(key);
 
     const handleSubmit = async (e: React.FormEvent | React.MouseEvent, mode: 'create' | 'update' = 'create') => {
         e.preventDefault();
@@ -346,7 +297,11 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 handleCancelEdit(); // Reset form and mode
                 loadUsers();
             } else {
-                setMessage({ type: 'error', text: result.message || 'tadmin.users.error.internal' });
+                const messageKey =
+                    typeof result?.message === 'string' && result.message.startsWith('tadmin.')
+                        ? result.message
+                        : 'tadmin.users.error.internal';
+                setMessage({ type: 'error', text: messageKey });
             }
         } catch (error) {
             setMessage({ type: 'error', text: 'tadmin.users.error.internal' });
@@ -380,7 +335,11 @@ export const TenantAdminUserManagement: React.FC<TenantAdminUserManagementProps>
                 setMessage({ type: 'success', text: 'tadmin.users.delete.success' });
                 loadUsers();
             } else {
-                setMessage({ type: 'error', text: result.message || 'tadmin.users.error.internal' });
+                const messageKey =
+                    typeof result?.message === 'string' && result.message.startsWith('tadmin.')
+                        ? result.message
+                        : 'tadmin.users.error.internal';
+                setMessage({ type: 'error', text: messageKey });
             }
         } catch (error) {
             setMessage({ type: 'error', text: 'tadmin.users.error.internal' });

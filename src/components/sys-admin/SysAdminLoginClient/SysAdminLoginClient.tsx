@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import { LoginPageClient } from '@/src/components/auth/LoginPageClient/LoginPageClient';
 
@@ -27,16 +27,11 @@ export const SysAdminLoginClient: React.FC<SysAdminLoginClientProps> = ({
 }) => {
   const { currentLocale } = useStaticI18n();
 
-  const fallback = useMemo<SysAdminLoginClientMessages>(
-    () => ({
-      page_title: 'システム管理者ログイン',
-      page_description: 'システム管理者専用のテナント管理コンソールへのログイン画面です。',
-      no_permission_message: 'このアカウントにはシステム管理者権限がありません。',
-    }),
-    [],
-  );
-
-  const [messages, setMessages] = useState<SysAdminLoginClientMessages>(fallback);
+  const [messages, setMessages] = useState<SysAdminLoginClientMessages>({
+    page_title: '',
+    page_description: '',
+    no_permission_message: '',
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +44,13 @@ export const SysAdminLoginClient: React.FC<SysAdminLoginClientProps> = ({
         });
 
         if (!res.ok) {
-          if (!cancelled) setMessages(fallback);
+          if (!cancelled) {
+            setMessages({
+              page_title: '',
+              page_description: '',
+              no_permission_message: '',
+            });
+          }
           return;
         }
 
@@ -60,19 +61,24 @@ export const SysAdminLoginClient: React.FC<SysAdminLoginClientProps> = ({
         const dict = data?.messages ?? {};
 
         const next: SysAdminLoginClientMessages = {
-          page_title: (dict.page_title ?? fallback.page_title).trim() || fallback.page_title,
+          page_title: typeof dict.page_title === 'string' ? dict.page_title.trim() : '',
           page_description:
-            (dict.page_description ?? fallback.page_description).trim() || fallback.page_description,
+            typeof dict.page_description === 'string' ? dict.page_description.trim() : '',
           no_permission_message:
-            (dict.no_permission_message ?? fallback.no_permission_message).trim() ||
-            fallback.no_permission_message,
+            typeof dict.no_permission_message === 'string' ? dict.no_permission_message.trim() : '',
         };
 
         if (!cancelled) {
           setMessages(next);
         }
       } catch {
-        if (!cancelled) setMessages(fallback);
+        if (!cancelled) {
+          setMessages({
+            page_title: '',
+            page_description: '',
+            no_permission_message: '',
+          });
+        }
       }
     };
 
@@ -81,7 +87,7 @@ export const SysAdminLoginClient: React.FC<SysAdminLoginClientProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentLocale, fallback]);
+  }, [currentLocale]);
 
   return (
     <LoginPageClient

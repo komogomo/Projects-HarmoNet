@@ -2,11 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { TriangleAlert, ChevronsUpDown } from 'lucide-react';
-import { useI18n } from '@/src/components/common/StaticI18nProvider';
+import { useI18n, useTenantStaticTranslations } from '@/src/components/common/StaticI18nProvider';
 import type { TenantResidenceItem, TenantResidenceMasterManagementProps } from './TenantResidenceMasterManagement.types';
 
 export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterManagementProps> = ({ tenantName, tenantId }) => {
-  const { currentLocale } = useI18n();
+  const { t } = useI18n();
+  useTenantStaticTranslations({ tenantId, apiPath: 't-admin-residences' });
+  useTenantStaticTranslations({ tenantId, apiPath: 't-admin-users' });
   const [residences, setResidences] = useState<TenantResidenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -18,7 +20,6 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
-  const [messages, setMessages] = useState<Record<string, string>>({});
 
   const loadResidences = async () => {
     setLoading(true);
@@ -38,7 +39,7 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
       };
 
       if (!data.ok || !Array.isArray(data.items)) {
-        setMessage({ type: 'error', text: data.message || 'tadmin.residences.error.listFailed' });
+        setMessage({ type: 'error', text: 'tadmin.residences.error.listFailed' });
         setResidences([]);
         return;
       }
@@ -56,66 +57,7 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
     void loadResidences();
   }, []);
 
-  useEffect(() => {
-    if (!tenantId) {
-      setMessages({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadMessages = async () => {
-      try {
-        const params = new URLSearchParams({ tenantId, lang: currentLocale });
-
-        const [residencesRes, usersRes] = await Promise.all([
-          fetch(`/api/tenant-static-translations/t-admin-residences?${params.toString()}`),
-          fetch(`/api/tenant-static-translations/t-admin-users?${params.toString()}`),
-        ]);
-
-        if (cancelled) return;
-
-        const merged: Record<string, string> = {};
-
-        const applyMessages = async (res: Response) => {
-          if (!res.ok) return;
-          const data = (await res.json().catch(() => ({}))) as {
-            messages?: Record<string, string>;
-          };
-          if (data && data.messages && typeof data.messages === 'object') {
-            for (const [key, value] of Object.entries(data.messages)) {
-              if (typeof value === 'string') {
-                merged[key] = value;
-              }
-            }
-          }
-        };
-
-        await Promise.all([applyMessages(usersRes), applyMessages(residencesRes)]);
-
-        setMessages(merged);
-      } catch {
-        if (!cancelled) {
-          setMessages({});
-        }
-      }
-    };
-
-    void loadMessages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, currentLocale]);
-
-  const resolveMessage = (key: string): string => {
-    const fromDb = messages[key];
-    const trimmed = typeof fromDb === 'string' ? fromDb.trim() : '';
-    if (trimmed.length > 0 && trimmed !== key) {
-      return trimmed;
-    }
-    return '';
-  };
+  const resolveMessage = (key: string): string => t(key);
 
   const handleEditClick = (item: TenantResidenceItem) => {
     setEditingResidenceId(item.id);
@@ -148,7 +90,11 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
 
       if (!res.ok || !data.ok) {
-        setMessage({ type: 'error', text: data.message || 'tadmin.residences.error.registerFailed' });
+        const messageKey =
+          typeof data?.message === 'string' && data.message.startsWith('tadmin.')
+            ? data.message
+            : 'tadmin.residences.error.registerFailed';
+        setMessage({ type: 'error', text: messageKey });
         return;
       }
 
@@ -177,7 +123,11 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
 
       if (!res.ok || !data.ok) {
-        setMessage({ type: 'error', text: data.message || 'tadmin.residences.error.updateFailed' });
+        const messageKey =
+          typeof data?.message === 'string' && data.message.startsWith('tadmin.')
+            ? data.message
+            : 'tadmin.residences.error.updateFailed';
+        setMessage({ type: 'error', text: messageKey });
         return;
       }
 
@@ -224,7 +174,11 @@ export const TenantResidenceMasterManagement: React.FC<TenantResidenceMasterMana
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string; errorCode?: string };
 
       if (!res.ok || !data.ok) {
-        setMessage({ type: 'error', text: data.message || 'tadmin.residences.error.deleteFailed' });
+        const messageKey =
+          typeof data?.message === 'string' && data.message.startsWith('tadmin.')
+            ? data.message
+            : 'tadmin.residences.error.deleteFailed';
+        setMessage({ type: 'error', text: messageKey });
         return;
       }
 

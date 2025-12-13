@@ -102,23 +102,6 @@ export const AuthCallbackHandler: React.FC = () => {
       }
     });
 
-    const exchangeCodeIfPresent = async () => {
-      if (!code) return;
-
-      try {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          completeFailure(error.message ?? 'exchange_code_failed');
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logError('auth.callback.fail.exchange_exception', {
-          message,
-        });
-        completeFailure(message);
-      }
-    };
-
     const verifyFromUrl = async () => {
       if (!tokenHash) {
         return;
@@ -141,7 +124,6 @@ export const AuthCallbackHandler: React.FC = () => {
       }
     };
 
-    void exchangeCodeIfPresent();
     void verifyFromUrl();
 
     const checkInitialSession = async () => {

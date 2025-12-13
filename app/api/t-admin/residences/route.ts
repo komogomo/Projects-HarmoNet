@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAdminApiContext, TenantAdminApiError } from '@/src/lib/auth/tenantAdminAuth';
 import { prisma } from '@/src/server/db/prisma';
+import { logError } from '@/src/lib/logging/log.util';
+
+const errorJson = (status: number, errorCode: string, messageKey: string) =>
+  NextResponse.json({ ok: false, errorCode, messageKey, message: messageKey }, { status });
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +17,10 @@ export async function GET(request: NextRequest) {
       .order('residence_code', { ascending: true });
 
     if (error) {
-      console.error('Tenant residences fetch error:', error);
-      return NextResponse.json({ ok: false, message: '住居番号一覧の取得に失敗しました。' }, { status: 500 });
+      logError('tadmin.residences.fetch_failed', {
+        errorMessage: (error as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.listFailed');
     }
 
     const result = (data ?? []).map((row: any) => ({
@@ -26,18 +32,20 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.residences.error.listFailed');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, errorCode: 'tenant_not_found', message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.residences.error.listFailed');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'forbidden', message: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.residences.error.listFailed');
       }
     }
 
-    console.error('Tenant residences GET unexpected error:', error);
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'サーバ内部エラーが発生しました。' }, { status: 500 });
+    logError('tadmin.residences.get.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.listFailed');
   }
 }
 
@@ -49,10 +57,7 @@ export async function POST(request: NextRequest) {
     const residenceCodeRaw = typeof body?.residenceCode === 'string' ? body.residenceCode.trim() : '';
 
     if (!residenceCodeRaw) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'VALIDATION_ERROR', message: '住居番号を入力してください。' },
-        { status: 400 },
-      );
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.residences.error.residenceCodeRequired');
     }
 
     const { data: existing, error: existingError } = await supabaseAdmin
@@ -63,15 +68,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingError) {
-      console.error('Tenant residences duplicate check error:', existingError);
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '重複チェックに失敗しました。' }, { status: 500 });
+      logError('tadmin.residences.duplicate_check_failed', {
+        errorMessage: (existingError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.registerFailed');
     }
 
     if (existing) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'CONFLICT', message: 'この住居番号は既に登録されています。' },
-        { status: 409 },
-      );
+      return errorJson(409, 'CONFLICT', 'tadmin.residences.error.registerFailed');
     }
 
     const { data: inserted, error: insertError } = await supabaseAdmin
@@ -81,8 +85,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !inserted) {
-      console.error('Tenant residences insert error:', insertError);
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '住居番号の登録に失敗しました。' }, { status: 500 });
+      logError('tadmin.residences.insert_failed', {
+        errorMessage: (insertError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.registerFailed');
     }
 
     return NextResponse.json(
@@ -98,18 +104,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.residences.error.registerFailed');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, errorCode: 'tenant_not_found', message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.residences.error.registerFailed');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'forbidden', message: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.residences.error.registerFailed');
       }
     }
 
-    console.error('Tenant residences POST unexpected error:', error);
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'サーバ内部エラーが発生しました。' }, { status: 500 });
+    logError('tadmin.residences.post.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.registerFailed');
   }
 }
 
@@ -122,10 +130,7 @@ export async function PUT(request: NextRequest) {
     const newResidenceCode = typeof body?.residenceCode === 'string' ? body.residenceCode.trim() : '';
 
     if (!residenceId || !newResidenceCode) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'VALIDATION_ERROR', message: '住居番号と対象行を指定してください。' },
-        { status: 400 },
-      );
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.residences.error.updateTargetNotSelected');
     }
 
     const existing = await prisma.tenant_residences.findFirst({
@@ -139,10 +144,7 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'NOT_FOUND', message: '指定された住居番号が見つかりません。' },
-        { status: 404 },
-      );
+      return errorJson(404, 'NOT_FOUND', 'tadmin.residences.error.updateTargetMissing');
     }
 
     const oldResidenceCode = existing.residence_code;
@@ -163,10 +165,7 @@ export async function PUT(request: NextRequest) {
     });
 
     if (conflict) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'CONFLICT', message: '同じ住居番号が既に登録されています。' },
-        { status: 409 },
-      );
+      return errorJson(409, 'CONFLICT', 'tadmin.residences.error.updateFailed');
     }
 
     await prisma.$transaction([
@@ -201,18 +200,20 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.residences.error.updateFailed');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, errorCode: 'tenant_not_found', message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.residences.error.updateFailed');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'forbidden', message: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.residences.error.updateFailed');
       }
     }
 
-    console.error('Tenant residences PUT unexpected error:', error);
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '住居番号の更新に失敗しました。' }, { status: 500 });
+    logError('tadmin.residences.put.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.updateFailed');
   }
 }
 
@@ -224,10 +225,7 @@ export async function DELETE(request: NextRequest) {
     const residenceId = typeof body?.residenceId === 'string' ? body.residenceId.trim() : '';
 
     if (!residenceId) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'VALIDATION_ERROR', message: '削除対象の住居番号を指定してください。' },
-        { status: 400 },
-      );
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.residences.error.deleteFailed');
     }
 
     const target = await prisma.tenant_residences.findFirst({
@@ -241,10 +239,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!target) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'NOT_FOUND', message: '指定された住居番号が見つかりません。' },
-        { status: 404 },
-      );
+      return errorJson(404, 'NOT_FOUND', 'tadmin.residences.error.updateTargetMissing');
     }
 
     const residenceCode = target.residence_code;
@@ -265,14 +260,7 @@ export async function DELETE(request: NextRequest) {
     ]);
 
     if (userCount > 0 || dutyCount > 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          errorCode: 'RESIDENCE_IN_USE',
-          message: 'この住居番号は利用中のため削除できません。',
-        },
-        { status: 400 },
-      );
+      return errorJson(400, 'RESIDENCE_IN_USE', 'tadmin.residences.error.deleteFailed');
     }
 
     await prisma.tenant_residences.delete({
@@ -283,17 +271,19 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.residences.error.deleteFailed');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, errorCode: 'tenant_not_found', message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.residences.error.deleteFailed');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'forbidden', message: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.residences.error.deleteFailed');
       }
     }
 
-    console.error('Tenant residences DELETE unexpected error:', error);
-    return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '住居番号の削除に失敗しました。' }, { status: 500 });
+    logError('tadmin.residences.delete.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return errorJson(500, 'INTERNAL_ERROR', 'tadmin.residences.error.deleteFailed');
   }
 }

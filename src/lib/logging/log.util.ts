@@ -30,6 +30,7 @@ const buildPayload = (level: LogLevel, event: string, context?: Record<string, u
 
 const emit = (level: LogLevel, event: string, context?: Record<string, unknown>): void => {
   if (!shouldLog(level, defaultLogConfig)) return;
+  if (typeof console === 'undefined') return;
 
   const payload = buildPayload(level, event, context);
   const json = JSON.stringify(payload);

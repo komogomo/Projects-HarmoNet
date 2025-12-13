@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStaticI18n } from '@/src/components/common/StaticI18nProvider/StaticI18nProvider';
 import { SysAdminTenantsConsole } from '@/src/components/sys-admin/SysAdminTenantsConsole/SysAdminTenantsConsole';
 
@@ -33,15 +33,6 @@ export const SysAdminTenantsPageClient: React.FC<SysAdminTenantsPageClientProps>
   testId = 'sys-admin-tenants-page',
 }) => {
   const { currentLocale } = useStaticI18n();
-
-  const fallback = useMemo<SysAdminTenantsPageClientMessages>(
-    () => ({
-      page_title: 'テナント管理コンソール',
-      tenants_load_error_title: 'テナント一覧の取得に失敗しました。',
-      tenants_load_error_description: '時間をおいて再度お試しください。',
-    }),
-    [],
-  );
 
   const [messages, setMessages] = useState<Record<string, string>>({});
 
@@ -84,7 +75,7 @@ export const SysAdminTenantsPageClient: React.FC<SysAdminTenantsPageClientProps>
     if (typeof fromDb === 'string' && fromDb.trim().length > 0) {
       return fromDb;
     }
-    return fallback[key];
+    return '';
   };
 
   if (hasLoadError) {

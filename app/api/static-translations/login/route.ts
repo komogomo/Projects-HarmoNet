@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
+import { logError } from '@/src/lib/logging/log.util';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,18 +26,18 @@ export async function GET(req: Request) {
           code: (error as any).code,
         };
 
-        console.error('[static-translations][login] Supabase error', debug);
+        logError('static-translations.login.read_failed', debug);
 
-        return NextResponse.json({ messages: {}, debug }, { status: 200 });
+        return NextResponse.json({ messages: {} }, { status: 200 });
       }
 
       const debug = {
         dataType: Array.isArray(data) ? 'array' : typeof data,
       };
 
-      console.error('[static-translations][login] Supabase returned non-array data', debug);
+      logError('static-translations.login.invalid_response', debug);
 
-      return NextResponse.json({ messages: {}, debug }, { status: 200 });
+      return NextResponse.json({ messages: {} }, { status: 200 });
     }
 
     const messages: Record<string, string> = {};
@@ -68,7 +69,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ messages });
   } catch (error) {
-    console.error('[static-translations][login] Unexpected error', error);
+    logError('static-translations.login.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });
   }
 }

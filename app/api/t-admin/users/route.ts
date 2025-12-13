@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAdminApiContext, TenantAdminApiError } from '@/src/lib/auth/tenantAdminAuth';
 import { sendTenantUserRegistrationEmail } from '@/src/server/services/TenantUserEmailService';
+import { logError, logWarn } from '@/src/lib/logging/log.util';
+
+const errorJson = (status: number, errorCode: string, messageKey: string) =>
+  NextResponse.json({ ok: false, errorCode, messageKey, message: messageKey }, { status });
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,8 +24,10 @@ export async function GET(request: NextRequest) {
       .eq('tenant_id', tenantId);
 
     if (usersError) {
-      console.error('Users fetch error:', usersError);
-      return NextResponse.json({ error: usersError.message }, { status: 500 });
+      logError('tadmin.users.fetch_failed', {
+        errorMessage: (usersError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     const userIds = usersData.map((u: any) => u.id);
@@ -34,8 +40,10 @@ export async function GET(request: NextRequest) {
       .in('user_id', userIds);
 
     if (rolesError) {
-      console.error('Roles data fetch error:', rolesError);
-      return NextResponse.json({ error: rolesError.message }, { status: 500 });
+      logError('tadmin.users.roles.fetch_failed', {
+        errorMessage: (rolesError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     // Create lookup map: user_id -> roleKeys[] (system_admin は除外)
@@ -101,13 +109,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.users.error.internal');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ error: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.users.error.internal');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.users.error.internal');
       }
     }
 
@@ -157,10 +165,7 @@ export async function POST(request: NextRequest) {
       !Array.isArray(roleKeys) ||
       roleKeys.length === 0
     ) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' },
-        { status: 400 },
-      );
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.users.error.validation');
     }
 
     let targetUserId: string;
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingUserWithEmail) {
-      return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このメールアドレスは既に使用されています。' }, { status: 409 });
+      return errorJson(409, 'CONFLICT', 'tadmin.users.error.validation');
     }
 
     // Check for display name duplication (Public DB)
@@ -184,7 +189,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingUserWithDisplayName) {
-      return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このニックネームは既に使用されています。' }, { status: 409 });
+      return errorJson(409, 'CONFLICT', 'tadmin.users.error.validation');
     }
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -213,8 +218,10 @@ export async function POST(request: NextRequest) {
         const foundAuthUser = authUsers?.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
 
         if (listError || !foundAuthUser) {
-          console.error("Create user error and not found in public/auth users:", createError);
-          return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'ユーザーの作成または検索に失敗しました。' }, { status: 500 });
+          logError('tadmin.users.create.orphaned_auth_user_not_found', {
+            errorMessage: (createError as any)?.message ?? 'unknown',
+          });
+          return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
         }
 
         targetUserId = foundAuthUser.id;
@@ -245,8 +252,10 @@ export async function POST(request: NextRequest) {
       });
 
     if (usersError) {
-      console.error("Users upsert error:", usersError);
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'usersテーブルの更新に失敗しました。' }, { status: 500 });
+      logError('tadmin.users.upsert_failed', {
+        errorMessage: (usersError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     // 3. Upsert user_roles (複数ロール対応, system_admin は除外)
@@ -265,10 +274,7 @@ export async function POST(request: NextRequest) {
       .in('role_key', normalizedRoleKeys);
 
     if (rolesFetchError || !roleRows || roleRows.length === 0) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' },
-        { status: 500 },
-      );
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     const insertUserRoles = roleRows.map((row: any) => ({
@@ -282,11 +288,10 @@ export async function POST(request: NextRequest) {
       .insert(insertUserRoles);
 
     if (userRolesError) {
-      console.error("User roles insert error:", userRolesError);
-      return NextResponse.json(
-        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール設定に失敗しました。' },
-        { status: 500 },
-      );
+      logError('tadmin.users.roles.insert_failed', {
+        errorMessage: (userRolesError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     // 4. Upsert user_tenants
@@ -298,7 +303,7 @@ export async function POST(request: NextRequest) {
       });
 
     if (userTenantsError) {
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'テナント所属設定に失敗しました。' }, { status: 500 });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     try {
@@ -308,20 +313,22 @@ export async function POST(request: NextRequest) {
         lastName,
       });
     } catch (emailError) {
-      console.error('Tenant user registration email send error:', emailError);
+      logError('tadmin.users.registration_email.send_failed', {
+        errorMessage: emailError instanceof Error ? emailError.message : String(emailError),
+      });
     }
 
-    return NextResponse.json({ ok: true, message: 'ユーザを登録しました。' });
+    return NextResponse.json({ ok: true, message: 'tadmin.users.create.success' });
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.users.error.internal');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.users.error.internal');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, message: 'Forbidden' }, { status: 403 });
+        return errorJson(403, 'forbidden', 'tadmin.users.error.internal');
       }
     }
 
@@ -374,10 +381,7 @@ export async function PUT(request: NextRequest) {
       !Array.isArray(roleKeys) ||
       roleKeys.length === 0
     ) {
-      return NextResponse.json(
-        { ok: false, errorCode: 'VALIDATION_ERROR', message: '入力内容を確認してください。' },
-        { status: 400 },
-      );
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.users.error.validation');
     }
 
     // Check for email duplication (Public DB)
@@ -389,7 +393,7 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (existingUserWithEmail) {
-      return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このメールアドレスは既に使用されています。' }, { status: 409 });
+      return errorJson(409, 'CONFLICT', 'tadmin.users.error.validation');
     }
 
     // Check for display name duplication (Public DB)
@@ -401,7 +405,7 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (existingUserWithDisplayName) {
-      return NextResponse.json({ ok: false, errorCode: 'CONFLICT', message: 'このニックネームは既に使用されています。' }, { status: 409 });
+      return errorJson(409, 'CONFLICT', 'tadmin.users.error.validation');
     }
 
     // Verify target user belongs to this tenant
@@ -415,7 +419,9 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
 
     if (targetCheckError) {
-      console.error('t-admin.users.update.user_tenants_check_error', targetCheckError);
+      logError('tadmin.users.update.user_tenants_check_error', {
+        errorMessage: (targetCheckError as any)?.message ?? 'unknown',
+      });
     }
 
     if (!targetUserTenant) {
@@ -427,10 +433,7 @@ export async function PUT(request: NextRequest) {
         .maybeSingle();
 
       if (targetUserError || !targetUser || (targetUser.tenant_id as string | null) !== tenantId) {
-        return NextResponse.json(
-          { ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' },
-          { status: 403 },
-        );
+        return errorJson(403, 'FORBIDDEN', 'tadmin.users.error.internal');
       }
 
       // users 側では同一テナント所属であることが確認できたので、欠落している user_tenants を自動修復する
@@ -441,7 +444,9 @@ export async function PUT(request: NextRequest) {
         .maybeSingle();
 
       if (repairError) {
-        console.error('t-admin.users.update.user_tenants_repair_error', repairError);
+        logError('tadmin.users.update.user_tenants_repair_error', {
+          errorMessage: (repairError as any)?.message ?? 'unknown',
+        });
         // 自動修復に失敗しても、以降の処理は継続する（users 側の所属は保証されているため）
       }
     }
@@ -465,8 +470,10 @@ export async function PUT(request: NextRequest) {
       });
 
       if (authUpdateError) {
-        console.error("Auth update error:", authUpdateError);
-        return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: '認証情報の更新に失敗しました。' + authUpdateError.message }, { status: 500 });
+        logError('tadmin.users.update.auth_update_failed', {
+          errorMessage: (authUpdateError as any)?.message ?? 'unknown',
+        });
+        return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
       }
     }
 
@@ -490,8 +497,10 @@ export async function PUT(request: NextRequest) {
       .eq('tenant_id', tenantId); // Ensure user belongs to this tenant
 
     if (usersError) {
-      console.error("Users update error:", usersError);
-      return NextResponse.json({ ok: false, errorCode: 'INTERNAL_ERROR', message: 'usersテーブルの更新に失敗しました。' }, { status: 500 });
+      logError('tadmin.users.update.public_users_failed', {
+        errorMessage: (usersError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     // 2. Update user_roles (複数ロール対応, system_admin は除外)
@@ -514,11 +523,10 @@ export async function PUT(request: NextRequest) {
       .eq('tenant_id', tenantId);
 
     if (existingUserRolesError) {
-      console.error('Existing user_roles fetch error:', existingUserRolesError);
-      return NextResponse.json(
-        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール情報の取得に失敗しました。' },
-        { status: 500 },
-      );
+      logError('tadmin.users.update.roles_fetch_failed', {
+        errorMessage: (existingUserRolesError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     const deletableRoleIds = (existingUserRoles ?? [])
@@ -545,10 +553,7 @@ export async function PUT(request: NextRequest) {
         .in('role_key', normalizedRoleKeys);
 
       if (rolesFetchError || !roleRows || roleRows.length === 0) {
-        return NextResponse.json(
-          { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロールが見つかりません。' },
-          { status: 500 },
-        );
+        return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
       }
 
       const insertUserRoles = roleRows.map((row: any) => ({
@@ -562,24 +567,21 @@ export async function PUT(request: NextRequest) {
         .insert(insertUserRoles);
 
       if (userRolesError) {
-        return NextResponse.json(
-          { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ロール更新に失敗しました。' },
-          { status: 500 },
-        );
+        return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
       }
     }
 
-    return NextResponse.json({ ok: true, message: 'ユーザ情報を更新しました。' });
+    return NextResponse.json({ ok: true, message: 'tadmin.users.update.success' });
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, errorCode: 'unauthorized', message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.users.error.internal');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.users.error.internal');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
+        return errorJson(403, 'FORBIDDEN', 'tadmin.users.error.internal');
       }
     }
 
@@ -595,7 +597,7 @@ export async function DELETE(request: NextRequest) {
     const { userId } = body;
 
     if (!userId) {
-      return NextResponse.json({ ok: false, message: 'User ID required' }, { status: 400 });
+      return errorJson(400, 'VALIDATION_ERROR', 'tadmin.users.error.validation');
     }
 
     // Verify target user belongs to this tenant
@@ -607,7 +609,7 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (targetCheckError || !targetUser) {
-      return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
+      return errorJson(403, 'FORBIDDEN', 'tadmin.users.error.internal');
     }
 
     // First, delete tenant-specific data
@@ -621,7 +623,7 @@ export async function DELETE(request: NextRequest) {
       .eq('tenant_id', tenantId);
 
     if (deleteError) {
-      return NextResponse.json({ ok: false, message: '削除に失敗しました。' }, { status: 500 });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     // Check if user belongs to other tenants
@@ -631,11 +633,10 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', userId);
 
     if (countError) {
-      console.error('user_tenants count error during delete:', countError);
-      return NextResponse.json(
-        { ok: false, errorCode: 'INTERNAL_ERROR', message: 'ユーザの削除に失敗しました。' },
-        { status: 500 },
-      );
+      logError('tadmin.users.delete.user_tenants_count_failed', {
+        errorMessage: (countError as any)?.message ?? 'unknown',
+      });
+      return errorJson(500, 'INTERNAL_ERROR', 'tadmin.users.error.internal');
     }
 
     if (count === 0) {
@@ -643,12 +644,15 @@ export async function DELETE(request: NextRequest) {
       const { error: usersDeleteError } = await supabaseAdmin.from('users').delete().eq('id', userId);
 
       if (usersDeleteError) {
-        console.error('Users hard delete error:', usersDeleteError);
+        logError('tadmin.users.delete.public_users_delete_failed', {
+          errorMessage: (usersDeleteError as any)?.message ?? 'unknown',
+        });
         // 代表的なケースとしては掲示板投稿など他テーブルからの参照が残っている
         return NextResponse.json(
           {
             ok: false,
             errorCode: 'RELATED_DATA_EXISTS',
+            messageKey: 'tadmin.users.error.relatedDataExists',
             message: 'tadmin.users.error.relatedDataExists',
           },
           { status: 409 },
@@ -658,21 +662,23 @@ export async function DELETE(request: NextRequest) {
       // auth 側に存在しないユーザもいるため、auth 削除エラーはログのみにとどめる
       const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
       if (authDeleteError) {
-        console.warn('Auth deleteUser error (ignored):', authDeleteError.message);
+        logWarn('tadmin.users.delete.auth_delete_ignored', {
+          errorMessage: (authDeleteError as any)?.message ?? 'unknown',
+        });
       }
     }
 
-    return NextResponse.json({ ok: true, message: 'ユーザを削除しました。' });
+    return NextResponse.json({ ok: true, message: 'tadmin.users.delete.success' });
   } catch (error) {
     if (error instanceof TenantAdminApiError) {
       if (error.code === 'unauthorized') {
-        return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+        return errorJson(401, 'unauthorized', 'tadmin.users.error.internal');
       }
       if (error.code === 'tenant_not_found') {
-        return NextResponse.json({ ok: false, message: 'Tenant not found' }, { status: 403 });
+        return errorJson(403, 'tenant_not_found', 'tadmin.users.error.internal');
       }
       if (error.code === 'forbidden') {
-        return NextResponse.json({ ok: false, errorCode: 'FORBIDDEN', message: 'このユーザを操作する権限がありません。' }, { status: 403 });
+        return errorJson(403, 'FORBIDDEN', 'tadmin.users.error.internal');
       }
     }
 

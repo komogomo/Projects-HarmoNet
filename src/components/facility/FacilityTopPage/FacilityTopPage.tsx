@@ -215,11 +215,11 @@ const FacilityTopPage: React.FC<FacilityTopPageProps> = ({
     if (!selectedFacility) return "";
 
     if (currentLocale === "en") {
-      return selectedUsageNotes.en || selectedUsageNotes.ja || "";
+      return selectedUsageNotes.en || "";
     }
 
     if (currentLocale === "zh") {
-      return selectedUsageNotes.zh || selectedUsageNotes.ja || "";
+      return selectedUsageNotes.zh || "";
     }
 
     return selectedUsageNotes.ja || "";

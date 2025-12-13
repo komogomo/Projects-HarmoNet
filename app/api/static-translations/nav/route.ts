@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
+import { logError } from '@/src/lib/logging/log.util';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +50,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ messages });
   } catch (error) {
-    console.error('[static-translations][nav] Unexpected error', error);
+    logError('static-translations.nav.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });
   }
 }

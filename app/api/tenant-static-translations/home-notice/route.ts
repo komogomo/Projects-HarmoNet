@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServiceRoleClient } from '@/src/lib/supabaseServiceRoleClient';
 import { TenantStaticTranslationService } from '@/src/server/services/translation/TenantStaticTranslationService';
+import { logError } from '@/src/lib/logging/log.util';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +36,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ screenKey, lang: langCode, messages });
   } catch (error) {
-    console.error('[tenant-static-translations][home-notice] Unexpected error', error);
+    logError('tenant-static-translations.home-notice.unexpected_error', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ errorCode: 'server_error' }, { status: 500 });
   }
 }
