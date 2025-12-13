@@ -242,28 +242,32 @@ export async function fetchAssigneeCandidates(
 export async function toggleDuty(params: ToggleDutyParams): Promise<{ cleanedOn: string | null }> {
   const { id, isDone } = params;
 
-  const nowIso = new Date().toISOString();
-  const payload: Record<string, unknown> = {
-    is_done: isDone,
-    cleaned_on: isDone ? nowIso : null,
-  };
-
   try {
-    const { data, error } = await supabase
-      .from('cleaning_duties')
-      .update(payload)
-      .eq('id', id)
-      .select('cleaned_on')
-      .maybeSingle();
+    const response = await fetch('/api/cleaning-duty/toggle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id, isDone }),
+    });
 
-    if (error) {
-      throw error;
+    const data = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      cleanedOn?: string | null;
+      errorCode?: string;
+    };
+
+    if (!response.ok || data?.ok !== true) {
+      logError('cleaningDuty.error', {
+        operation: 'toggleDuty',
+        dutyId: id,
+        errorCode: data?.errorCode,
+        status: response.status,
+      });
+      throw new Error(data?.errorCode || 'toggleDuty_failed');
     }
 
-    const cleanedOn =
-      data && (data as any).cleaned_on ? String((data as any).cleaned_on) : null;
-
-    return { cleanedOn };
+    return { cleanedOn: typeof data.cleanedOn === 'string' ? data.cleanedOn : null };
   } catch (error) {
     logError('cleaningDuty.error', {
       operation: 'toggleDuty',
