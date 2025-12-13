@@ -24,13 +24,54 @@ export const AuthCallbackHandler: React.FC = () => {
 
     const url = new URL(window.location.href);
     const searchParams = url.searchParams;
-    const nextPath = normalizeNextPath(searchParams.get('next'));
+    const readCookie = (name: string): string | null => {
+      try {
+        const parts = document.cookie.split(';').map((p) => p.trim());
+        for (const part of parts) {
+          if (!part.startsWith(`${name}=`)) continue;
+          return decodeURIComponent(part.slice(name.length + 1));
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
+    const clearCookie = (name: string) => {
+      const isHttps = window.location.protocol === 'https:';
+      document.cookie = [
+        `${name}=`,
+        'Path=/',
+        'Max-Age=0',
+        'SameSite=Lax',
+        isHttps ? 'Secure' : '',
+      ]
+        .filter(Boolean)
+        .join('; ');
+    };
+
+    const nextPathFromQuery = normalizeNextPath(searchParams.get('next'));
+    const nextPathFromCookie = normalizeNextPath(readCookie('hn_post_auth_next'));
+    const nextPath = nextPathFromQuery ?? nextPathFromCookie;
     const isSysAdminFlow = typeof nextPath === 'string' && nextPath.startsWith('/sys-admin');
+
+    const tokenHash = searchParams.get('token_hash');
+    const code = searchParams.get('code');
+
+    logInfo('auth.callback.url_inspect', {
+      hasCode: !!code,
+      hasTokenHash: !!tokenHash,
+      hasHash: typeof window.location.hash === 'string' && window.location.hash.length > 0,
+      nextPathSource: nextPathFromQuery ? 'query' : nextPathFromCookie ? 'cookie' : 'none',
+      isSysAdminFlow,
+    });
 
     const completeSuccess = () => {
       if (!mounted || handled) return;
       handled = true;
       logInfo('auth.callback.success');
+
+      clearCookie('hn_post_auth_next');
 
       router.replace(nextPath ?? '/home');
     };
@@ -41,11 +82,11 @@ export const AuthCallbackHandler: React.FC = () => {
       logError('auth.callback.fail.session', {
         reason,
       });
+
+      clearCookie('hn_post_auth_next');
       router.replace(isSysAdminFlow ? '/sys-admin/login?error=auth_failed' : '/login?error=auth_failed');
     };
 
-    const tokenHash = searchParams.get('token_hash');
-    const code = searchParams.get('code');
     const errorDescription = searchParams.get('error_description') ?? searchParams.get('error');
 
     if (errorDescription) {

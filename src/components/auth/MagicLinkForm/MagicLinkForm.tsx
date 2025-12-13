@@ -84,6 +84,34 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
 
       const targetRedirectTo = redirectTo ?? '/auth/callback';
 
+      const redirectUrl = (() => {
+        try {
+          return new URL(targetRedirectTo, 'http://local');
+        } catch {
+          return null;
+        }
+      })();
+
+      // Supabase が code/token_hash 等を付与するため、emailRedirectTo にクエリは含めない。
+      // （クエリ付きだとクラウド環境で付与に失敗し、/auth/callback 側で session が確立しないことがある）
+      const callbackPath = redirectUrl?.pathname ?? '/auth/callback';
+
+      // ログイン完了後に遷移したいパスは cookie に退避して /auth/callback で回収する。
+      const nextFromQuery = redirectUrl?.searchParams.get('next');
+      if (nextFromQuery && nextFromQuery.startsWith('/') && !nextFromQuery.startsWith('//')) {
+        const maxAgeSeconds = 10 * 60;
+        const isHttps = window.location.protocol === 'https:';
+        document.cookie = [
+          `hn_post_auth_next=${encodeURIComponent(nextFromQuery)}`,
+          'Path=/',
+          `Max-Age=${maxAgeSeconds}`,
+          'SameSite=Lax',
+          isHttps ? 'Secure' : '',
+        ]
+          .filter(Boolean)
+          .join('; ');
+      }
+
       const currentOrigin = window.location.origin;
       const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
       const origin = (() => {
@@ -138,7 +166,7 @@ export const MagicLinkForm: React.FC<MagicLinkFormProps> = ({
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${origin}${targetRedirectTo}`,
+          emailRedirectTo: `${origin}${callbackPath}`,
         },
       });
 
