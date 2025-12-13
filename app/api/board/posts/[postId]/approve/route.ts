@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/src/lib/supabaseServerClient";
 import { logError, logInfo, logWarn } from "@/src/lib/logging/log.util";
 import { prisma } from "@/src/server/db/prisma";
 import { getActiveTenantIdsForUser } from "@/src/server/tenant/getActiveTenantIdsForUser";
+import { sendBoardApprovalCompletedToAuthorEmail } from "@/src/server/services/email/BoardApprovalCompletedToAuthorEmailService";
 
 interface ApprovePostRouteContext {
   params?:
@@ -159,52 +160,81 @@ export async function POST(req: Request, context: ApprovePostRouteContext) {
       return NextResponse.json({ errorCode: "invalid_state" }, { status: 400 });
     }
 
-    // すでに承認済みであれば重複行を作らない（count(distinct approver) のため必須ではないがログを抑制）
-    const existing = await prisma.board_approval_logs.findFirst({
-      where: {
-        tenant_id: tenantId,
-        post_id: postId,
-        approver_id: appUser.id,
-        action: "approve",
-      },
-      select: {
-        id: true,
-      },
-    });
+    const { approvalCount, hasApprovedByCurrentUser, shouldSendApprovalCompletedEmail } =
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM board_posts
+          WHERE id = ${postId} AND tenant_id = ${tenantId}
+          FOR UPDATE
+        `;
 
-    if (!existing) {
-      await prisma.board_approval_logs.create({
-        data: {
-          tenant_id: tenantId,
-          post_id: postId,
-          approver_id: appUser.id,
-          action: "approve",
-          comment: "", // 現WSではコメント入力UIなしのため空文字で登録
-        },
+        // すでに承認済みであれば重複行を作らない
+        const existing = await tx.board_approval_logs.findFirst({
+          where: {
+            tenant_id: tenantId,
+            post_id: postId,
+            approver_id: appUser.id,
+            action: "approve",
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!existing) {
+          await tx.board_approval_logs.create({
+            data: {
+              tenant_id: tenantId,
+              post_id: postId,
+              approver_id: appUser.id,
+              action: "approve",
+              comment: "", // 現WSではコメント入力UIなしのため空文字で登録
+            },
+          });
+        }
+
+        const approvals = await tx.board_approval_logs.findMany({
+          where: {
+            tenant_id: tenantId,
+            post_id: postId,
+            action: "approve",
+          },
+          select: {
+            approver_id: true,
+          },
+        });
+
+        const uniqueApproverIds = Array.from(
+          new Set(
+            approvals
+              .map((row) => row.approver_id)
+              .filter((id): id is string => typeof id === "string"),
+          ),
+        );
+
+        const nextApprovalCount = uniqueApproverIds.length;
+        const nextHasApprovedByCurrentUser = uniqueApproverIds.includes(appUser.id as string);
+
+        return {
+          approvalCount: nextApprovalCount,
+          hasApprovedByCurrentUser: nextHasApprovedByCurrentUser,
+          shouldSendApprovalCompletedEmail: !existing && nextApprovalCount === 2,
+        };
+      });
+
+    if (shouldSendApprovalCompletedEmail) {
+      void sendBoardApprovalCompletedToAuthorEmail({
+        tenantId,
+        postId,
+      }).catch((error) => {
+        logError("board.post.approve.approval_completed_email_failed", {
+          tenantId,
+          postId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
       });
     }
-
-    const approvals = await prisma.board_approval_logs.findMany({
-      where: {
-        tenant_id: tenantId,
-        post_id: postId,
-        action: "approve",
-      },
-      select: {
-        approver_id: true,
-      },
-    });
-
-    const uniqueApproverIds = Array.from(
-      new Set(
-        approvals
-          .map((row) => row.approver_id)
-          .filter((id): id is string => typeof id === "string"),
-      ),
-    );
-
-    const approvalCount = uniqueApproverIds.length;
-    const hasApprovedByCurrentUser = uniqueApproverIds.includes(appUser.id as string);
 
     logInfo("board.post.approve.success", {
       tenantId,
