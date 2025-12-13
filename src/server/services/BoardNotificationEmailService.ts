@@ -1,5 +1,9 @@
 import { prisma } from '@/src/server/db/prisma';
 import { logInfo, logError } from '@/src/lib/logging/log.util';
+import { sendEmail } from '@/src/server/services/SesEmailService';
+import {
+  buildBoardManagementPostPublishedEmailTemplate,
+} from '@/src/server/services/email/templates/boardManagementPostPublished';
 
 interface SendBoardNotificationEmailsParams {
   tenantId: string;
@@ -12,6 +16,19 @@ export async function sendBoardNotificationEmailsForPost(
   const { tenantId, postId } = params;
 
   try {
+    const baseUrl = process.env.APP_BASE_URL;
+    if (!baseUrl) {
+      logError('board.notifications.email.misconfigured', {
+        tenantId,
+        postId,
+        reason: 'APP_BASE_URL is not set',
+      });
+      return;
+    }
+
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+    const boardPostUrl = `${normalizedBaseUrl}/board/${postId}`;
+
     const post: any = await prisma.board_posts.findFirst({
       where: {
         id: postId,
@@ -37,6 +54,11 @@ export async function sendBoardNotificationEmailsForPost(
           select: {
             category_key: true,
             category_name: true,
+          },
+        },
+        tenant: {
+          select: {
+            tenant_name: true,
           },
         },
       },
@@ -81,22 +103,40 @@ export async function sendBoardNotificationEmailsForPost(
       return;
     }
 
-    const subject = '【HarmoNet】管理組合から新しいお知らせが投稿されました';
+    const template = buildBoardManagementPostPublishedEmailTemplate({
+      tenantName: post.tenant?.tenant_name ?? null,
+      postTitle: post.title,
+      categoryName: post.category?.category_name ?? null,
+      boardPostUrl,
+    });
 
-    const createdAtIso = post.created_at instanceof Date ? post.created_at.toISOString() : String(post.created_at);
+    logInfo('board.notifications.email.send_start', {
+      tenantId,
+      postId,
+      recipientCount: recipientEmails.length,
+    });
 
-    for (const email of recipientEmails) {
-      logInfo('board.notifications.email.debug_send', {
-        tenantId,
-        postId,
-        email,
-        subject,
-        categoryKey: post.category?.category_key ?? null,
-        categoryName: post.category?.category_name ?? null,
-        title: post.title,
-        createdAt: createdAtIso,
-      });
+    for (const to of recipientEmails) {
+      try {
+        await sendEmail({
+          to,
+          subject: template.subject,
+          text: template.text,
+        });
+      } catch (error) {
+        logError('board.notifications.email.send_failed', {
+          tenantId,
+          postId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
+
+    logInfo('board.notifications.email.send_completed', {
+      tenantId,
+      postId,
+      recipientCount: recipientEmails.length,
+    });
   } catch (error) {
     logError('board.notifications.email.unexpected_error', {
       tenantId,

@@ -155,18 +155,16 @@ export async function POST(req: Request, context: PublishPostRouteContext) {
     });
 
     // 公開時に通知メールを送信
-    try {
-      await sendBoardNotificationEmailsForPost({
-        tenantId,
-        postId,
-      });
-    } catch (error) {
+    void sendBoardNotificationEmailsForPost({
+      tenantId,
+      postId,
+    }).catch((error) => {
       logError("board.post.publish.notification_error", {
         tenantId,
         postId,
         errorMessage: error instanceof Error ? error.message : String(error),
       });
-    }
+    });
 
     logInfo("board.post.publish.success", {
       tenantId,
